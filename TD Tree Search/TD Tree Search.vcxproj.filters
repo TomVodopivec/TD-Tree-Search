@@ -13,5 +13,189 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="Source Files\tools">
+      <UniqueIdentifier>{20766527-5ac4-4458-940b-d333f034bf87}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\tests">
+      <UniqueIdentifier>{e6a0b911-37d6-4433-97b0-bcaee339adcb}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\players">
+      <UniqueIdentifier>{1f8882c7-f952-4b5f-b72a-56ebfd84d3ab}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\optimizers">
+      <UniqueIdentifier>{6e594467-7e00-4d69-88e2-8a7c63cdab27}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\games">
+      <UniqueIdentifier>{88065764-159b-40dd-b8dc-f32ec06c084c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\core">
+      <UniqueIdentifier>{371a0aed-f6f3-426e-8f90-3ab218d2b2ae}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\games">
+      <UniqueIdentifier>{406b153a-8e0b-4ef9-b064-cc91114504f2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\tests">
+      <UniqueIdentifier>{df3a162f-85ba-4216-8e36-54809452d42a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\core">
+      <UniqueIdentifier>{3d6151fa-45bb-4a79-bea7-1e92aaa066b2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\optimizers">
+      <UniqueIdentifier>{41e2b70e-fb95-49bd-8dac-495317ff489b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\tools">
+      <UniqueIdentifier>{6ac8d659-0f09-4933-90c8-b0d742918567}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\players">
+      <UniqueIdentifier>{bc96d5a9-ca8c-4d99-8767-5875875cd66e}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Source\tools\Support_GetCPUTime.hpp">
+      <Filter>Header Files\tools</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\tools\Support_InputFile.hpp">
+      <Filter>Header Files\tools</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\tools\Support_MultiPrint.hpp">
+      <Filter>Header Files\tools</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\tools\Tom_Sample_Storage.hpp">
+      <Filter>Header Files\tools</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\main.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\players\Player_AI_Simple.hpp">
+      <Filter>Header Files\players</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\players\Player_AI_UCT.hpp">
+      <Filter>Header Files\players</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\players\Player_AI_UCT_AMAF.hpp">
+      <Filter>Header Files\players</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\players\Player_AI_UCT_RAVE.hpp">
+      <Filter>Header Files\players</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\players\Player_AI_UCT_Reinforce.hpp">
+      <Filter>Header Files\players</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\players\Player_AI_UCT_TomTest.hpp">
+      <Filter>Header Files\players</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\optimizers\Tom_Lrp.hpp">
+      <Filter>Header Files\optimizers</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\games\Game_ConnectFour.hpp">
+      <Filter>Header Files\games</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\games\Game_Gomoku.hpp">
+      <Filter>Header Files\games</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\games\Game_Hex.hpp">
+      <Filter>Header Files\games</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\games\Game_TicTacToe.hpp">
+      <Filter>Header Files\games</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\core\Game_Engine.hpp">
+      <Filter>Header Files\core</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\core\Game_Interface.hpp">
+      <Filter>Header Files\core</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\core\Player_Engine.hpp">
+      <Filter>Header Files\core</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\tests\Tests_Old.hpp">
+      <Filter>Header Files\tests</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\tests\Tests_TDUCT.hpp">
+      <Filter>Header Files\tests</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\tools\Support_get_median_torben.hpp">
+      <Filter>Header Files\tools</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\tools\Support_get_median_quickselect.hpp">
+      <Filter>Header Files\tools</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\tests\Tests_Includes.hpp">
+      <Filter>Header Files\tests</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\players\Player_AI_TDUCT.hpp">
+      <Filter>Header Files\players</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\tests\Tests_TDMCTS.hpp">
+      <Filter>Header Files\tests</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="Source\tools\Support_GetCPUTime.cpp">
+      <Filter>Source Files\tools</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\tools\Support_InputFile.cpp">
+      <Filter>Source Files\tools</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\tools\Support_MultiPrint.cpp">
+      <Filter>Source Files\tools</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\main.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\players\Player_AI_Simple.cpp">
+      <Filter>Source Files\players</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\players\Player_AI_UCT.cpp">
+      <Filter>Source Files\players</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\players\Player_AI_UCT_AMAF.cpp">
+      <Filter>Source Files\players</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\players\Player_AI_UCT_RAVE.cpp">
+      <Filter>Source Files\players</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\players\Player_AI_UCT_Reinforce.cpp">
+      <Filter>Source Files\players</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\players\Player_AI_UCT_TomTest.cpp">
+      <Filter>Source Files\players</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\optimizers\Tom_Lrp.cpp">
+      <Filter>Source Files\optimizers</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\games\Game_ConnectFour.cpp">
+      <Filter>Source Files\games</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\games\Game_Gomoku.cpp">
+      <Filter>Source Files\games</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\games\Game_Hex.cpp">
+      <Filter>Source Files\games</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\games\Game_TicTacToe.cpp">
+      <Filter>Source Files\games</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\core\Game_Engine.cpp">
+      <Filter>Source Files\core</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\core\Game_Interface.cpp">
+      <Filter>Source Files\core</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\core\Player_Engine.cpp">
+      <Filter>Source Files\core</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\tests\Tests_Old.cpp">
+      <Filter>Source Files\tests</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\tests\Tests_TDUCT.cpp">
+      <Filter>Source Files\tests</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\players\Player_AI_TDUCT.cpp">
+      <Filter>Source Files\players</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\tests\Tests_TDMCTS.cpp">
+      <Filter>Source Files\tests</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

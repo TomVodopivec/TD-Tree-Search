@@ -10,6 +10,58 @@
       <Platform>Win32</Platform>
     </ProjectConfiguration>
   </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Source\core\Game_Engine.hpp" />
+    <ClInclude Include="Source\core\Game_Interface.hpp" />
+    <ClInclude Include="Source\core\Player_Engine.hpp" />
+    <ClInclude Include="Source\games\Game_ConnectFour.hpp" />
+    <ClInclude Include="Source\games\Game_Gomoku.hpp" />
+    <ClInclude Include="Source\games\Game_Hex.hpp" />
+    <ClInclude Include="Source\games\Game_TicTacToe.hpp" />
+    <ClInclude Include="Source\main.hpp" />
+    <ClInclude Include="Source\optimizers\Tom_Lrp.hpp" />
+    <ClInclude Include="Source\players\Player_AI_Simple.hpp" />
+    <ClInclude Include="Source\players\Player_AI_TDUCT.hpp" />
+    <ClInclude Include="Source\players\Player_AI_UCT.hpp" />
+    <ClInclude Include="Source\players\Player_AI_UCT_AMAF.hpp" />
+    <ClInclude Include="Source\players\Player_AI_UCT_RAVE.hpp" />
+    <ClInclude Include="Source\players\Player_AI_UCT_Reinforce.hpp" />
+    <ClInclude Include="Source\players\Player_AI_UCT_TomTest.hpp" />
+    <ClInclude Include="Source\tests\Tests_Includes.hpp" />
+    <ClInclude Include="Source\tests\Tests_Old.hpp" />
+    <ClInclude Include="Source\tests\Tests_TDUCT.hpp" />
+    <ClInclude Include="Source\tests\Tests_TDMCTS.hpp" />
+    <ClInclude Include="Source\tools\Support_GetCPUTime.hpp" />
+    <ClInclude Include="Source\tools\Support_get_median_quickselect.hpp" />
+    <ClInclude Include="Source\tools\Support_get_median_torben.hpp" />
+    <ClInclude Include="Source\tools\Support_InputFile.hpp" />
+    <ClInclude Include="Source\tools\Support_MultiPrint.hpp" />
+    <ClInclude Include="Source\tools\Tom_Sample_Storage.hpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="Source\core\Game_Engine.cpp" />
+    <ClCompile Include="Source\core\Game_Interface.cpp" />
+    <ClCompile Include="Source\core\Player_Engine.cpp" />
+    <ClCompile Include="Source\games\Game_ConnectFour.cpp" />
+    <ClCompile Include="Source\games\Game_Gomoku.cpp" />
+    <ClCompile Include="Source\games\Game_Hex.cpp" />
+    <ClCompile Include="Source\games\Game_TicTacToe.cpp" />
+    <ClCompile Include="Source\main.cpp" />
+    <ClCompile Include="Source\optimizers\Tom_Lrp.cpp" />
+    <ClCompile Include="Source\players\Player_AI_Simple.cpp" />
+    <ClCompile Include="Source\players\Player_AI_TDUCT.cpp" />
+    <ClCompile Include="Source\players\Player_AI_UCT.cpp" />
+    <ClCompile Include="Source\players\Player_AI_UCT_AMAF.cpp" />
+    <ClCompile Include="Source\players\Player_AI_UCT_RAVE.cpp" />
+    <ClCompile Include="Source\players\Player_AI_UCT_Reinforce.cpp" />
+    <ClCompile Include="Source\players\Player_AI_UCT_TomTest.cpp" />
+    <ClCompile Include="Source\tests\Tests_Old.cpp" />
+    <ClCompile Include="Source\tests\Tests_TDUCT.cpp" />
+    <ClCompile Include="Source\tests\Tests_TDMCTS.cpp" />
+    <ClCompile Include="Source\tools\Support_GetCPUTime.cpp" />
+    <ClCompile Include="Source\tools\Support_InputFile.cpp" />
+    <ClCompile Include="Source\tools\Support_MultiPrint.cpp" />
+  </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{16D3C405-DC4A-48EA-8CBB-CFA830808D35}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
@@ -75,8 +127,6 @@
       <OptimizeReferences>true</OptimizeReferences>
     </Link>
   </ItemDefinitionGroup>
-  <ItemGroup>
-  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

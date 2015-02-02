@@ -21,8 +21,8 @@ namespace Tests_Old
 		playerUCT2->UCT_param_C = 0.7 / (2 * sqrt(2));
 
 		//testing
-		unsigned int tmpr = (unsigned int)time(NULL);
-		srand(tmpr);
+		//unsigned int tmpr = (unsigned int)time(NULL);
+		//srand(tmpr);
 		//srand(1362238250);
 		double cpu_time = getCPUTime();
 		//gomoku->Simulate_Output_Game();
@@ -34,7 +34,7 @@ namespace Tests_Old
 		//gomoku->Simulate_Human_Game();
 		cpu_time = getCPUTime() - cpu_time;
 		printf("Runtime: %9.3f s\n", cpu_time);
-		printf("%d\n", tmpr);
+		//printf("%d\n", tmpr);
 
 	}
 
@@ -343,7 +343,7 @@ namespace Tests_Old
 		//results storage
 		Tom_Sample_Storage<double>* score_history = new Tom_Sample_Storage<double>(num_LRP_iterations);
 
-		srand((unsigned int)time(NULL));
+		//srand((unsigned int)time(NULL));
 		double cpu_time = getCPUTime();
 
 		//calculate exponential time constant
@@ -579,7 +579,7 @@ namespace Tests_Old
 		//results storage
 		Tom_Sample_Storage<double>* score_history = new Tom_Sample_Storage<double>(num_LRP_iterations);
 
-		srand((unsigned int)time(NULL));
+		//srand((unsigned int)time(NULL));
 		double cpu_time = getCPUTime();
 
 		//calculate exponential time constant
@@ -753,7 +753,7 @@ namespace Tests_Old
 		//results storage
 		Tom_Sample_Storage<double>* score_history = new Tom_Sample_Storage<double>(num_LRP_iterations);
 
-		srand((unsigned int)time(NULL));
+		//srand((unsigned int)time(NULL));
 		double cpu_time = getCPUTime();
 
 		//calculate exponential time constant
@@ -907,7 +907,7 @@ namespace Tests_Old
 		((Player_AI_UCT*)players[0])->UCT_param_C = start_c1;
 		((Player_AI_UCT*)players[1])->UCT_param_C = start_c2;
 
-		srand((unsigned int)time(NULL));
+		//srand((unsigned int)time(NULL));
 		double cpu_time = getCPUTime();
 
 		//calculate exponential time constant
@@ -1038,7 +1038,7 @@ namespace Tests_Old
 		((Player_AI_UCT*)players[0])->UCT_param_C = start_c1;
 		((Player_AI_UCT*)players[1])->UCT_param_C = start_c2;
 
-		srand((unsigned int)time(NULL));
+		//srand((unsigned int)time(NULL));
 		double cpu_time = getCPUTime();
 
 		printf("LRP_test_linearDW()\n");
@@ -1164,7 +1164,7 @@ namespace Tests_Old
 		((Player_AI_UCT*)players[0])->UCT_param_C = start_c1;
 		((Player_AI_UCT*)players[1])->UCT_param_C = start_c2;
 
-		srand((unsigned int)time(NULL));
+		//srand((unsigned int)time(NULL));
 		double cpu_time = getCPUTime();
 
 		printf("LRP_test_basic()\n");
@@ -1283,7 +1283,7 @@ namespace Tests_Old
 		//playerUCT->UCT_param_C = 1.0 / (2*sqrt(2));
 		playerUCT_RAVE->RAVE_param_V = 15.0;
 
-		srand((unsigned int)time(NULL));
+		//srand((unsigned int)time(NULL));
 
 
 		//Player_Engine* tmpPlayer;
@@ -1480,7 +1480,7 @@ namespace Tests_Old
 		playerUCT1->UCT_param_IterNum = 100;
 		//playerUCT1->UCT_param_C = 1.0 / (2*sqrt(2));
 
-		srand((unsigned int)time(NULL));
+		//srand((unsigned int)time(NULL));
 		ticTac->Simulate_Output_Game();
 	}
 
@@ -1501,8 +1501,8 @@ namespace Tests_Old
 		playerUCT2->UCT_param_C = 1.0 / (2 * sqrt(2));
 
 		//testing
-		unsigned int tmpr = (unsigned int)time(NULL);
-		srand(tmpr);
+		//unsigned int tmpr = (unsigned int)time(NULL);
+		//srand(tmpr);
 		//srand(1362238250);
 
 		//gomoku->Simulate_Output_Game();
@@ -1514,7 +1514,7 @@ namespace Tests_Old
 		gomoku->Simulate_Output_Game();
 		//gomoku->Simulate_Human_Game();
 
-		printf("%d\n", tmpr);
+		//printf("%d\n", tmpr);
 
 	}
 
@@ -1542,7 +1542,7 @@ namespace Tests_Old
 		//playerUCT2->UCT_param_C = 1.0 / (2*sqrt(2));
 
 		//testing
-		srand((unsigned int)time(NULL));
+		//srand((unsigned int)time(NULL));
 		//srand(3);
 
 		double cpu_time = getCPUTime();

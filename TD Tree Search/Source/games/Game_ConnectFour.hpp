@@ -33,7 +33,7 @@ public:
 	int  Human_Move_Translate(int human_move);
 	
 	//public procedures - debug and visualization
-	void Output_Board_State();
+	void Output_Board_State(char* printLinePrefix = "");
 
 protected:
 	//private procedures

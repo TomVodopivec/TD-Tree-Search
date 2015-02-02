@@ -8,6 +8,7 @@ Game_ConnectFour::Game_ConnectFour(Game_Engine* source_game)
 	//game definition
 	game_name = "ConnectFour";
 	is_deterministic = true;
+	is_episodic = true;
 
 	//call initialization procedures
 	if(source_game == TOMGAME_ENGINE_CONSTRUCTOR_NO_COPY)
@@ -158,7 +159,7 @@ int Game_ConnectFour::Human_Move_Translate(int human_move)
 /**
 Output current game state to standard output.
 */
-void Game_ConnectFour::Output_Board_State()
+void Game_ConnectFour::Output_Board_State(char* printLinePrefix)
 {	
 	int piecePosition;
 	

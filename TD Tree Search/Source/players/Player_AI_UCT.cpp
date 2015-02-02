@@ -215,7 +215,10 @@ int Player_AI_UCT::UCT()
 			i = UCT_param_IterNum;	//end the simulations loop
 		}
 
+
 		//DEBUG
+		//if (this->player_number == 1)
+		//	gmp->Print("%5d   %4.2f\n", this->UCT_param_IterNum, (UCTroot->rewards / UCTroot->visits));
 #if(TOMPLAYER_AI_UCT_VISUALIZE_LEVEL_UCT)
 		printf("\nSim num %2d     score",i);
 		for(int t = 0; t < game->number_players; t++)

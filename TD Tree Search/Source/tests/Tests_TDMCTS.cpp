@@ -3,6 +3,301 @@
 namespace Tests_TDMCTS
 {
 
+	void main()
+	{
+		//Tests_TDMCTS::UnitTest_RandomWalk();
+
+		//Tests_TDMCTS::UnitTest_PlayerRL();
+
+		//Tests_TDMCTS::UnitTest_Two_PlayerRL();
+		
+		//Tests_TDMCTS::Fixed_Play_Testing();
+
+		Tests_TDMCTS::UnitTest_PlayerRL_singleMove();
+
+	}
+
+	void UnitTest_PlayerRL_singleMove()
+	{
+		//declaration
+		Game_Engine* game = new Game_RandomWalk();
+		//Player_Engine* player[] = { new Player_AI_UCT(game) };
+		//Player_Engine* player[] = { new Player_Random(game) };
+		Player_Engine* player[] = { new Player_AI_RL(game) };
+		game->players = player;
+
+		//init
+		player[0]->Reset();
+		player[0]->player_number = 0;
+		game->Game_Reset();
+
+		player[0]->Output_Settings();
+		//get single move
+		(game->players[game->current_player])->Get_Move();
+
+		//final check
+		player[0]->Reset();
+	}
+
+	void UnitTest_Two_PlayerRL()
+	{
+		//declaration
+		Game_Engine* game = new Game_TicTacToe();
+		//Player_Engine* players[] = { new Player_AI_UCT(game), new Player_AI_UCT(game) };
+		Player_Engine* players[] = { new Player_AI_UCT(game), new Player_AI_RL(game) };
+		game->players = players;
+
+		//test #3
+		players[0]->Reset();
+		players[1]->Reset();
+		players[1]->Output_Settings();
+		((Player_AI_UCT*)(players[0]))->UCT_param_IterNum = 100;
+		((Player_AI_RL*)(players[1]))->par_num_episodes = 100;
+		game->Simulate_Output_Game();
+		players[0]->Reset();
+		players[1]->Reset();
+	}
+
+	void UnitTest_PlayerRL()
+	{
+		//declaration
+		Game_Engine* game = new Game_RandomWalk();
+		//Player_Engine* player[] = { new Player_AI_UCT(game) };
+		//Player_Engine* player[] = { new Player_Random(game) };
+		Player_Engine* player[] = { new Player_AI_RL(game) };
+		game->players = player;
+
+		//test #1
+		player[0]->Reset();
+		player[0]->player_number = 0;
+		game->Game_Reset();
+		game->Simulate_Output_Game();
+		player[0]->Reset();
+
+		////test #2
+		//((Player_AI_RL*)player[0])->config_control_policy = Player_AI_RL::CONTROL_POLICIES::CONTROL_UCB;
+		//((Player_AI_RL*)player[0])->config_policy_evaluation = Player_AI_RL::EVALUATION_TYPES::EVALUATION_WATKINS_Q_LAMBDA;
+		//((Player_AI_RL*)player[0])->config_transpositions = Game_Engine::TRANSPOSITION_TYPES::TRANSPOSITIONS_DISABLED;
+		//((Player_AI_RL*)player[0])->config_onlineUpdates = 0;
+		//((Player_AI_RL*)player[0])->config_nonEpisodicTasks_updateInterval = 200;
+		//((Player_AI_RL*)player[0])->config_num_new_nodes_per_episode = 10;
+		//((Player_AI_RL*)player[0])->config_opponent_alignment = Player_AI_RL::OPPONENT_ALIGNMENTS::OPPONENT_COOPERATIVE;
+		//((Player_AI_RL*)player[0])->config_opponent_policy = Player_AI_RL::OPPONENT_POLICIES::OPPONENT_SELFPLAY;
+		//((Player_AI_RL*)player[0])->config_trace_type = Player_AI_RL::Q_TRACE_TYPES::Q_TRACE_ACCUMULATING;
+		//((Player_AI_RL*)player[0])->config_rollout_assumption = Player_AI_RL::ROLLOUT_ASSUMPTIONS::ROLLOUT_NODE_ASSUME_INITIAL_VALUE;
+		//((Player_AI_RL*)player[0])->par_egreedy_e = 0.35;
+		//((Player_AI_RL*)player[0])->par_ucb_c = 0.35;
+		//((Player_AI_RL*)player[0])->par_gamma = 0.875;
+		//((Player_AI_RL*)player[0])->par_td_alpha = 0.175;
+		//((Player_AI_RL*)player[0])->par_td_lambda = 0.564;
+		//((Player_AI_RL*)player[0])->par_td_initVal = 0.475;
+		//((Player_AI_RL*)player[0])->par_initNormMin = 1;
+		//((Player_AI_RL*)player[0])->par_initNormMax = -1;
+		//((Player_AI_RL*)player[0])->par_num_episodes = 50;
+		//((Player_AI_RL*)player[0])->memory_limit = (double)2.0 * (1 << 30);
+		//player[0]->Apply_Settings();
+
+		//game->maximum_plys = 30;
+		//game->param_score_draw = -5.0;
+		//game->param_score_win = 0.5;
+		//game->param_score_lose = -5.0;
+		//((Game_RandomWalk*)game)->param_score_step = -1.0;
+		//game->Settings_Apply_Changes();
+
+		//game->Game_Reset();
+		//game->Simulate_Output_Game();
+		//game->Game_Reset();
+		//player[0]->Reset();
+	}
+
+	void UnitTest_RandomWalk()
+	{
+		Game_Engine* walk = new Game_RandomWalk();
+		Player_Engine* player[] = { new Player_Human(walk) };
+		walk->players = player;
+
+		player[0]->Reset();
+		player[0]->player_number = 0;	//assign player number (must be in same order as in array player[]; must recode this better in new version)
+		walk->Game_Reset();
+		walk->Simulate_Output_Game();
+	}
+
+	void Fixed_Play_Testing(double input_param1, double input_param2)
+	{
+
+		//--- SET GAME AND PLAYERS HERE ---//
+
+		//Game_Engine* game = new Game_ConnectFour();
+		//Game_Engine* game = new Game_Gomoku();
+		Game_Engine* game = new Game_TicTacToe();
+		//Game_Engine* game = new Game_Hex();
+
+		////variable board size
+		//if(input_param1 > 0){
+		//	game->board_length = (int)input_param1;
+		//	game->board_height = (int)input_param1;
+		//	game->board_size = game->board_length * game->board_height;
+		//	game->maximum_allowed_moves = game->board_size;
+		//	game->maximum_plys = game->board_size;
+		//	game->Settings_Apply_Changes();
+		//}
+
+		Player_Engine* players[2];
+
+		Player_AI_UCT* opponent = new Player_AI_UCT(game);
+		//Player_AI_UCT* benchmarkOpponent = new Player_AI_UCT(game);
+
+		//Player_AI_UCT* evaluated = new Player_AI_UCT(game);
+		Player_AI_RL* evaluated = new Player_AI_RL(game);
+		Player_AI_TDUCT* benchmarkEvaluated = new Player_AI_TDUCT(game);
+
+		//Player_AI_UCT_TomTest* evaluated = new Player_AI_UCT_TomTest();
+		//Player_AI_UCT_TomTest* benchmarkEvaluated = new Player_AI_UCT_TomTest();
+
+		//--- pre-init (no need to change this) ---//
+
+		Tom_Function_Approximator* funcApp1 = new Tom_Function_Approximator();
+		funcApp1->Initialize();
+		funcApp1->num_results = TOMPLAYER_AI_UCT_TOMTEST_FUNC_APPROX_NUM_PARAMS;
+		funcApp1->Settings_Apply_New();
+
+		//evaluated->Func_App_UCT_Params = funcApp1;
+		evaluated->game = game;
+		benchmarkEvaluated->Func_App_UCT_Params = funcApp1;
+		benchmarkEvaluated->game = game;
+
+		//evaluated->Initialize();
+		benchmarkEvaluated->Initialize();
+		//evaluated->Output_Log_Level_Create_Headers();
+
+		//--- SET BENCHMARK PARAMETERS HERE ---//
+
+		int repeats = 20000;
+		//1000000, 95% confidence that true value deviates less by 0.1%
+		//200000,  95% confidence that true value deviates less by 0.3%
+		//20000,   95% confidence that true value deviates less by 1%
+		//5000,    95% confidence that true value deviates less by 2%
+		//1200,    95% confidence that true value deviates less by 4%
+
+		int eval_player_position = 1;			//which player to test: 0 or 1; works only for two-player games
+		int benchmark_same_player = 0;
+		//0 - disabled (default)
+		//1 - benchmark "opponent" vs "opponent"
+		//2 - benchmark "evaluated" vs "evaluated"
+		int human_opponent_override = 0;
+		//0 - disabled (default)
+		//1 - replace opponent AI player with human input and output game state after every move
+		int display_output_game = 0;	//display single output game regardless of human or AI opponent
+		int measure_time_per_move = 0;	//output time per move for each player at end of evaluation procedure
+		int output_interval_repeats = (int)(sqrt(repeats));	//output interval of average values from evaluation function (0 = disabled)
+		//int output_interval_repeats = 0;
+
+		//--- SET PLAYERS PARAMETERS HERE ---//
+
+		////opponent->UCT_param_IterNum = (int)input_param1;
+		opponent->UCT_param_IterNum = 100;
+		//opponent->UCT_param_C = 0.2;
+		////evaluated->UCT_param_IterNum = (int)input_param1;
+		////evaluated->UCT_param_IterNum = (int)input_param2;
+		//evaluated->UCT_param_IterNum = 100;
+		//evaluated->UCT_param_C = 0.2;//0.5/sqrt(2);
+
+		//2015.01.26 Player_AI_RL first tests
+		evaluated->par_num_episodes = 100;
+
+
+
+		//////2014_12_19 TTT 10iter UCT vs TDUCT ~ 41% win rate TDUCT as P2
+		//opponent->UCT_param_IterNum = 10;
+		//opponent->UCT_param_C = 0.2;
+		//evaluated->UCT_param_IterNum = 10;
+		//evaluated->UCT_param_C = 0.0119;
+		//evaluated->QVALUE_param_scoreWeight = 0.7900;
+		//evaluated->QVALUE_param_alpha = 1.9152;
+		//evaluated->QVALUE_param_gamma = 0.2351;
+		//evaluated->QVALUE_param_lambda = 1.4491;
+		//evaluated->QVALUE_param_initVal = 0.0;
+
+		//---execute testing---//
+
+		//benchmarkOpponent->UCT_param_IterNum = opponent->UCT_param_IterNum;
+		//benchmarkOpponent->UCT_param_C = opponent->UCT_param_C;
+		//benchmarkEvaluated->UCT_param_IterNum = evaluated->UCT_param_IterNum;
+		//benchmarkEvaluated->UCT_param_C = evaluated->UCT_param_C;
+		////TODO copy all new Qval params to benchmarkEvaluated
+
+		players[1 - eval_player_position] = opponent;
+		players[eval_player_position] = evaluated;
+
+		//setup result storage
+		Tom_Sample_Storage<double>* score[2];
+
+		gmp->Print("Fixed_Play_Testing()\n");
+		gmp->Print("%s repeats %d (input params %3.3lf %3.3lf)\n", (game->game_name).c_str(), repeats, input_param1, input_param2);
+		//		gmp->Print("Evaluated player %d sim %d\n", eval_player_position + 1, evaluated->UCT_param_IterNum);
+
+
+		if ((display_output_game == 0) && (human_opponent_override == 0)){
+
+			gmp->Print("Opponent C %3.3f, sim %d\n", opponent->UCT_param_C, opponent->UCT_param_IterNum);
+			gmp->Print("\n");
+			gmp->Print("        Score[%%]\n");
+			gmp->Print(" Repeats     Avg  Conf95     Dev Runtime[s]\n");
+
+			score[0] = new Tom_Sample_Storage<double>(repeats);
+			score[1] = new Tom_Sample_Storage<double>(repeats);
+
+			double cpu_time = getCPUTime();
+
+			if (benchmark_same_player == 0){
+				game->Evaluate_Players(1, repeats, -1, players, false, eval_player_position, score, output_interval_repeats, measure_time_per_move);
+			}
+			else if (benchmark_same_player == 1){
+				gmp->Print("! benchmark_same_player = opponent vs opponent !\n");
+				//players[eval_player_position] = benchmarkOpponent;
+				game->Evaluate_Players(1, repeats, -1, players, false, eval_player_position, score, output_interval_repeats, measure_time_per_move);
+			}
+			else if (benchmark_same_player == 2){
+				gmp->Print("! benchmark_same_player = evaluated vs evaluated !\n");
+				players[1 - eval_player_position] = benchmarkEvaluated;
+				game->Evaluate_Players(1, repeats, -1, players, false, eval_player_position, score, output_interval_repeats, measure_time_per_move);
+			}
+
+			cpu_time = getCPUTime() - cpu_time;
+
+			gmp->Print("%8d  %6.2f  %6.2f  %6.2f  %9.3f\n",
+				repeats,
+				score[eval_player_position]->avg * 100,
+				score[eval_player_position]->Calc_Confidence() * 100,
+				score[eval_player_position]->dev * 100,
+				cpu_time
+				);
+
+			delete(score[0]);
+			delete(score[1]);
+
+		}
+		else{
+
+			gmp->Print("! HUMAN Opponent !\n");
+			gmp->Print("\n");
+			if (human_opponent_override == 1)
+				players[1 - eval_player_position] = new Player_Human(game);
+			game->Simulate_Output_Game(players);
+			if (human_opponent_override == 1)
+				delete(players[1 - eval_player_position]);
+		}
+
+		gmp->Flush();
+
+		//gmp->Print("\n\nFixed_Play_Testing(): TotalRuntime: %9.3f s\n", cpu_time);
+		delete(game);
+		delete(opponent);
+		//delete(benchmarkOpponent);
+		delete(evaluated);
+		//delete(benchmarkEvaluated);
+	}
+
 	//Improved LRP search v1 - restart from kNN best average score after a batch of iterations
 	//kNN is weighted according to the number of repeated evaluations (num_repeats), evaluated sample can be set to a higher weight
 	void LRP_improved_v1(double* score_avg, double* score_avg_last10, double** last_param_val, bool force_setting_output, const int set_final_evaluations, double* avg_num_games, double* final_eval_score)
@@ -127,7 +422,7 @@ namespace Tests_TDMCTS
 		//results storage
 		Tom_Sample_Storage<double>* score_history = new Tom_Sample_Storage<double>(num_LRP_iterations + 1);
 
-		srand((unsigned int)time(NULL));
+		//srand((unsigned int)time(NULL));
 		double cpu_time = getCPUTime();
 		double cpu_time1;
 
@@ -562,179 +857,6 @@ namespace Tests_TDMCTS
 		delete(avg_score10);
 		for (int p = 0; p < num_LRP_params; p++)
 			delete(last_param[p]);
-	}
-
-	void Fixed_Play_Testing(double input_param1, double input_param2)
-	{
-
-		//--- SET GAME AND PLAYERS HERE ---//
-
-		//Game_Engine* game = new Game_ConnectFour();
-		//Game_Engine* game = new Game_Gomoku();
-		Game_Engine* game = new Game_TicTacToe();
-		//Game_Engine* game = new Game_Hex();
-
-		////variable board size
-		//if(input_param1 > 0){
-		//	game->board_length = (int)input_param1;
-		//	game->board_height = (int)input_param1;
-		//	game->board_size = game->board_length * game->board_height;
-		//	game->maximum_allowed_moves = game->board_size;
-		//	game->maximum_plys = game->board_size;
-		//	game->Settings_Apply_Changes();
-		//}
-
-		Player_Engine* players[2];
-
-		Player_AI_UCT* opponent = new Player_AI_UCT(game);
-		Player_AI_UCT* benchmarkOpponent = new Player_AI_UCT(game);
-
-		Player_AI_TDUCT* evaluated = new Player_AI_TDUCT();
-		Player_AI_TDUCT* benchmarkEvaluated = new Player_AI_TDUCT();
-
-		//Player_AI_UCT_TomTest* evaluated = new Player_AI_UCT_TomTest();
-		//Player_AI_UCT_TomTest* benchmarkEvaluated = new Player_AI_UCT_TomTest();
-
-		//--- pre-init (no need to change this) ---//
-
-		Tom_Function_Approximator* funcApp1 = new Tom_Function_Approximator();
-		funcApp1->Initialize();
-		funcApp1->num_results = TOMPLAYER_AI_UCT_TOMTEST_FUNC_APPROX_NUM_PARAMS;
-		funcApp1->Settings_Apply_New();
-
-		evaluated->Func_App_UCT_Params = funcApp1;
-		evaluated->game = game;
-		benchmarkEvaluated->Func_App_UCT_Params = funcApp1;
-		benchmarkEvaluated->game = game;
-
-		evaluated->Initialize();
-		benchmarkEvaluated->Initialize();
-		evaluated->Output_Log_Level_Create_Headers();
-
-		//--- SET BENCHMARK PARAMETERS HERE ---//
-
-		int repeats = 200000;
-		//1000000, 95% confidence that true value deviates less by 0.1%
-		//200000,  95% confidence that true value deviates less by 0.3%
-		//20000,   95% confidence that true value deviates less by 1%
-		//5000,    95% confidence that true value deviates less by 2%
-		//1200,    95% confidence that true value deviates less by 4%
-
-		int eval_player_position = 1;			//which player to test: 0 or 1; works only for two-player games
-		int benchmark_same_player = 0;
-		//0 - disabled (default)
-		//1 - benchmark "opponent" vs "opponent"
-		//2 - benchmark "evaluated" vs "evaluated"
-		int human_opponent_override = 0;
-		//0 - disabled (default)
-		//1 - replace opponent AI player with human input and output game state after every move
-		int display_output_game = 0;	//display single output game regardless of human or AI opponent
-		int measure_time_per_move = 0;	//output time per move for each player at end of evaluation procedure
-		int output_interval_repeats = (int)(sqrt(repeats));	//output interval of average values from evaluation function (0 = disabled)
-		//int output_interval_repeats = 0;
-
-		//--- SET PLAYERS PARAMETERS HERE ---//
-
-		//opponent->UCT_param_IterNum = (int)input_param1;
-		opponent->UCT_param_IterNum = 100;
-		opponent->UCT_param_C = 0.2;//0.5/sqrt(2);
-		//opponent->UCT_param_C = -0.08;
-
-		//evaluated->UCT_param_IterNum = (int)input_param1;
-		//evaluated->UCT_param_IterNum = (int)input_param2;
-		evaluated->UCT_param_IterNum = 100;
-		evaluated->UCT_param_C = 0.2;//0.5/sqrt(2);
-		//evaluated->UCT_param_C = -5.7522;		
-
-		////2014_12_19 TTT 10iter UCT vs TDUCT ~ 41% win rate TDUCT as P2
-		opponent->UCT_param_IterNum = 10;
-		opponent->UCT_param_C = 0.2;
-		evaluated->UCT_param_IterNum = 10;
-		evaluated->UCT_param_C = 0.0119;
-		evaluated->QVALUE_param_scoreWeight = 0.7900;
-		evaluated->QVALUE_param_alpha = 1.9152;
-		evaluated->QVALUE_param_gamma = 0.2351;
-		evaluated->QVALUE_param_lambda = 1.4491;
-		evaluated->QVALUE_param_initVal = 0.0;
-
-		//---execute testing---//
-
-		benchmarkOpponent->UCT_param_IterNum = opponent->UCT_param_IterNum;
-		benchmarkOpponent->UCT_param_C = opponent->UCT_param_C;
-		benchmarkEvaluated->UCT_param_IterNum = evaluated->UCT_param_IterNum;
-		benchmarkEvaluated->UCT_param_C = evaluated->UCT_param_C;
-		//TODO copy all new Qval params to benchmarkEvaluated
-
-		players[1 - eval_player_position] = opponent;
-		players[eval_player_position] = evaluated;
-
-		//setup result storage
-		Tom_Sample_Storage<double>* score[2];
-
-		gmp->Print("Fixed_Play_Testing()\n");
-		gmp->Print("%s repeats %d (input params %3.3lf %3.3lf)\n", (game->game_name).c_str(), repeats, input_param1, input_param2);
-		gmp->Print("Evaluated player %d sim %d\n", eval_player_position + 1, evaluated->UCT_param_IterNum);
-
-
-		if ((display_output_game == 0) && (human_opponent_override == 0)){
-
-			gmp->Print("Opponent C %3.3f, sim %d\n", opponent->UCT_param_C, opponent->UCT_param_IterNum);
-			gmp->Print("\n");
-			gmp->Print("        Score[%%]\n");
-			gmp->Print(" Repeats     Avg  Conf95     Dev Runtime[s]\n");
-
-			score[0] = new Tom_Sample_Storage<double>(repeats);
-			score[1] = new Tom_Sample_Storage<double>(repeats);
-
-			double cpu_time = getCPUTime();
-
-			if (benchmark_same_player == 0){
-				game->Evaluate_Players(1, repeats, -1, players, false, eval_player_position, score, output_interval_repeats, measure_time_per_move);
-			}
-			else if (benchmark_same_player == 1){
-				gmp->Print("! benchmark_same_player = opponent vs opponent !\n");
-				players[eval_player_position] = benchmarkOpponent;
-				game->Evaluate_Players(1, repeats, -1, players, false, eval_player_position, score, output_interval_repeats, measure_time_per_move);
-			}
-			else if (benchmark_same_player == 2){
-				gmp->Print("! benchmark_same_player = evaluated vs evaluated !\n");
-				players[1 - eval_player_position] = benchmarkEvaluated;
-				game->Evaluate_Players(1, repeats, -1, players, false, eval_player_position, score, output_interval_repeats, measure_time_per_move);
-			}
-
-			cpu_time = getCPUTime() - cpu_time;
-
-			gmp->Print("%8d  %6.2f  %6.2f  %6.2f  %9.3f\n",
-				repeats,
-				score[eval_player_position]->avg * 100,
-				score[eval_player_position]->Calc_Confidence() * 100,
-				score[eval_player_position]->dev * 100,
-				cpu_time
-				);
-
-			delete(score[0]);
-			delete(score[1]);
-
-		}
-		else{
-
-			gmp->Print("! HUMAN Opponent !\n");
-			gmp->Print("\n");
-			if (human_opponent_override == 1)
-				players[1 - eval_player_position] = new Player_Human(game);
-			game->Simulate_Output_Game(players);
-			if (human_opponent_override == 1)
-				delete(players[1 - eval_player_position]);
-		}
-
-		gmp->Flush();
-
-		//gmp->Print("\n\nFixed_Play_Testing(): TotalRuntime: %9.3f s\n", cpu_time);
-		delete(game);
-		delete(opponent);
-		delete(benchmarkOpponent);
-		delete(evaluated);
-		delete(benchmarkEvaluated);
 	}
 
 }

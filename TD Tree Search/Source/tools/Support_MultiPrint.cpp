@@ -78,6 +78,7 @@ void MultiPrinter::Print(const char* format, ...)
 
 	vfprintf(stdout,format,vl);
 	if(print_also_to_file)
+
 		vfprintf(output_files[selected_file],format,vl2);
 
 	va_end(vl);

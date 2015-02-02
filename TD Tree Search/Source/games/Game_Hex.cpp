@@ -9,6 +9,7 @@ Game_Hex::Game_Hex(Game_Engine* source_game)
 	//game definition
 	game_name = "Hex";
 	is_deterministic = true;
+	is_episodic = true;
 
 	//call initialization procedures
 	if(source_game == TOMGAME_ENGINE_CONSTRUCTOR_NO_COPY)
@@ -272,7 +273,7 @@ int Game_Hex::Game_Dynamics(int selected_move)
 /**
 Board winning positions for Hex: checks for connected pieces from one side to the opposite
 */
-bool Game_Hex::Check_Game_Win(int selected_move)
+int Game_Hex::Check_Game_Win(int selected_move)
 {
 	////VALUES IN big_board_length
 	//0 - empty intersection
@@ -307,27 +308,27 @@ bool Game_Hex::Check_Game_Win(int selected_move)
 			for(int i = 0; i < 6; i++){
 				if(big_board_state[sosedje[i]] == 3)
 					//win
-					return true;
+					return 1;
 			} 
 			//no win
 			big_board_state[current] = 1;
 
 			Flood(current, 1, 2);
 
-			return false;
+			return 0;
 		}
 		else if(xb == (big_board_length-2)){
 			for(int i = 0; i < 6; i++){
 				if(big_board_state[sosedje[i]] == 2)
 					//win
-					return true;
+					return 1;
 			} 
 			//no win
 			big_board_state[current] = 1;
 			
 			Flood(current, 1, 3);
 
-			return false;
+			return 0;
 		}
 		else{
 			tempL=0;
@@ -341,7 +342,7 @@ bool Game_Hex::Check_Game_Win(int selected_move)
 			} 
 			if((tempL == 1) && (tempR == 1))
 				//win
-				return true;
+				return 1;
 			else{
 				//no win
 				big_board_state[current] = 1;
@@ -350,7 +351,7 @@ bool Game_Hex::Check_Game_Win(int selected_move)
 				else if(tempR == 1)
 					Flood(current, 1, 3);
 
-				return false;
+				return 0;
 			}
 		}
 	}
@@ -361,27 +362,27 @@ bool Game_Hex::Check_Game_Win(int selected_move)
 			for(int i = 0; i < 6; i++){
 				if(big_board_state[sosedje[i]] == -3)
 					//win
-					return true;
+					return 1;
 			} 
 			//no win
 			big_board_state[current] = -1;
 
 			Flood(current, -1, -2);
 
-			return false;
+			return 0;
 		}
 		else if(yb == big_board_height-2){
 			for(int i = 0; i < 6; i++){
 				if(big_board_state[sosedje[i]] == -2)
 					//win
-					return true;
+					return 1;
 			} 
 			//no win
 			big_board_state[current] = -1;
 			
 			Flood(current, -1, -3);
 
-			return false;
+			return 0;
 
 		}
 		else{
@@ -396,7 +397,7 @@ bool Game_Hex::Check_Game_Win(int selected_move)
 			} 
 			if((tempT == 1) && (tempB == 1))
 				//win
-				return true;
+				return 1;
 			else{
 				//no win
 				big_board_state[current] = -1;
@@ -405,7 +406,7 @@ bool Game_Hex::Check_Game_Win(int selected_move)
 				else if(tempB == 1)
 					Flood(current, -1, -3);
 
-				return false;
+				return 0;
 			}
 		}
 	}
@@ -434,7 +435,7 @@ int Game_Hex::Human_Move_Translate(int human_move)
 /**
 DEFAULT: Output current board (game) state to standard output.
 */
-void Game_Hex::Output_Board_State()
+void Game_Hex::Output_Board_State(char* printLinePrefix)
 {	
 	//Output_Board_State_Raw();
 	//return;

@@ -13,7 +13,7 @@ ISSUES: PRESERVING TREE CURRENTLY NOT IMPLEMENTED COMPLETLY
 
 //defines
 #define TOMPLAYER_AI_UCT_PARAM_NUMBER_ITERATIONS	1000
-#define TOMPLAYER_AI_UCT_PARAM_C					(1.0 / (2*sqrt(2)))
+#define TOMPLAYER_AI_UCT_PARAM_C					0.5	 //the correct value is 0.5, used from 26.1.2015 on 	//old value (1.0 / (2*sqrt(2)))
 #define TOMPLAYER_AI_UCT_PARAM_DEFAULT_MAX_PLAYS	(game->maximum_plys)
 #define TOMPLAYER_AI_UCT_PARAM_PRESERVE_TREE		false
 #define TOMPLAYER_AI_UCT_TREE_SIZE_LIMIT_GB			1.0

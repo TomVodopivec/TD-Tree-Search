@@ -10,6 +10,8 @@
 
 //include other
 
+#include "..\games\Game_RandomWalk.hpp"
+
 #include "..\games\Game_ConnectFour.hpp"
 #include "..\games\Game_Gomoku.hpp"
 #include "..\games\Game_TicTacToe.hpp"
@@ -24,6 +26,7 @@
 #include "..\players\Player_AI_UCT_RAVE.hpp"
 #include "..\players\Player_AI_UCT_TomTest.hpp"
 #include "..\players\Player_AI_TDUCT.hpp"
+#include "..\players\Player_AI_RL.hpp"
 
 #include "..\optimizers\Tom_Lrp.hpp"
 

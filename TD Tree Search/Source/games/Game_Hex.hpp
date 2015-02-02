@@ -36,7 +36,7 @@ public:
 	int Get_Next_Player(int);
 
 	//public procedures - debug and visualization
-	virtual void Output_Board_State();
+	virtual void Output_Board_State(char* printLinePrefix = "");
 	virtual void Output_Board_State_Raw();
 
 	//public variables - game settings
@@ -56,7 +56,7 @@ protected:
 	void Clear_Constants();
 	void Copy_Settings(Game_Engine* source_game);
 	int  Game_Dynamics(int selected_move);
-	bool Check_Game_Win(int position);
+	int  Check_Game_Win(int position);
 	void Flood(int position,const int oldValue,const int newValue);
 
 	//private procedures - support

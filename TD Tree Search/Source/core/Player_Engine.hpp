@@ -24,6 +24,7 @@ public:
 	Player_Engine(Game_Engine* = NULL, int = TOMPLAYER_PLAYER_NUMBER);
 
 	//virtual public procedures
+	virtual void Apply_Settings();
 	virtual void Reset()			{};
 	virtual void New_Game()			{};
 	virtual int  Get_Move()			= 0;
@@ -33,6 +34,7 @@ public:
 
 	//virtual public procedures - debug and visualization
 	virtual void Output()	{};
+	virtual void Output_Settings()	{};
 
 	//public procedures
 	void Reset_Settings(Game_Engine* = NULL);
@@ -61,6 +63,7 @@ protected:
 
 	//protected variables - object state
 	bool is_initialized;
+	bool is_allocated;
 
 };
 

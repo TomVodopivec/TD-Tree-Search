@@ -36,6 +36,15 @@ class Game_Engine
 //public procedures and variables
 public:
 
+	enum TRANSPOSITION_TYPES{
+		TRANSPOSITIONS_DISABLED,		// if states cannot be distinguished or state-space is too large, then a search tree is grown (default for UCT)
+		TRANSPOSITIONS_STATES,			// evaluate states V(s) <- TD
+		TRANSPOSITIONS_STATEACTIONS		// evaluate state-actions Q(s,a) <- SARSA / Q-learning
+	};
+
+	//constructor
+	Game_Engine();
+
 	//virtual public procedures - engine
 	virtual void Game_Reset()			= 0;
 	virtual void Game_New()				{ Game_Reset(); };
@@ -55,14 +64,22 @@ public:
 	int Get_Next_Player_MultiPlayer(int p);
 	int Get_Previous_Player_MultiPlayer(int p);
 
+	//virtual public variables - game state
+	virtual int HashKey_getNum(TRANSPOSITION_TYPES transpositions_type);
+	virtual int HashKey_getNumStates();
+	virtual int HashKey_getNumStateActions();
+	virtual int HashKey_get(TRANSPOSITION_TYPES transpositions_type, int action);
+	virtual int HashKey_getCurrentState();
+	virtual int HashKey_getCurrentStateAction(int action);
+
 	//virtual public procedures - debug and visualization
-	virtual void Output_Board_State();
+	virtual void Output_Board_State(char* printLinePrefix = "");
 	virtual void Output_Board_State_Raw();
 
 	//public procedures
 	void Settings_Apply_Changes();
 	void Settings_Reset();
-	void Make_Moves_List();
+	virtual void Make_Moves_List();
 	int  Select_Move(int serial_number);
 	int  Select_Move_Unsafe(int serial_number);
 	int  Select_Move_Random();
@@ -131,6 +148,12 @@ public:
 	//public variables - game definition
 	string game_name;
 	bool is_deterministic;
+	bool is_episodic;
+	bool revealsScoreInfo;
+	bool allows_transpositions;		//HashKeys functions for this game must be implemented, this means that states (or state-actions) must be identifiable and that the search space is reasonably large to fit in memory
+	double minScore;
+	double maxScore;
+
 
 	//public variables - external links
 	Player_Engine** players;
@@ -160,7 +183,8 @@ public:
 	int**	current_moves_list;
 	double* score;
 	int current_player;
-	bool game_ended;
+	int game_ended;
+	//bool* moves_list_valid; -> TO IMPLEMENT
 
 	//public variables - game history
 	int current_plys;
@@ -174,11 +198,13 @@ protected:
 	virtual void Clear_Memory()		{};
 	virtual void Copy_Settings(Game_Engine* source_game)	{};
 	virtual int  Game_Dynamics(int) = 0;	//rules for changing the game state, to be implemented for each game class
-	virtual bool Check_Game_End(int pos) {return Check_Game_End_TwoPlayer(pos);};	//default set to two-player game
-	bool Check_Game_End_SinglePlayer(int);
-	bool Check_Game_End_TwoPlayer(int);
-	bool Check_Game_End_MultiPlayer(int);
-	virtual bool Check_Game_Win(int) = 0;	//combinations for winning positions, to be implemented for each game class
+	virtual int  Check_Game_End(int pos) {return Check_Game_End_TwoPlayer(pos);};	//default set to two-player game
+	int Check_Game_End_SinglePlayer(int);
+	int Check_Game_End_TwoPlayer(int);
+	int Check_Game_End_MultiPlayer(int);
+	virtual int  Check_Game_Win(int) = 0;	//combinations for winning positions, to be implemented for each game class
+	virtual void Allow_All_Moves();
+	virtual void Disallow_All_Moves();
 	virtual int  Human_Move_Translate(int);
 
 	//protected procedures

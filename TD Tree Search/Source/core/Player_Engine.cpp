@@ -35,6 +35,14 @@ void Player_Engine::Initialize()
 	Reset();
 }
 
+//use this if settings are changed after initialization
+void Player_Engine::Apply_Settings()
+{
+	Clear_Memory();
+	Allocate_Memory();
+	Reset();
+}
+
 /**
 Reset settings and change to new game.
 

@@ -4,6 +4,18 @@
 //include header
 #include "Game_Engine.hpp"
 
+Game_Engine::Game_Engine()
+{
+	//default game definitions
+	game_name = "game_name not defined";
+	is_deterministic = false;
+	is_episodic = true;
+	allows_transpositions = false;	//if true, then all four HashKey() procedures must be redefined for that game
+	revealsScoreInfo = true;		//does the game reveal the minimally and maximally achievable score to the players (if true, these must be defined accordingly), currently default for games is "true" with min score = 0, max score = 1
+	minScore = 0.0;
+	maxScore = 1.0;
+}
+
 //allocate memory and initialize variables
 void Game_Engine::Initialize()
 {
@@ -118,7 +130,7 @@ void Game_Engine::Make_Moves_List()
 	int num_found_moves = 0;
 
 	//check all moves until all available have been found
-	for(int i = 0; i < board_size, num_found_moves < current_number_moves[current_player]; i++){
+	for (int i = 0; i < maximum_allowed_moves, num_found_moves < current_number_moves[current_player]; i++){
 
 		//memorize available moves
 		if(current_moves[current_player][i]){
@@ -213,7 +225,7 @@ int Game_Engine::Play_Move(int selected_move)
 {
 	
 	//check end game
-	if(game_ended){
+	if(this->game_ended != 0){
 
 		//illegal move selected
 		if(show_warnings){
@@ -225,9 +237,9 @@ int Game_Engine::Play_Move(int selected_move)
 	}else if( Validate_Move(selected_move) == false){
 
 		//illegal move selected
-		if(show_warnings){
+		//if(show_warnings){
 			gmp->Print("!!ERROR!! Game Engine: Play_Move(): wrong move, player %d, move %d, ply %d\n",current_player,selected_move,current_plys);
-		}
+		//}
 		return -1;
 
 	}else{
@@ -254,7 +266,15 @@ int Game_Engine::Play_Move_Unsafe(int selected_move)
 
 	//update history info
 	current_plys++;
-	history_moves[current_plys] = selected_move;
+	if (current_plys < maximum_plys + 1)
+		history_moves[current_plys] = selected_move;
+	else
+		gmp->Print("WARNING: Game_Engine::Play_Move_Unsafe() : current_plys exceeds allowed value : %d/%d\n", current_plys, maximum_plys);
+
+	////safety check
+	//if(this->game_ended == 0)
+	//	if(this->current_number_moves[this->current_player] <= 0)
+	//		gmp->Print("!!ERROR!! Game_Engine::Play_Move_Unsafe() : player %d has no allowed moves in a non-terminal position in ply %d\n", this->current_player, this->current_plys);
 
 	////--DEBUG
 	//if(feedback){
@@ -293,12 +313,11 @@ int Game_Engine::Get_Previous_Player_MultiPlayer(int p)
 		return (p-1);
 }
 
-
 /**
 DEFAULT: Check ending condition and set score
-@return TRUE if game ended, FALSE otherwise
+@return 1 if game ended, 0 otherwise
 */
-bool Game_Engine::Check_Game_End_SinglePlayer(int position)
+int Game_Engine::Check_Game_End_SinglePlayer(int position)
 {
 	
 	//game ends because of a win
@@ -306,22 +325,22 @@ bool Game_Engine::Check_Game_End_SinglePlayer(int position)
 
 		//works for one players only!
 		score[0] = param_score_win;
-		return true;
+		return 1;
 
 	//game ends because of ply limit
 	}else if(current_plys >= maximum_plys-1){ // -1 is because current_plays was not yet increased after last move
 
 		for(int i = 0; i < number_players; i++)
 			score[i] = param_score_draw;
-		return true;
+		return 1;
 	
 	//game does not end yet
 	}else
 
-		return false;
+		return 0;
 
 }
-bool Game_Engine::Check_Game_End_TwoPlayer(int position)
+int Game_Engine::Check_Game_End_TwoPlayer(int position)
 {
 	
 	//game ends because of a win
@@ -331,22 +350,22 @@ bool Game_Engine::Check_Game_End_TwoPlayer(int position)
 		score[current_player] = param_score_win;
 		score[1-current_player] = param_score_lose;
 
-		return true;
+		return 1;
 
 	//game ends because of ply limit
 	}else if(current_plys >= maximum_plys-1){ // -1 is because current_plays was not yet increased after last move
 
 		for(int i = 0; i < number_players; i++)
 			score[i] = param_score_draw;
-		return true;
+		return 1;
 	
 	//game does not end yet
 	}else
 
-		return false;
+		return 0;
 
 }
-bool Game_Engine::Check_Game_End_MultiPlayer(int position)
+int Game_Engine::Check_Game_End_MultiPlayer(int position)
 {
 	
 	//game ends because of a win
@@ -357,21 +376,40 @@ bool Game_Engine::Check_Game_End_MultiPlayer(int position)
 			score[i] = param_score_lose;
 		score[current_player] = param_score_win;
 
-		return true;
+		return 1;
 
 	//game ends because of ply limit
 	}else if(current_plys >= maximum_plys-1){ // -1 is because current_plays was not yet increased after last move
 
 		for(int i = 0; i < number_players; i++)
 			score[i] = param_score_draw;
-		return true;
+		return 1;
 	
 	//game does not end yet
 	}else
 
-		return false;
+		return 0;
 
 }
+
+void Game_Engine::Allow_All_Moves()
+{
+	for (int p = 0; p < number_players; p++){
+		for (int m = 0; m < maximum_allowed_moves; m++)
+			current_moves[p][m] = true;
+		current_number_moves[p] = maximum_allowed_moves;
+	}
+}
+
+void Game_Engine::Disallow_All_Moves()
+{
+	for (int p = 0; p < number_players; p++){
+		for (int m = 0; m < maximum_allowed_moves; m++)
+			current_moves[p][m] = false;
+		current_number_moves[p] = 0;
+	}
+}
+
 
 /**
 DEFAULT: procedure for two-valued human move input
@@ -417,20 +455,51 @@ int Game_Engine::Human_Move_Translate(int m)
 	return m;
 }
 
+int Game_Engine::HashKey_getNum(TRANSPOSITION_TYPES transpositions_type){
+	int num;
+	if (transpositions_type == TRANSPOSITIONS_DISABLED)
+		num = 0;
+	else if (transpositions_type == TRANSPOSITIONS_STATES)
+		num = HashKey_getNumStates();
+	else if (transpositions_type == TRANSPOSITIONS_STATEACTIONS)
+		num = HashKey_getNumStateActions();
+	return num;
+}
+
+int Game_Engine::HashKey_get(TRANSPOSITION_TYPES transpositions_type, int action){
+	int keyVal;
+	if (transpositions_type == TRANSPOSITIONS_DISABLED)
+		keyVal = - 1;
+	else if (transpositions_type == TRANSPOSITIONS_STATES)
+		keyVal = HashKey_getCurrentState();
+	else if (transpositions_type == TRANSPOSITIONS_STATEACTIONS)
+		keyVal = HashKey_getCurrentStateAction(action);
+	return keyVal;
+}
+
+int Game_Engine::HashKey_getNumStates()			{ return 0; }
+int Game_Engine::HashKey_getNumStateActions()	{ return 0; }
+int Game_Engine::HashKey_getCurrentState()					{ return -1; }
+int Game_Engine::HashKey_getCurrentStateAction(int action)	{ return -1; }
+
 /**
 DEFAULT: Output current board (game) state to standard output.
 */
-void Game_Engine::Output_Board_State()
+void Game_Engine::Output_Board_State(char* printLinePrefix)
 {	
 	//Output_Board_State_Raw();
 	//return;
 
-	gmp->Print("\n   ");
+
+	gmp->Print("\n");
+	gmp->Print("\n%s", printLinePrefix);
+	gmp->Print("   ");
 	for(int i = 0; i < board_length; i++)
 		gmp->Print(" %d",i+1);
-	gmp->Print("\n");
+	gmp->Print("\n%s", printLinePrefix);
 	for(int i = 0, k = 0; i < board_height; i++, k += board_length){
-		gmp->Print("\n%2d ",i+1);
+		gmp->Print("\n%s", printLinePrefix);
+		gmp->Print("%2d ",i+1);
 		for(int j = 0; j < board_length; j++){
 			if(k+j != history_moves[current_plys])
 				gmp->Print(" %c", output_board_lookup_char[board_state[k+j]+1]);
@@ -443,14 +512,14 @@ void Game_Engine::Output_Board_State()
 			}
 		}
 	}
-	gmp->Print("\n");
-
+	gmp->Print("\n%s", printLinePrefix);
+	gmp->Print("\n%s", printLinePrefix);
 #if(!TOM_DEBUG)
-	gmp->Print("\nPLY: %2d\n",current_plys);
+	gmp->Print("PLY: %2d",current_plys);
 #else
-	gmp->Print("\nPLY: %2d \t Last move: %d\n",current_plys,history_moves[current_plys]);
+	gmp->Print("PLY: %2d \t Last move: %d",current_plys,history_moves[current_plys]);
 #endif
-
+	gmp->Print("\n%s", printLinePrefix);
 	gmp->Print("\n");
 	fflush(stdout);
 }
@@ -601,11 +670,16 @@ void Game_Engine::Simulate_Output_Game(Player_Engine** players)
 	if(players == NULL)
 		return;
 	
+	//assign player IDs
+	for (int i = 0; i < number_players; i++){
+		players[i]->player_number = i;
+	}
+
 	//starting board state
 	Output_Board_State();
 
 	//play game until end is signaled
-	feedback = (int)game_ended;
+	feedback = game_ended;
 	while(feedback == 0){
 
 		//DEBUG
@@ -613,11 +687,11 @@ void Game_Engine::Simulate_Output_Game(Player_Engine** players)
 		//	gmp->Print("");
 
 		//play next move
-#if(TOM_DEBUG)
+//#if(TOM_DEBUG)
 		feedback = Play_Move( players[current_player]->Get_Move() );
-#else
-		feedback = Play_Move_Unsafe( players[current_player]->Get_Move() );
-#endif
+//#else
+//		feedback = Play_Move_Unsafe( players[current_player]->Get_Move() );
+//#endif
 		//output game state
 		Output_Board_State();
 
@@ -714,7 +788,7 @@ void Game_Engine::Learn_Players(int num_games, int output_depth, Player_Engine**
 			players[i]->New_Game();
 
 		//play game until end is signaled
-		feedback = (int)game_ended;
+		feedback = game_ended;
 		while(feedback == 0){
 
 			//current player selects next move
@@ -797,6 +871,11 @@ double Game_Engine::Evaluate_Players(int num_repeats, int num_games, int output_
 	if(players == NULL)
 		return -1;
 
+	//assign player IDs
+	for (int i = 0; i < number_players; i++){
+		players[i]->player_number = i;
+	}
+
 	//output depth 1
 	if(output_depth >= TOMGAME_OUTPUT_DEPTH1){		
 		gmp->Print("\nEval on game %s [%d repeats %d games]", game_name.c_str(), num_repeats, num_games);
@@ -856,7 +935,7 @@ double Game_Engine::Evaluate_Players(int num_repeats, int num_games, int output_
 				players[i]->New_Game();
 
 			//play game until end is signaled
-			feedback = (int)game_ended;
+			feedback = game_ended;
 			while(feedback == 0){
 
 				//measure move time
@@ -1303,8 +1382,6 @@ Player_Engine** Game_Engine::Validate_Players(Player_Engine** specified_players)
 //*/
 //void Game_Engine::benchmarkSeries(){
 //	
-//	srand((unsigned int)time(NULL));
-//
 //	Game_Engine game02(2);
 //	Game_Engine game05(5);
 //	Game_Engine game10(10);

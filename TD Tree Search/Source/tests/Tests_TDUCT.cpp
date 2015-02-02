@@ -607,7 +607,7 @@ namespace Tests_TDUCT
 		//results storage
 		Tom_Sample_Storage<double>* score_history = new Tom_Sample_Storage<double>(num_LRP_iterations + 1);
 
-		srand((unsigned int)time(NULL));
+		//srand((unsigned int)time(NULL));
 		double cpu_time = getCPUTime();
 		double cpu_time1;
 

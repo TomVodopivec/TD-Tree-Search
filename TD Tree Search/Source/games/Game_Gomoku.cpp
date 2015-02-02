@@ -8,6 +8,7 @@ Game_Gomoku::Game_Gomoku(Game_Engine* source_game)
 	//game definition
 	game_name = "Gomoku";
 	is_deterministic = true;
+	is_episodic = true;
 
 	//call initialization procedures
 	if(source_game == TOMGAME_ENGINE_CONSTRUCTOR_NO_COPY)
@@ -233,7 +234,7 @@ int Game_Gomoku::Game_Dynamics(int selected_move)
 /**
 Board winning positions for Gomoku: checks for a number (win_connected_pieces) of connected pieces from last placed piece (selected move) in horizontal, vertical and diagonal direction
 */
-bool Game_Gomoku::Check_Game_Win(int selected_move)
+int Game_Gomoku::Check_Game_Win(int selected_move)
 {
 	int x,y;
 	int xs,xe,ys,ye;
@@ -261,12 +262,12 @@ bool Game_Gomoku::Check_Game_Win(int selected_move)
 			connected = 1;
 	}
 	if(connected == win_connected_pieces)
-		return true;
+		return 1;
 	for(int i = x+1; i <= xe; i++){
 		if( board_state[rx+i] == (current_player+1) ){
 			connected++;
 			if(connected == win_connected_pieces)
-				return true;
+				return 1;
 		}else{
 			i = xe;	//break the loop, win combination not possible
 		}
@@ -281,13 +282,13 @@ bool Game_Gomoku::Check_Game_Win(int selected_move)
 			connected = 1;
 	}
 	if(connected == win_connected_pieces)
-		return true;
+		return 1;
 	for(int i = y+1, t = selected_move; i <= ye; i++){
 		t += board_length;
 		if( board_state[t] == (current_player+1) ){
 			connected++;
 			if(connected == win_connected_pieces)
-				return true;
+				return 1;
 		}else{
 			i = ye;	//break the loop, win combination not possible
 		}
@@ -302,13 +303,13 @@ bool Game_Gomoku::Check_Game_Win(int selected_move)
 			connected = 1;
 	}
 	if(connected == win_connected_pieces)
-		return true;
+		return 1;
 	for(int i = 1, t = selected_move; i <= min(xe-x, ye-y); i++){
 		t += (board_length+1);
 		if( board_state[t] == (current_player+1) ){
 			connected++;
 			if(connected == win_connected_pieces)
-				return true;
+				return 1;
 		}else{
 			i = ye;	//break the loop, win combination not possible
 		}
@@ -323,20 +324,20 @@ bool Game_Gomoku::Check_Game_Win(int selected_move)
 			connected = 1;
 	}
 	if(connected == win_connected_pieces)
-		return true;
+		return 1;
 	for(int i = 1, t = selected_move; i <= min(x-xs, ye-y); i++){
 		t += (board_length-1);
 		if( board_state[t] == (current_player+1) ){
 			connected++;
 			if(connected == win_connected_pieces)
-				return true;
+				return 1;
 		}else{
 			i = ye;	//break the loop, win combination not possible
 		}
 	}
 
 	//no win
-	return false;
+	return 0;
 
 }
 

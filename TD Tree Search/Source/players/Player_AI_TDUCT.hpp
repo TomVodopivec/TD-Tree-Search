@@ -1,8 +1,8 @@
 /**
-Testing of new AI Player by Tom Vodopivec
-Using UCT, AMAF, RAVE
+The TD-UCT player presented at CIG14 in Dortmund
+Author: Tom Vodopivec
 
-ISSUES: PRESERVING TREE CURRENTLY NOT IMPLEMENTED COMPLETLY
+ISSUES: PRESERVING TREE CURRENTLY NOT IMPLEMENTED
 */
 
 

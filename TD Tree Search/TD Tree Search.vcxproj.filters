@@ -129,6 +129,15 @@
     <ClInclude Include="Source\tests\Tests_TDMCTS.hpp">
       <Filter>Header Files\tests</Filter>
     </ClInclude>
+    <ClInclude Include="Source\games\Game_RandomWalk.hpp">
+      <Filter>Header Files\games</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\players\Player_AI_RL.hpp">
+      <Filter>Header Files\players</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\tools\Tool_HashTree.hpp">
+      <Filter>Header Files\tools</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Source\tools\Support_GetCPUTime.cpp">
@@ -196,6 +205,15 @@
     </ClCompile>
     <ClCompile Include="Source\tests\Tests_TDMCTS.cpp">
       <Filter>Source Files\tests</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\games\Game_RandomWalk.cpp">
+      <Filter>Source Files\games</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\players\Player_AI_RL.cpp">
+      <Filter>Source Files\players</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\tools\Tool_HashTree.cpp">
+      <Filter>Source Files\tools</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

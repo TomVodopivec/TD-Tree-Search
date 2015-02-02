@@ -1,6 +1,9 @@
 #ifndef _TOM_MAIN_
 #define _TOM_MAIN_
 
+//compiler warning ignores
+//#define _CRT_SECURE_NO_WARNINGS
+
 //includes
 #include "tests\Tests_Includes.hpp"
 #include "tests\Tests_Old.hpp"
@@ -34,7 +37,6 @@ using namespace std;
 #define ENVIRONMENT32
 #endif
 #endif
-
 
 
 //global variables

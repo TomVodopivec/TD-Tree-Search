@@ -9,11 +9,7 @@ void Main_Testing();
 void Main_Testing()
 {
 
-#if(!TOM_DEBUG)
-	srand((unsigned int)time(NULL));
-#endif
-
-	Tests_TDMCTS::Fixed_Play_Testing();
+	Tests_TDMCTS::main();
 
 
 
@@ -143,6 +139,15 @@ int main(int argc, char* argv[])
 #endif
 #endif
 
+	unsigned int randomSeed;
+#if(TOM_DEBUG == 1)
+	randomSeed = 0;
+#else
+	randomSeed = (unsigned int)time(NULL);
+#endif
+	srand(randomSeed);
+	gmp->Print("Program executed with random seed value %d\n\n", randomSeed);
+
 	//------------------------------------------------
 	//USER CODE
 	Main_Testing();
@@ -150,7 +155,7 @@ int main(int argc, char* argv[])
 	//------------------------------------------------
 	//MAIN EXIT PROCEDURE
 
-	printf("\n\n");
+	gmp->Print("\n\n");
 	//gmp->Close_Output_Files();
 	delete(gmp);
 

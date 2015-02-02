@@ -13,6 +13,7 @@
 //#include <ctime>
 //#include <cstring>
 //#include <cstdlib>
+#include <tuple>
 
 //include other
 #include "..\tools\Support_GetCPUTime.hpp"

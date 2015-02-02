@@ -54,7 +54,7 @@ protected:
 	void Clear_Constants();
 	void Copy_Settings(Game_Engine* source_game);
 	int  Game_Dynamics(int selected_move);
-	bool Check_Game_Win(int position);
+	int  Check_Game_Win(int position);
 
 	//private procedures - support
 	int  Human_Move_Translate(int human_move);

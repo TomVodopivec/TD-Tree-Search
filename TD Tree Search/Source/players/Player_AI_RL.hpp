@@ -28,16 +28,17 @@ public:
 	// ---- defines ---- //
 
 // WARNING: presets override some other configuration settings
-#define DEFAULT_PRESET_ALGORITHM	NO_PRESET_ALGORITHM
+#define DEFAULT_PRESET_ALGORITHM	ALGORITHM_TD_ZERO_ONPOLICY
 	enum PRESET_ALGORITHMS{
-		NO_PRESET_ALGORITHM,		// No preset used: all configuration options apply (none is overriden)
-		ALGORITHM_MC_ONPOLICY,		// On-policy Monte Carlo control: equals to offline replacing-traces TD(1) with alpha = (1/visits)
-		ALGORITHM_TD_ZERO_ONPOLICY,	// On-policy TD(0), SARSA(0)	
-		ALGORITHM_TD_LAMBDA,		// General TD(lambda), SARSA(lambda)
-		ALGORITHM_WATKINS_Q,		// Watkin's Q(lambda)
-		ALGORITHM_NAIVE_Q,			// Naive Q(lambda), a Watkin's Q-learning variant that does not zero eligibility traces for exploratory actions
-		//ALGORITHM_PENGS_Q,		// -- NOT IMPLEMENTED YET -- Peng's Q(lambda), a Q-learning variant that does not zero traces for all exploratory actions -> a merge between Watkin's Q(lambda) and SARSA(lambda)
-		ALGORITHM_UCT				// Upper Confidence Bounds applied to Trees, the most popular Monte Carlo Tree Search algorithm
+		NO_PRESET_ALGORITHM,				// No preset used: all configuration options apply (none is overriden)
+		ALGORITHM_FIRSTVISIT_MC_ONPOLICY,	// First-visit On-policy Monte Carlo control: equals to offline replacing-traces TD(1) with alpha = (1/visits), and equals to MCTS
+		ALGORITHM_EVERYVISIT_MC_ONPOLICY,	// Every-visit On-policy Monte Carlo control
+		ALGORITHM_TD_ZERO_ONPOLICY,			// On-policy TD(0), SARSA(0)	
+		ALGORITHM_TD_LAMBDA,				// General TD(lambda), SARSA(lambda)
+		ALGORITHM_ONLINE_WATKINS_Q,			// Watkin's Q(lambda), with online updates
+		ALGORITHM_ONLINE_NAIVE_Q,			// Naive Q(lambda), a Watkin's Q-learning variant that does not zero eligibility traces for exploratory actions, with online updates
+		//ALGORITHM_PENGS_Q,				// -- NOT IMPLEMENTED YET -- Peng's Q(lambda), a Q-learning variant that does not zero traces for all exploratory actions -> a merge between Watkin's Q(lambda) and SARSA(lambda)
+		ALGORITHM_UCT						// Upper Confidence Bounds applied to Trees, the most popular Monte Carlo Tree Search algorithm
 	};
 
 #define DEFAULT_CONTROL_POLICY		CONTROL_EGREEDY
@@ -52,7 +53,7 @@ public:
 		//EVALUATION_TDLAMBDA_OFFPOLICY_PENGS_Q,	// -- NOT IMPLEMENTED YET -- 
 	};
 
-#define DEFAULT_TD_UPDATE_TYPE	TD_UPDATE_OFFLINE
+#define DEFAULT_TD_UPDATE_TYPE	TD_UPDATE_ONLINE
 	enum TD_UPDATE_TYPES{
 		TD_UPDATE_ONLINE,			// update after each action, default for RL methods, equals to offline updates if transpositions are not used (it is useless if state-actions are not revisited multiple times in the same episode)
 		TD_UPDATE_OFFLINE,			// the original offline update (after the end of each episode), default for MC methods (also MCTS). Temporary stores changes to values while backuping and after all backups it updates the actual values.
@@ -129,12 +130,12 @@ public:
 #define DEFAULT_PAR_EPSILON		1.0
 #define DEFAULT_PAR_UCB_C		(sqrt(2.0))
 
-#define DEFAULT_PAR_TASK_GAMMA	1.0
-#define DEFAULT_PAR_TD_ALPHA	0.1
-#define DEFAULT_PAR_TD_LAMBDA	1.0
+#define DEFAULT_PAR_TASK_GAMMA	0.5
+#define DEFAULT_PAR_TD_ALPHA	0.5
+#define DEFAULT_PAR_TD_LAMBDA	0.0
 #define DEFAULT_PAR_TD_INITVAL	0.0
 
-#define DEFAULT_NUM_EPISODES_PER_MOVE		100		//computational resource limit: number of episodes per external move, set on -1 for no limit
+#define DEFAULT_NUM_EPISODES_PER_MOVE		10000		//computational resource limit: number of episodes per external move, set on -1 for no limit
 #define DEFAULT_SIMULATEDACTIONS_PER_MOVE	-1		//computational resource limit: number of simulated actions per external move, set on -1 for no limit
 #define DEFAULT_SIMULATED_HORIZON_LENGTH	-1		//horizon length for simulated episodes (number of actions per episode), set -1 for no limit
 
@@ -159,32 +160,42 @@ public:
 		GOAL_UNKNOWN		// to mark other player's actions whose purpose was unknown (used for opponent's move on external game)
 	};
 
+#define DEFAULT_NUMERICAL_CORRECTION	NUM_CORRECTION_DISABLED
+	enum NUMERCIAL_CORRECTIONS{
+		NUM_CORRECTION_DISABLED,
+		NUM_CORRECTION_ENABLED,
+		NUM_CORRECTION_ENABLED_WARNINGS,
+	};
 #define EPSILON_TIEBRAKER		((double)(0.000000001))
 #define SMALLEST_TDERROR		EPSILON_TIEBRAKER
 #define EPSILON_TRACE_CUTOFF	EPSILON_TIEBRAKER
 
 
 	//MCTS tree and optimization parameters
-#define DEFAULT_MEMORY_LIMIT_MB			1024
+#define DEFAULT_MEMORY_LIMIT_MB				1024
 #define OPTIMIZATION_INTERNAL_FORCE_COPY	false
 
 	//VISUALIZATION
-// the general switch to set the depth of output printing(0 - disabled, 1 - after each external move, 2 - after each episode, 3 - after each simulated move)
-#define	DEFAULT_OUTPUT_DEPTH	1
+
+#define	DEFAULT_OUTPUT_DEPTH	1	// the general switch to set the depth of output printing
+	// 0 - disabled
+	// 1 - after each external move
+	// 2 - after each episode
+	// 3 - after each simulated move
 
 //individual switches (printing depths for each individual visualization component, 0 - disabled)
 #define DEFAULT_OUTPUT_TRAJECTORY_DEPTH		0	// last followed trajectory (suggested max 2)
 #define DEFAULT_OUTPUT_MEMORY_DEPTH			2	// memorized structures (tree or hash table) (suggested max 2)
 #define DEFAULT_OUTPUT_SUMMARY_DEPTH		2	// stats summary (suggested max 2)
-#define DEFAULT_OUTPUT_CURRENTINFO_DEPTH	3	// current info (counters, root node value) (max 3)
+#define DEFAULT_OUTPUT_CURRENTINFO_DEPTH	0	// current info (counters, root node value) (max 3)
 #define DEFAULT_OUTPUT_SIMGAMESTATE_DEPTH	0	// current state/position of the simulated game (max 3)
 
-#define DEFAULT_OUTPUT_TDBACKUP_DEPTH		0	// TD backups, output_depth must be at least 2! (0 - disabled, 1 - print TD errors, 2 - output whole backups)
+#define DEFAULT_OUTPUT_TDBACKUP_DEPTH		2	// TD backups, output_depth must be at least 2! (0 - disabled, 1 - print TD errors, 2 - output whole backups)
 
 #define DEFAULT_OUTPUT_PAUSE_DEPTH			0	// pauses depth (waits for user to press key, 0 - disabled)
 
 //additional visualization settings
-#define DEFAULT_OUTPUT_MEMORY_TREEDEPTH		-1	// print depth of the memorzied tree (-1 - entire tree, 0 - root, 1 - root's children, ... )
+#define DEFAULT_OUTPUT_MEMORY_TREEDEPTH		3	// print depth of the memorzied tree (-1 - entire tree, 0 - root, 1 - root's children, ... )
 
 ////---- OLD DEFINES
 
@@ -277,6 +288,7 @@ public:
 	//void End_Game();
 
 	//public procedures - debug and visualization	
+	virtual void Output_Settings();
 	virtual void Output_Log_Level_Create_Headers();
 
 	//configuration variables
@@ -319,6 +331,7 @@ public:
 	
 	double config_memory_limitMB;	//ammount of available memory (memory budget) in MB
 
+	NUMERCIAL_CORRECTIONS	config_numerical_correction;
 
 	//public variables - tabular value function
 	HashTree* memory;
@@ -422,13 +435,12 @@ protected:
 	virtual double		RL_GetAssumedStateValue(HashTree::TreeNode* node);
 	virtual double		RL_GetBestActionValue(HashTree::TreeNode* node, REWARD_GOALS goal);
 
+	virtual double		NumericalErrorCorrection(double value);
 
 	//support procedures
 	virtual double		Neural_Network_Threshold_Function(double input_weight_sum, const int function_type = FUNC_APPROX_NEURAL_FUNC);
 
 	//private protected procedures - visualization and debug
-	virtual void		Output_Settings();
-	
 	virtual void		Output_ExternalMove_Level();
 	virtual void		Output_Episode_Level();
 	virtual void		Output_SimulatedMove_Level();
@@ -439,7 +451,7 @@ protected:
 	virtual void		Output_Memory(char* printLinePrefix = NULL);
 	virtual void		Output_Trajectory(char* printLinePrefix = NULL);
 
-	virtual void		Output_TDbackup1(int trajectory_index, double TDerror, double reward, double nextStateVal, double stateVal, int exploratory_move_trace_reset, char* printLinePrefix);
+	virtual void		Output_TDbackup1(int trajectory_index, double TDerror, double nextStateVal, double stateVal, int exploratory_move_trace_reset, char* printLinePrefix);
 	virtual void		Output_TDbackup21(int b, int trajectory_index, double trace, HashTree::TreeNode* backupNode, char* printLinePrefix);
 	virtual void		Output_TDbackup22(int b, HashTree::TreeNode* backupNode, double alpha, char* printLinePrefix);
 
@@ -453,6 +465,7 @@ protected:
 	//private protected variables
 	Game_Engine* internalGame;
 	Game_Engine* simulatedGame;
+	int numerical_correction_possible;
 
 	////feedback information from simulations
 	//UCTnode*	UCT_selected_leaf;

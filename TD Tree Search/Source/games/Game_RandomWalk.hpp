@@ -14,7 +14,7 @@ class Game_RandomWalk : public Game_Engine
 public:
 
 	//default values
-#define DEFAULT_LENGTH				7		//currently maximum 255 (or 127, not sure, due to 'char' type implementation of Game_Engine)
+#define DEFAULT_LENGTH				5		//currently maximum 255 (or 127, not sure, due to 'char' type implementation of Game_Engine)
 #define DEFAULT_MAXPLIES			10000
 #define DEFAULT_REWARD_WIN			1.0
 #define DEFAULT_REWARD_LOSE			0.0

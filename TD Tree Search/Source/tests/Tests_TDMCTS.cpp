@@ -5,15 +5,95 @@ namespace Tests_TDMCTS
 
 	void main()
 	{
+
+		//srand(1422916216);
+		//srand(1423134958);
+
 		//Tests_TDMCTS::UnitTest_RandomWalk();
-
 		//Tests_TDMCTS::UnitTest_PlayerRL();
-
 		//Tests_TDMCTS::UnitTest_Two_PlayerRL();
-		
 		//Tests_TDMCTS::Fixed_Play_Testing();
-
 		Tests_TDMCTS::UnitTest_PlayerRL_singleMove();
+
+		//Tests_TDMCTS::Experiment_RandomWalk_RMSE_1();
+
+	}
+
+	// 2015.02.05 experiment #1: randomWalk to measure root mean squared error of value function
+	void Experiment_RandomWalk_RMSE_1()
+	{
+		//declarations and init
+		Game_RandomWalk* game = new Game_RandomWalk();
+		Player_AI_RL* player = new Player_AI_RL(game);
+		Player_Engine* players[] = { player };
+		game->players = players;
+		player->player_number = 0;
+
+		//game configuration
+		game->board_length = 19;
+		game->maximum_plys = 10000;
+		game->param_score_win = 1.0;
+		game->param_score_lose = 0.0;
+		game->param_score_draw = 0.0;
+		game->param_score_step = 0.0;
+		game->maxScore = 1.0;
+		game->minScore = 0.0;
+		game->Settings_Apply_Changes();
+
+		//player configuration
+		Experiment_RandomWalk_RMSE_1_playerConfig_FVMC(player);
+
+		//output configuration
+		gmp->Print("Experiment_RandomWalk_RMSE_1()\n");
+		player->Output_Settings();
+
+		//get single move (executes specified number of episodes / MCTS iterations)
+		(game->players[game->current_player])->Get_Move();
+	}
+
+	// 2015.02.05 configuration for experiment #1: First-visit Monte Carlo
+	void Experiment_RandomWalk_RMSE_1_playerConfig_FVMC(Player_AI_RL* player){
+
+		////// description and list of possible parameters see "Player_AI_RL.hpp"
+
+		//// preset algorithm (for details see procedure "Apply_Preset_Config()" in "Player_AI_RL.cpp")
+		player->config_preset_algorithm = Player_AI_RL::PRESET_ALGORITHMS::ALGORITHM_FIRSTVISIT_MC_ONPOLICY;
+
+		//// control policy
+		player->config_control_policy = Player_AI_RL::CONTROL_POLICIES::CONTROL_EGREEDY;
+
+		//// other TD update settings (if not already defined by the preset)
+		//player->config_policy_evaluation;
+		//player->config_TDupdateType = Player_AI_RL::TD_UPDATE_TYPES::TD_UPDATE_OFFLINE;
+		//player->config_trace_type = Player_AI_RL::Q_TRACE_TYPES::Q_TRACE_REPLACING;
+		//player->config_trace_exploratory_reset = Player_AI_RL::Q_TRACE_RESET_TYPES::Q_TRACE_EXPLORATORY_RESET_DISABLED;
+		//player->config_alpha_type;
+		//player->config_rollout_assumption;
+
+		//// settings not defined by presets
+		player->config_transpositions = Game_Engine::TRANSPOSITION_TYPES::TRANSPOSITIONS_STATES;
+		player->config_num_new_nodes_per_episode = -1;
+		//player->config_offpolicy_backup_recheck_best;
+
+		//// parameter values
+		player->par_egreedy_e = 1.0;
+		player->par_task_gamma = 1.0;
+		//player->par_td_alpha = 0.1;
+		//player->par_td_lambda = 1.0;
+		player->par_td_initVal = 0.0;
+		player->par_num_episodes = 1000;
+		//player->par_num_simulatedActions_perMove;
+
+		//// fixed default settings
+		//this->par_num_simulatedActions_perMove;
+		//this->par_simulated_horizon_lenght;
+		//this->config_memory_limitMB;
+
+		//// output and visualization
+		player->config_output_depth = 1;
+
+		//// apply the new settings
+		player->Apply_Settings();
 
 	}
 

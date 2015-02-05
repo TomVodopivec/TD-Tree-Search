@@ -20,6 +20,10 @@ namespace Tests_TDMCTS
 	void UnitTest_PlayerRL();
 	void UnitTest_Two_PlayerRL();
 	void UnitTest_PlayerRL_singleMove();
+
+	void Experiment_RandomWalk_RMSE_1();
+
+	void Experiment_RandomWalk_RMSE_1_playerConfig_FVMC(Player_AI_RL* player);
 }
 
 #endif

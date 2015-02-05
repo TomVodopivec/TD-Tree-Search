@@ -90,6 +90,8 @@ void Player_AI_RL::Init_Settings()
 	par_simulated_horizon_lenght = DEFAULT_SIMULATED_HORIZON_LENGTH;
 	config_memory_limitMB = (double)DEFAULT_MEMORY_LIMIT_MB;
 
+	config_numerical_correction = DEFAULT_NUMERICAL_CORRECTION;
+
 	//visualization
 	config_output_depth =			DEFAULT_OUTPUT_DEPTH;
 	config_output_simGameState =	DEFAULT_OUTPUT_SIMGAMESTATE_DEPTH;
@@ -224,6 +226,23 @@ void Player_AI_RL::New_Game2()
 	//set parameters by the selected preset - overrides certain settings, depending on which preset was selected
 	Apply_Preset_Config(this->config_preset_algorithm);
 
+	//figure out whether numerical correction is possible for given settings
+	this->numerical_correction_possible = 0;
+	if (
+		(
+		(!((this->config_num_new_nodes_per_episode != -1) && (this->config_rollout_assumption != ROLLOUT_NODE_ASSUME_INITIAL_VALUE))) &&
+		(this->config_transpositions == Game_Engine::TRANSPOSITION_TYPES::TRANSPOSITIONS_DISABLED) &&
+		(this->config_policy_evaluation != EVALUATION_TDLAMBDA_OFFPOLICY_Q_LEARNING)
+		) || 
+		(
+		(!((this->config_trace_type == Q_TRACE_ACCUMULATING) && (this->config_alpha_type == ALPHA_CONSTANT))) &&
+		(!((this->config_trace_exploratory_reset == Q_TRACE_EXPLORATORY_RESET_ENABLED) && (this->config_TDupdateType == TD_UPDATE_OFFLINE)))
+		//also not yet sure when DEFAULT_NUM_NEW_NODES_PER_EPISODE different than -1
+		)
+		){
+		this->numerical_correction_possible = 1;
+	}
+
 	//vizualization and debug variables
 	outInfoCounter = 0;
 }
@@ -234,7 +253,6 @@ void Player_AI_RL::Apply_Preset_Config(PRESET_ALGORITHMS preset)
 	if (preset == NO_PRESET_ALGORITHM)
 	{
 		//// list of all settable parameters:
-		//this->config_control_policy;
 		//this->config_preset_algorithm;
 		//this->config_control_policy;
 		//this->config_policy_evaluation;
@@ -255,7 +273,7 @@ void Player_AI_RL::Apply_Preset_Config(PRESET_ALGORITHMS preset)
 		//this->config_opponent_policy;
 		//this->par_egreedy_e;
 		//this->par_ucb_c;
-		//this->par_gamma;
+		//this->par_task_gamma;
 		//this->par_td_alpha;
 		//this->par_td_lambda;
 		//this->par_td_initVal;
@@ -276,11 +294,21 @@ void Player_AI_RL::Apply_Preset_Config(PRESET_ALGORITHMS preset)
 		//this->par_td_lambda;
 	}
 
-	else if (preset == ALGORITHM_MC_ONPOLICY)
+	else if (preset == ALGORITHM_FIRSTVISIT_MC_ONPOLICY)
 	{
 		this->config_policy_evaluation = EVALUATION_TDLAMBDA_ONPOLICY;
 		this->config_TDupdateType = TD_UPDATE_OFFLINE;
 		this->config_trace_type = Q_TRACE_REPLACING;
+		//this->config_rollout_assumption = ROLLOUT_NODE_ASSUME_CONVERGED_REWARD;	//this is probably needed (not sure yet) when gamma < 1
+		this->config_alpha_type = ALPHA_MONTE_CARLO;
+		this->par_td_lambda = 1.0;
+	}
+
+	else if (preset == ALGORITHM_EVERYVISIT_MC_ONPOLICY)
+	{
+		this->config_policy_evaluation = EVALUATION_TDLAMBDA_ONPOLICY;
+		this->config_TDupdateType = TD_UPDATE_OFFLINE;
+		this->config_trace_type = Q_TRACE_ACCUMULATING;
 		//this->config_rollout_assumption = ROLLOUT_NODE_ASSUME_CONVERGED_REWARD;	//this is probably needed (not sure yet) when gamma < 1
 		this->config_alpha_type = ALPHA_MONTE_CARLO;
 		this->par_td_lambda = 1.0;
@@ -297,15 +325,17 @@ void Player_AI_RL::Apply_Preset_Config(PRESET_ALGORITHMS preset)
 		this->config_policy_evaluation = EVALUATION_TDLAMBDA_ONPOLICY;
 	}
 
-	else if (preset == ALGORITHM_WATKINS_Q)
+	else if (preset == ALGORITHM_ONLINE_WATKINS_Q)
 	{
 		this->config_policy_evaluation = EVALUATION_TDLAMBDA_OFFPOLICY_Q_LEARNING;
+		this->config_TDupdateType = TD_UPDATE_ONLINE;	//may also be OFFLINE_INPLACE
 		this->config_trace_exploratory_reset = Q_TRACE_EXPLORATORY_RESET_ENABLED;
 	}
 
-	else if (preset == ALGORITHM_NAIVE_Q)
+	else if (preset == ALGORITHM_ONLINE_NAIVE_Q)
 	{
 		this->config_policy_evaluation = EVALUATION_TDLAMBDA_OFFPOLICY_Q_LEARNING;
+		this->config_TDupdateType = TD_UPDATE_ONLINE;	//may also be OFFLINE_INPLACE
 		this->config_trace_exploratory_reset = Q_TRACE_EXPLORATORY_RESET_DISABLED;
 	}
 
@@ -325,6 +355,12 @@ void Player_AI_RL::Apply_Preset_Config(PRESET_ALGORITHMS preset)
 		this->config_alpha_type = ALPHA_MONTE_CARLO;
 		this->par_td_lambda = 1.0;
 	}
+	
+	////safety checks
+	//if((this->config_trace_exploratory_reset == Q_TRACE_EXPLORATORY_RESET_ENABLED) && (this->config_TDupdateType == TD_UPDATE_OFFLINE) && (this->config_transpositions == Game_Engine::TRANSPOSITION_TYPES::TRANSPOSITIONS_DISABLED)){
+	//	gmp->Print("\nWARNING: Player_AI_RL::Apply_Preset_Config(): configuration may diverge: Q_TRACE_EXPLORATORY_RESET_ENABLED should not be used with TD_UPDATE_OFFLINE when using transpositions");
+	//}
+
 
 }
 
@@ -1070,6 +1106,7 @@ void Player_AI_RL::UpdateTrajectoryOfflineValues()
 		node = this->trajectory[t].state;
 		if (node != NULL){
 			node->data->Q_value += node->data->offline_delta_Q;
+			node->data->Q_value = NumericalErrorCorrection(node->data->Q_value);	//check for numerical error
 			node->data->offline_delta_Q = 0.0;
 		}
 	}
@@ -1200,7 +1237,7 @@ void Player_AI_RL::RL_TDsingleBackup(int trajectory_index, double gamma, double 
 	TDerror = reward + par_task_gamma * nextStateVal - stateVal;
 
 	//visualization: output TDerror before backup
-		Output_TDbackup1(trajectory_index, TDerror, reward, nextStateVal, stateVal, exploratory_move_trace_reset, printLinePrefix);
+		Output_TDbackup1(trajectory_index, TDerror, nextStateVal, stateVal, exploratory_move_trace_reset, printLinePrefix);
 
 	//backup the TDerror through all visited states
 	if ((TDerror > SMALLEST_TDERROR) || (TDerror < -SMALLEST_TDERROR)){
@@ -1221,18 +1258,41 @@ void Player_AI_RL::RL_TDsingleBackup(int trajectory_index, double gamma, double 
 				{
 					//set the step rate "alpha" to calculate value as statistical mean (default for Monte Carlo contorl methods)
 					if (this->config_alpha_type == ALPHA_MONTE_CARLO){
-						if (backupNode->data->num_visited_episodes <= 0.0){	//safety check
-							gmp->Print("ERROR: Player_AI_RL::RL_TDlambdaBackup() : invalid visits value %f\n", backupNode->data->num_visited_episodes);
+						double num_visits;
+						if (this->config_trace_type == Q_TRACE_ACCUMULATING)
+							num_visits = this->trajectory[b].stateVisitsTotal;		// every-visit MC
+						else
+							num_visits = backupNode->data->num_visited_episodes;	// first-visit MC
+						
+						//safety check
+						if (num_visits <= 0.0){	
+							gmp->Print("ERROR: Player_AI_RL::RL_TDlambdaBackup() : invalid visits value %f\n", num_visits);
 							Output_Current_Info("TDERR    ");
 						}
+
+						//step rate for statistical mean
 						alpha = 1.0 / backupNode->data->num_visited_episodes;
 					}
 
 					//update value by TD(lambda)
-					if ( (this->config_TDupdateType == TD_UPDATE_ONLINE) || (this->config_TDupdateType == TD_UPDATE_OFFLINE_INPLACE) )
+					if ((this->config_TDupdateType == TD_UPDATE_ONLINE) || (this->config_TDupdateType == TD_UPDATE_OFFLINE_INPLACE)){
 						backupNode->data->Q_value += (alpha * trace * TDerror);			// inplace update of Q-value
+						backupNode->data->Q_value = NumericalErrorCorrection(backupNode->data->Q_value);	//check for numerical error
+					}
 					else
 						backupNode->data->offline_delta_Q += (alpha * trace * TDerror);	// temporary stored delta of Q-value (added to Q-value at a later time)
+
+					//safety check
+					if (this->minimumKnownReturn < this->maximumKnownReturn){
+						double checkVal;
+						if ((this->config_TDupdateType == TD_UPDATE_ONLINE) || (this->config_TDupdateType == TD_UPDATE_OFFLINE_INPLACE))
+							checkVal = backupNode->data->Q_value;
+						else
+							checkVal = backupNode->data->Q_value + backupNode->data->offline_delta_Q;
+						if ((checkVal > this->maximumKnownReturn) || (checkVal < this->minimumKnownReturn)){
+							gmp->Print("\nWARNING: Player_AI_RL::RL_TDlambdaBackup() : Q-value out of return bounds %.10f      (min %.10f , max %.10f)     (extMov %d, epis %d, simMov %d)    ", checkVal, this->minimumKnownReturn, this->maximumKnownReturn, this->internalGame->current_plys, this->numEpisodes_lastMove, this->simulatedGame->current_plys);
+						}
+					}
 
 					//mark update on node, needed for replacing traces mechanics
 					backupNode->data->Z_traceTag = trajectory_index;
@@ -1315,6 +1375,25 @@ double Player_AI_RL::RL_GetBestActionValue(HashTree::TreeNode* node, REWARD_GOAL
 
 }
 
+//numerical error check
+double Player_AI_RL::NumericalErrorCorrection(double value)
+{
+	double retVal = value;
+	if ((this->numerical_correction_possible == 1) && (this->config_numerical_correction != NUM_CORRECTION_DISABLED)){
+		if (this->minimumKnownReturn < this->maximumKnownReturn){
+			if (value > this->maximumKnownReturn)
+				retVal = this->maximumKnownReturn;
+			else if (value < this->minimumKnownReturn)
+				retVal = this->minimumKnownReturn;
+			if (this->config_numerical_correction == NUM_CORRECTION_ENABLED_WARNINGS){
+				if (retVal != value){
+					gmp->Print("WARNING: Player_AI_RL::NumErrorCorrect(): Q-value %.10f out of return bounds, correcting to     (min %.10f , max %.10f)     (extMov %d, epis %d, simMov %d)\n", value, this->minimumKnownReturn, this->maximumKnownReturn, this->internalGame->current_plys, this->numEpisodes_lastMove, this->simulatedGame->current_plys);
+				}
+			}
+		}
+	}
+	return retVal;
+}
 
 std::tuple<int, int, int, double, double> Player_AI_RL::RL_Control_Egreedy(Game_Engine* localGame, HashTree::TreeNode* currentState, double par_epsilon, REWARD_GOALS goal)
 {
@@ -1731,7 +1810,7 @@ void Player_AI_RL::Output_Trajectory(char* printLinePrefix)
 	gmp->Print("\n");
 }
 
-void Player_AI_RL::Output_TDbackup1(int trajectory_index, double TDerror, double reward, double nextStateVal, double stateVal, int exploratory_move_trace_reset, char* printLinePrefix)
+void Player_AI_RL::Output_TDbackup1(int trajectory_index, double TDerror, double nextStateVal, double stateVal, int exploratory_move_trace_reset, char* printLinePrefix)
 {
 	if ((this->config_output_depth >= 2) && (this->config_output_TDbackup >= 1)){
 
@@ -1739,11 +1818,15 @@ void Player_AI_RL::Output_TDbackup1(int trajectory_index, double TDerror, double
 			printLinePrefix = "TDLB    ";
 
 		gmp->Print("\n%s", printLinePrefix); gmp->Print("trajInd=%d", trajectory_index);
-		gmp->Print("  trcCtOf=%d", this->exploratory_move_trace_cutOff);
-		gmp->Print("  TDerror=% .3f", TDerror);
-		gmp->Print("  reward=% .3f", reward);
-		gmp->Print("  nextVal=% .3f", nextStateVal);
-		gmp->Print("  currVal=% .3f", stateVal);
+		if (trajectory_index < this->trajectory_length)
+			gmp->Print("  nextAction=% d", this->trajectory[trajectory_index+1].action);
+		else
+			gmp->Print("  nextAction=% d", -1);	//terminal state
+		gmp->Print("  traceCut=%d", this->exploratory_move_trace_cutOff);
+		gmp->Print("  TDerror=% .5f", TDerror);
+		gmp->Print("  reward=% .5f", this->trajectory[trajectory_index].reward);
+		gmp->Print("  nextVal=% .5f", nextStateVal);
+		gmp->Print("  currVal=% .5f", stateVal);
 		gmp->Print("  explRes=%d", (int)exploratory_move_trace_reset);
 
 	}
@@ -1766,6 +1849,7 @@ void Player_AI_RL::Output_TDbackup21(int b, int trajectory_index, double trace, 
 			gmp->Print("  "); gmp->Print(HashTree::StateActionAtrLabels[4]);
 			gmp->Print("  "); gmp->Print(" oldQval");
 			gmp->Print("  "); gmp->Print(" newQval");
+			gmp->Print("  "); gmp->Print(" newOffQ");	//new Q-value with added offline deltaQ update (what the value will be after the offline non-inplace update has finished)
 			gmp->Print("  "); gmp->Print("parAlpha");
 			gmp->Print("  "); gmp->Print(HashTree::StateActionAtrLabels[16]);
 			gmp->Print("  "); gmp->Print(HashTree::TreeNodeAtrLabels[7]);
@@ -1801,6 +1885,7 @@ void Player_AI_RL::Output_TDbackup22(int b, HashTree::TreeNode* backupNode, doub
 
 		if (backupNode != NULL){
 			gmp->Print("  "); gmp->Print(HashTree::StateActionAtrFormat[3], backupNode->data->Q_value);
+			gmp->Print("  "); gmp->Print(HashTree::StateActionAtrFormat[3], backupNode->data->Q_value + backupNode->data->offline_delta_Q);
 			gmp->Print("  "); gmp->Print("% 8.5f", alpha);
 			gmp->Print("  "); gmp->Print(HashTree::StateActionAtrFormat[16], backupNode->data->num_visited_episodes);
 			gmp->Print("  "); gmp->Print(HashTree::TreeNodeAtrFormat[7], backupNode->hashKey);

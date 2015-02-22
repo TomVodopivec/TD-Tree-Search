@@ -80,6 +80,7 @@ int main(int argc, char* argv[])
 	program_start_time_output_str = string(tmpString);
 
 	//set output filenames
+	executable_filename_str = string(argv[0]);
 	output_data_filename = (string)TOM_OUTPUT_DATA_FILE_TEXT_TAG + program_start_time_output_str + ".txt";
 	output_conf_filename = (string)TOM_OUTPUT_CONF_FILE_TEXT_TAG + program_start_time_output_str + ".txt";
 

@@ -55,4 +55,64 @@ private:
 
 };
 
+//// EXAMPLE HOW TO PRINT OUT A VARIABLE NAME AND ITS VALUE
+////
+////#include <stdio.h>
+////
+////#define PRINTER(name) printer(#name, (name))
+////
+////void printer(char *name, int value) {
+////	printf("name: %s\tvalue: %d\n", name, value);
+////}
+////
+////int main(int argc, char* argv[]) {
+////	int foo = 0;
+////	int bar = 1;
+////
+////	PRINTER(foo);
+////	PRINTER(bar);
+////
+////	return 0;
+////}
+////
+////
+////name: foo   value : 0
+////name : bar   value : 1
+
+//////EXAMPLE HOW TO USE BOOST TO DEFINE ENUMS WITH STRINGS
+////
+////#include <boost/preprocessor.hpp>
+////
+////#define X_DEFINE_ENUM_WITH_STRING_CONVERSIONS_TOSTRING_CASE(r, data, elem)    \
+////    case elem: return BOOST_PP_STRINGIZE(elem);
+////
+////#define DEFINE_ENUM_WITH_STRING_CONVERSIONS(name, enumerators)                \
+////enum name {
+////\
+////	BOOST_PP_SEQ_ENUM(enumerators)                                        \
+////};                                                                        \
+////	\
+////	inline const char* ToString(name v)                                       \
+////{                                                                         \
+////	switch (v)                                                            \
+////{                                                                     \
+////	BOOST_PP_SEQ_FOR_EACH(\
+////	X_DEFINE_ENUM_WITH_STRING_CONVERSIONS_TOSTRING_CASE, \
+////	name, \
+////	enumerators                                                   \
+////	)                                                                 \
+////	default: return "[Unknown " BOOST_PP_STRINGIZE(name) "]";         \
+////}                                                                     \
+////}
+/////
+/////DEFINE_ENUM_WITH_STRING_CONVERSIONS(OS_type, (Linux)(Apple)(Windows))
+////#include <iostream>
+////
+////int main()
+////{
+////	OS_type t = Windows;
+////	std::cout << ToString(t) << " " << ToString(Apple) << std::endl;
+////}
+
+
 #endif

@@ -5,10 +5,7 @@
 #include "..\core\Game_Interface.hpp"
 
 //defines
-#define TOMPLAYER_PLAYER_NUMBER					0
-#define TOMPLAYER_EXTERNAL_RESET_ENABLED		1
-#define TOMPLAYER_FINAL_OUTPUT_ENABLED			0
-#define TOMPLAYER_VISUALIZATION_DEPTH			0
+
 
 //forward declarations
 class Game_Engine;
@@ -19,6 +16,23 @@ class Player_Engine
 {
 
 public:
+
+	//enums
+	static const struct THRESHOLD_FUNCTIONS {
+		enum TYPE {
+			SIGMOID_CENTER_ZERO,
+			SIGMOID,
+			STEP,
+			LINEAR,
+			ENUM_COUNT_ELEMENTS	// must be last element in enum, do not remove: used to return the number of elements in enumerator
+		};
+	};
+
+	//global constants
+	static const int TOMPLAYER_PLAYER_NUMBER = 0;
+	static const int  TOMPLAYER_EXTERNAL_RESET_ENABLED = 1;
+	static const int  TOMPLAYER_FINAL_OUTPUT_ENABLED = 0;
+	static const int  TOMPLAYER_VISUALIZATION_DEPTH = 0;
 
 	//constructor
 	Player_Engine(Game_Engine* = NULL, int = TOMPLAYER_PLAYER_NUMBER);
@@ -31,6 +45,9 @@ public:
 	virtual void Before_Move(int)	{};
 	virtual void After_Move(int)	{};
 	virtual void End_Game()			{};
+
+	//support procedures
+	virtual double Neural_Network_Threshold_Function(double input_weight_sum, THRESHOLD_FUNCTIONS::TYPE function_type);
 
 	//virtual public procedures - debug and visualization
 	virtual void Output()	{};

@@ -40,6 +40,7 @@
     <ClInclude Include="Source\tools\Support_MultiPrint.hpp" />
     <ClInclude Include="Source\tools\Tom_Sample_Storage.hpp" />
     <ClInclude Include="Source\tools\Tool_HashTree.hpp" />
+    <ClInclude Include="Source\tools\Tool_Sample_Storage.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Source\core\Game_Engine.cpp" />
@@ -67,6 +68,7 @@
     <ClCompile Include="Source\tools\Support_InputFile.cpp" />
     <ClCompile Include="Source\tools\Support_MultiPrint.cpp" />
     <ClCompile Include="Source\tools\Tool_HashTree.cpp" />
+    <ClCompile Include="Source\tools\Tool_Sample_Storage.cpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{16D3C405-DC4A-48EA-8CBB-CFA830808D35}</ProjectGuid>

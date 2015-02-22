@@ -1,4 +1,5 @@
-
+#ifndef _TOOL_QUICKSELECT_
+#define _TOOL_QUICKSELECT_
 
 /*
  *  This Quickselect routine is based on the algorithm described in
@@ -62,3 +63,5 @@ elem_type quick_select(elem_type arr[], int n)
 }
 
 #undef ELEM_SWAP
+
+#endif

@@ -1,3 +1,5 @@
+#ifndef _TOOL_TORBEN_
+#define _TOOL_TORBEN_
 
 /*
  * The following code is public domain.
@@ -41,3 +43,4 @@ elem_type torben(elem_type m[], int n)
     else return mingtguess;
 }
 
+#endif

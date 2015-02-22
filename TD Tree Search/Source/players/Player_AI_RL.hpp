@@ -12,6 +12,7 @@ Author: Tom Vodopivec
 #include "..\tools\Tool_HashTree.hpp"
 #include "..\optimizers\Tom_Lrp.hpp"
 #include "..\tools\Support_MultiPrint.hpp"
+#include "..\tools\Tool_Sample_Storage.hpp"
 
 //external global variables
 extern MultiPrinter * gmp;	//multiprinter object defined in main.hpp
@@ -25,256 +26,281 @@ class Player_AI_RL : public Player_Engine
 
 public:
 
-	// ---- defines ---- //
+	// ---- class global constants ---- //
+// WARNING: DO NOT CHANGE THE ORDERING OF ELEMENTES IN INDIVIDUAL ENUMS (the labels will get messed up)
 
 // WARNING: presets override some other configuration settings
-#define DEFAULT_PRESET_ALGORITHM	ALGORITHM_TD_ZERO_ONPOLICY
-	enum PRESET_ALGORITHMS{
-		NO_PRESET_ALGORITHM,				// No preset used: all configuration options apply (none is overriden)
-		ALGORITHM_FIRSTVISIT_MC_ONPOLICY,	// First-visit On-policy Monte Carlo control: equals to offline replacing-traces TD(1) with alpha = (1/visits), and equals to MCTS
-		ALGORITHM_EVERYVISIT_MC_ONPOLICY,	// Every-visit On-policy Monte Carlo control
-		ALGORITHM_TD_ZERO_ONPOLICY,			// On-policy TD(0), SARSA(0)	
-		ALGORITHM_TD_LAMBDA,				// General TD(lambda), SARSA(lambda)
-		ALGORITHM_ONLINE_WATKINS_Q,			// Watkin's Q(lambda), with online updates
-		ALGORITHM_ONLINE_NAIVE_Q,			// Naive Q(lambda), a Watkin's Q-learning variant that does not zero eligibility traces for exploratory actions, with online updates
-		//ALGORITHM_PENGS_Q,				// -- NOT IMPLEMENTED YET -- Peng's Q(lambda), a Q-learning variant that does not zero traces for all exploratory actions -> a merge between Watkin's Q(lambda) and SARSA(lambda)
-		ALGORITHM_UCT						// Upper Confidence Bounds applied to Trees, the most popular Monte Carlo Tree Search algorithm
+	struct PRESET_ALGORITHMS{
+		enum TYPE {
+			NONE,						// No preset used: all configuration options apply (none is overriden)
+			FIRSTVISIT_MC_ONPOLICY,		// First-visit on-policy Monte Carlo control: equals to offline replacing-traces TD(1) with alpha = (1/visits), and equals to MCTS
+			EVERYVISIT_MC_ONPOLICY,		// Every-visit on-policy Monte Carlo control
+			EPISODIC_CONSTANT_MC,		// Batch (by episodes) constant-alpha Monte Carlo control (on-policy)
+			EPISODIC_LAMBDA_RETURN,		// Batch (by episodes) lambda-return (on-policy)
+			ONLINE_TD_ZERO_ONPOLICY,	// Online on-policy TD(0), SARSA(0)	
+			EPISODIC_TD_ZERO_ONPOLICY,	// Batch (by episodes) on-policy TD(0), SARSA(0)	
+			TD_LAMBDA,					// General TD(lambda), SARSA(lambda)
+			ONLINE_WATKINS_Q,			// Watkin's Q(lambda), with online updates
+			ONLINE_NAIVE_Q,				// Naive Q(lambda), a Watkin's Q-learning variant that does not zero eligibility traces for exploratory actions, with online updates
+			PENGS_Q,					// -- NOT IMPLEMENTED YET -- Peng's Q(lambda), a Q-learning variant that does not zero traces for all exploratory actions -> a merge between Watkin's Q(lambda) and SARSA(lambda)
+			MCTS_UCT,					// Upper Confidence Bounds applied to Trees, the most popular Monte Carlo Tree Search algorithm
+			ENUM_COUNT_ELEMENTS	// must be last element in enum, do not remove: used to return the number of elements in enumerator
+		};
+		static const char * stringLabels[ENUM_COUNT_ELEMENTS];
 	};
+	static const PRESET_ALGORITHMS::TYPE DEFAULT_PRESET_ALGORITHM = PRESET_ALGORITHMS::NONE;
 
-#define DEFAULT_CONTROL_POLICY		CONTROL_EGREEDY
-	enum CONTROL_POLICIES{
-		CONTROL_EGREEDY,
-		CONTROL_UCB
+	struct CONTROL_POLICIES{
+		enum TYPE {
+			EGREEDY,
+			UCB1,
+			ENUM_COUNT_ELEMENTS	// must be last element in enum, do not remove: used to return the number of elements in enumerator
+		};
+		static const char * stringLabels[ENUM_COUNT_ELEMENTS];
 	};
-#define DEFAULT_POLICY_EVALUATION		EVALUATION_TDLAMBDA_ONPOLICY
-	enum POLICY_EVALUATION_TYPES{
-		EVALUATION_TDLAMBDA_ONPOLICY,				// the general onpolicy TD(lambda) evaluation policy -> produces the SARSA(lambda) algorithm
-		EVALUATION_TDLAMBDA_OFFPOLICY_Q_LEARNING,	// Watkin's or Naive Q(lambda) algorithm
-		//EVALUATION_TDLAMBDA_OFFPOLICY_PENGS_Q,	// -- NOT IMPLEMENTED YET -- 
+	static const CONTROL_POLICIES::TYPE DEFAULT_CONTROL_POLICY = CONTROL_POLICIES::EGREEDY;
+
+	struct POLICY_EVALUATIONS{
+		enum TYPE {
+			CONSTANT_MC,					// the constant-alpha Monte Carlo update rule
+			TDLAMBDA_ONPOLICY,				// the general onpolicy TD(lambda) evaluation policy -> produces the SARSA(lambda) algorithm
+			TDLAMBDA_OFFPOLICY_Q_LEARNING,	// Watkin's or Naive Q(lambda) algorithm
+			//TDLAMBDA_OFFPOLICY_PENGS_Q,	// -- NOT IMPLEMENTED YET -- 
+			ENUM_COUNT_ELEMENTS	// must be last element in enum, do not remove: used to return the number of elements in enumerator
+		};
+		static const char * stringLabels[ENUM_COUNT_ELEMENTS];
 	};
+	static const POLICY_EVALUATIONS::TYPE DEFAULT_POLICY_EVALUATION = POLICY_EVALUATIONS::TDLAMBDA_ONPOLICY;
 
-#define DEFAULT_TD_UPDATE_TYPE	TD_UPDATE_ONLINE
-	enum TD_UPDATE_TYPES{
-		TD_UPDATE_ONLINE,			// update after each action, default for RL methods, equals to offline updates if transpositions are not used (it is useless if state-actions are not revisited multiple times in the same episode)
-		TD_UPDATE_OFFLINE,			// the original offline update (after the end of each episode), default for MC methods (also MCTS). Temporary stores changes to values while backuping and after all backups it updates the actual values.
-		TD_UPDATE_OFFLINE_INPLACE,  // a variant of offline update that immediately updates the actual values - inplace (it does not temporary store the value changes)
-		//TD_UPDATE_OFFLINE_ASYNC,	// asynchronous from-end-to-start offline update that is less computationally heavy (iterates only once through the trajectory, O(n) instead of O(n*n)) -- TODO: is this even possible when using transpositions and replacing traces? (because one must not update the same state more than once)
+	struct TD_UPDATES{
+		enum TYPE {
+			ONLINE,					// update after each step, default for TD methods, equals to batch updates if transpositions are not used (it is useless if state-actions are not revisited multiple times in the same episode)
+			BATCH_EPISODIC,			// update after end of each episode (batch update), default for MC methods (also MCTS). Temporary stores changes to values while backuping and after all backups it updates the actual values.
+			BATCH_EPISODIC_INPLACE,	// a variant of episodic update that updates the actual values inplace (it does not temporary store the value changes)
+			//BATCH_EPISODIC_ASYNC,	// asynchronous from-end-to-start episodic update that is less computationally heavy (iterates only once through the trajectory, O(n) instead of O(n*n)) -- TODO: is this even possible when using transpositions and replacing traces? (because one must not update the same state more than once)
+			//BATCH_STEPS,			// todo, same as episodic, just that now the update is carried on after a certain ammount of steps (needed for non-episodic tasks)
+			//BATCH_STEPS_INPLACE,	// todo
+			//BATCH_STEPS_ASYNC,	//todo
+			ENUM_COUNT_ELEMENTS	// must be last element in enum, do not remove: used to return the number of elements in enumerator
+		};
+		static const char * stringLabels[ENUM_COUNT_ELEMENTS];
 	};
+	static const TD_UPDATES::TYPE DEFAULT_TD_UPDATE = TD_UPDATES::BATCH_EPISODIC;
 
-#define DEFAULT_Q_TRACE_TYPE	Q_TRACE_REPLACING	
-	enum Q_TRACE_TYPES{			// if transposistions are not used, then all options are equal
-		Q_TRACE_REPLACING,		// usually performs better, used to produce first-visit MC
-		Q_TRACE_ACCUMULATING	// used to produce every-visit MC -> not good, tends to diverge (nodes get infinite values)
-		//Q_TRACE_ACTIONEXCLUSIVE	-> NOT YET IMPLEMENTED
+	struct ELIGIBILITY_TRACES{	// if transposistions are not used, then all options are equal
+		enum TYPE {
+			REPLACING,			// usually performs better, used to produce first-visit MC
+			ACCUMULATING,		// used to produce every-visit MC -> not good, tends to diverge (nodes get infinite values)
+			//ACTIONEXCLUSIVE	-> NOT YET IMPLEMENTED
+			ENUM_COUNT_ELEMENTS	// must be last element in enum, do not remove: used to return the number of elements in enumerator
+		};
+		static const char * stringLabels[ENUM_COUNT_ELEMENTS];
 	};
+	static const ELIGIBILITY_TRACES::TYPE DEFAULT_ELIGIBILITY_TRACES = ELIGIBILITY_TRACES::REPLACING;
 
-#define DEFAULT_TRACE_EXPLORATORY_RESET		Q_TRACE_EXPLORATORY_RESET_DISABLED
-	enum Q_TRACE_RESET_TYPES{
-		Q_TRACE_EXPLORATORY_RESET_DISABLED,
-		Q_TRACE_EXPLORATORY_RESET_ENABLED
+	struct ELIGIBILITY_EXPLORATORY_RESET{
+		enum TYPE {
+			DISABLED,
+			ENABLED,
+			ENUM_COUNT_ELEMENTS	// must be last element in enum, do not remove: used to return the number of elements in enumerator
+		};
+		static const char * stringLabels[ENUM_COUNT_ELEMENTS];
 	};
+	static const ELIGIBILITY_EXPLORATORY_RESET::TYPE DEFAULT_ELIGIBILITY_EXPLORATORY_RESET = ELIGIBILITY_EXPLORATORY_RESET::DISABLED;
 
-#define DEFAULT_USE_TRANSPOSITIONS		(Game_Engine::TRANSPOSITION_TYPES::TRANSPOSITIONS_STATES)
-	// TRANSPOSITIONS_DISABLED,			// if states cannot be distinguished or state-space is too large, then a search tree is grown (default for UCT)
-	// TRANSPOSITIONS_STATES,			// evaluate states V(s) <- TD
-	// TRANSPOSITIONS_STATEACTIONS		// evaluate state-actions Q(s,a) <- SARSA / Q-learning
+	static const Game_Engine::TRANSPOSITIONS::TYPE DEFAULT_TRANSPOSITIONS = (Game_Engine::TRANSPOSITIONS::DISABLED);
+	// DISABLED,		// if states cannot be distinguished or state-space is too large, then a search tree is grown (default for UCT)
+	// STATES,			// evaluate states V(s) <- TD
+	// STATEACTIONS		// evaluate state-actions Q(s,a) <- SARSA / Q-learning
 
-#define DEFAULT_OFFPOLICY_BACKUP_RECHECK_BEST	(false)		// true or false: Recheck best child value when backuping (increases computational burden). Applies only to offpolicy learning and makes a difference only when using transpositions with offline inplace backups, or when using async backups.
+	static const int DEFAULT_OFFPOLICY_BACKUP_RECHECK_BEST = 0;		// 1 or 0: Recheck best child value when backuping (increases computational burden). Applies only to offpolicy learning and makes a difference only when using transpositions with offline inplace backups, or when using async backups.
 
-#define DEFAULT_NUM_NEW_NODES_PER_EPISODE		-1
+	static const int DEFAULT_NUM_NEW_NODES_PER_EPISODE = 1;
 	// -1 - memorize all (default for RL methods)
 	//  0 - no memorization (produces random algorithms)
 	//  1 - UCT's default setting
 	// >1 - arbitrary positive integer value allowed
 
-#define DEFAULT_ROLLOUT_ASSUMPTION	ROLLOUT_NODE_ASSUME_INITIAL_VALUE
-	enum ROLLOUT_ASSUMPTIONS{					// assume non-memorized nodes in MCTS simulation have ...
-		ROLLOUT_NODE_ASSUME_INITIAL_VALUE,		// ... the default initial value
-		//ROLLOUT_NODE_ASSUME_NEUTRAL_VALUE,	// ... a neutral value, this is 0.0
-		//ROLLOUT_NODE_ASSUME_LAST_VALUE,		// ... the value of the last memorized node (leaf in the tree)
-		//ROLLOUT_NODE_ASSUME_CONVERGED_REWARD	// ... already converged to their optimal value regarding the received reward or the first encountered memorized state afterwards (if transpositions are used)
+	struct ROLLOUT_VALUE_ASSUMPTIONS{	// what is the assumed value of non-memorized nodes (as MCTS is using in the rollout phase)
+		enum TYPE {
+			INITIAL,				// the default initial value (par_td_initVal)
+			ZERO,					// a value of 0.0
+			LAST_MEMORIZED,			// the value of the last memorized node (leaf in the tree)
+			CONVERGED_TO_REWARD,	// values optimally converged considering the rewards received to the end of the episode or, if transpositions are used, until a memorized state is met
+			ENUM_COUNT_ELEMENTS	// must be last element in enum, do not remove: used to return the number of elements in enumerator
+		};
+		static const char * stringLabels[ENUM_COUNT_ELEMENTS];
 	};
+	static const ROLLOUT_VALUE_ASSUMPTIONS::TYPE DEFAULT_ROLLOUT_VALUE_ASSUMPTION = ROLLOUT_VALUE_ASSUMPTIONS::INITIAL;
 	
-#define DEFAULT_UPDATESTEP_ALPHA_TYPE	ALPHA_MONTE_CARLO
-	enum UPDATESTEP_ALPHA_TYPES{
-		ALPHA_CONSTANT,		// constant update step (alpha value (set by parameters par_td_alpha)
-		ALPHA_MONTE_CARLO,	// calculating the statistical mean: alpha is computed at each update for each node by (1/visit_counter)
+	struct UPDATESTEP_ALPHA{
+		enum TYPE {
+			CONSTANT,		// constant update step (alpha value (set by parameters par_td_alpha)
+			MONTE_CARLO,	// calculating the statistical mean: alpha is computed at each update for each node by (1/visit_counter) -> exponential by visited episodes
+			ENUM_COUNT_ELEMENTS	// must be last element in enum, do not remove: used to return the number of elements in enumerator
+		};
+		static const char * stringLabels[ENUM_COUNT_ELEMENTS];
 	};
+	static const UPDATESTEP_ALPHA::TYPE DEFAULT_UPDATESTEP_ALPHA = UPDATESTEP_ALPHA::MONTE_CARLO;
 
-#define DEFAULT_UCB_VISITS_TYPE		UCB_VISITS_TOTAL	
-	enum UCB_VISIT_TYPES{		// if transposistions are not used, then both options are equal
-		UCB_VISITS_TOTAL,		// consider the total number of visits of a state (or state-action) - use the counter that updates after each actual visit
-		UCB_VISITS_EPISODES		// consider the number of terminal updates the state received (the number of episodes that visited that state) - use the counter that updates once per episode
+	struct UCB_VISITS{		// if transposistions are not used, then both options are equal
+		enum TYPE {
+			TOTAL,		// consider the total number of visits of a state (or state-action) - use the counter that updates after each actual visit
+			EPISODES,	// consider the number of terminal updates the state received (the number of episodes that visited that state) - use the counter that updates once per episode
+			ENUM_COUNT_ELEMENTS	// must be last element in enum, do not remove: used to return the number of elements in enumerator
+		};
+		static const char * stringLabels[ENUM_COUNT_ELEMENTS];
 	};
-#define DEFAULT_UCB_NORMALIZATION_TYPE	UCB_NORMALIZATION_GLOBAL
-	enum UCB_NORMALIZATION_TYPES{
-		UCB_NORMALIZATION_GLOBAL,			// use global Q-value normalization bounds, assume whole state-space has same bounds (it is not discount with gamma, so it might not be a good choice for discounting tasks)
-		UCB_NORMALIZATION_LOCAL,			// use local (current state) normalization bounds, assume bounds may differ across the state-space
-		UCB_NORMALIZATION_LOCAL_GLOBAL		// use global bounds if local are not yet valid (not yet known or not initialized)
+	static const UCB_VISITS::TYPE DEFAULT_UCB_VISITS = UCB_VISITS::TOTAL;
+	struct UCB_NORMALIZATION_LOCALITY{
+		enum TYPE {
+			GLOBAL,				// use global Q-value normalization bounds, assume whole state-space has same bounds (it is not discount with gamma, so it might not be a good choice for discounting tasks)
+			LOCAL,				// use local (current state) normalization bounds, assume bounds may differ across the state-space
+			LOCAL_THEN_GLOBAL,	// use global bounds if local are not yet valid (not yet known or not initialized)
+			ENUM_COUNT_ELEMENTS	// must be last element in enum, do not remove: used to return the number of elements in enumerator
+		};
+		static const char * stringLabels[ENUM_COUNT_ELEMENTS];
 	};
-#define DEFAULT_UCB_NORMALIZATION_GLOBAL_TYPE	UCB_NORMALIZATION_GLOBAL_KNOWN
-	enum UCB_NORMALIZATION_GLOBAL_TYPES{
-		UCB_NORMALIZATION_GLOBAL_KNOWN,		// use the known min/max return (sum of rewards) per episode
-		UCB_NORMALIZATION_GLOBAL_OBSERVED,	// use the observed min/max return (sum of rewards) per episode
+	const UCB_NORMALIZATION_LOCALITY::TYPE DEFAULT_UCB_NORMALIZATION_LOCALITY = UCB_NORMALIZATION_LOCALITY::GLOBAL;
+	struct UCB_GLOBAL_NORMALIZATIONS{
+		enum TYPE {
+			KNOWN_RETURN,		// use the known min/max return (sum of rewards) per episode
+			OBSERVED_RETURN,	// use the observed min/max return (sum of rewards) per episode
+			ENUM_COUNT_ELEMENTS	// must be last element in enum, do not remove: used to return the number of elements in enumerator
+		};
+		static const char * stringLabels[ENUM_COUNT_ELEMENTS];
 	};
-#define DEFAULT_UCB_NORMALIZATION_LOCAL_TYPE	UCB_NORMALIZATION_LOCAL_QVAL
-	enum UCB_NORMALIZATION_LOCAL_TYPES{
-		UCB_NORMALIZATION_LOCAL_OBSERVED,	// use current state's known min/max return
-		UCB_NORMALIZATION_LOCAL_QVAL,		// use current branch's min/max Q-value
-		UCB_NORMALIZATION_LOCAL_CHILDREN	// use current state's min/max Q-value
+	static const UCB_GLOBAL_NORMALIZATIONS::TYPE DEFAULT_UCB_GLOBAL_NORMALIZATION = UCB_GLOBAL_NORMALIZATIONS::KNOWN_RETURN;
+	struct UCB_LOCAL_NORMALIZATIONS{
+		enum TYPE {
+			OBSERVED_RETURN,		// use current state's known min/max return
+			BRANCH_CURRENT_QVAL,	// use current branch's min/max Q-value
+			CHILDREN_CURRENT_QVAL,	// use current state's min/max Q-value
+			ENUM_COUNT_ELEMENTS	// must be last element in enum, do not remove: used to return the number of elements in enumerator
+		};
+		static const char * stringLabels[ENUM_COUNT_ELEMENTS];
 	};
+	static const UCB_LOCAL_NORMALIZATIONS::TYPE DEFAULT_UCB_LOCAL_NORMALIZATION = UCB_LOCAL_NORMALIZATIONS::BRANCH_CURRENT_QVAL;
 
-#define DEFAULT_NONEPISODICTASKS_UPDATEINTERVAL	100
+	static const int DEFAULT_NONEPISODICTASKS_UPDATEINTERVAL = 100;
 	// the number of steps between updates for non-episodic tasks (if updates are not online)
 
-#define DEFAULT_PAR_EPSILON		1.0
-#define DEFAULT_PAR_UCB_C		(sqrt(2.0))
+	static const double DEFAULT_PAR_EPSILON;
+	static const double DEFAULT_PAR_UCB_C;
 
-#define DEFAULT_PAR_TASK_GAMMA	0.5
-#define DEFAULT_PAR_TD_ALPHA	0.5
-#define DEFAULT_PAR_TD_LAMBDA	0.0
-#define DEFAULT_PAR_TD_INITVAL	0.0
+	static const double DEFAULT_PAR_TASK_GAMMA;
+	static const double DEFAULT_PAR_TD_ALPHA;
+	static const double DEFAULT_PAR_TD_LAMBDA;
+	static const double DEFAULT_PAR_TD_INITVAL;
 
-#define DEFAULT_NUM_EPISODES_PER_MOVE		10000		//computational resource limit: number of episodes per external move, set on -1 for no limit
-#define DEFAULT_SIMULATEDACTIONS_PER_MOVE	-1		//computational resource limit: number of simulated actions per external move, set on -1 for no limit
-#define DEFAULT_SIMULATED_HORIZON_LENGTH	-1		//horizon length for simulated episodes (number of actions per episode), set -1 for no limit
+	static const int DEFAULT_NUM_EPISODES_PER_MOVE = 10000;		//computational resource limit: number of episodes per external move, set on -1 for no limit
+	static const int DEFAULT_SIMULATEDACTIONS_PER_MOVE = -1;		//computational resource limit: number of simulated actions per external move, set on -1 for no limit
+	static const int DEFAULT_SIMULATED_HORIZON_LENGTH = -1;		//horizon length for simulated episodes (number of actions per episode), set -1 for no limit
 
-#define DEFAULT_OPPONENT_ALIGNMENT	OPPONENT_ADVERSARY
-	enum OPPONENT_ALIGNMENTS{
-		OPPONENT_ADVERSARY,		// produces MinMax search
-		OPPONENT_COOPERATIVE
-		//OPPONENT_INDEPENDENT	// implementation not ready yet: should have it's own data tree structures for rewards (a vector of rewards by players for each node)
+	struct OPPONENT_ALIGNMENTS{
+		enum TYPE {
+			ADVERSARY,		// produces MinMax search
+			COOPERATIVE,
+			//INDEPENDENT	// implementation not ready yet: should have it's own data tree structures for rewards (a vector of rewards by players for each node)
+			ENUM_COUNT_ELEMENTS	// must be last element in enum, do not remove: used to return the number of elements in enumerator
+		};
+		static const char * stringLabels[ENUM_COUNT_ELEMENTS];
+	};
+	static const OPPONENT_ALIGNMENTS::TYPE DEFAULT_OPPONENT_ALIGNMENT = OPPONENT_ALIGNMENTS::ADVERSARY;
+
+	struct OPPONENT_POLICIES{
+		enum TYPE {
+			RANDOM,
+			GREEDY,
+			SELFPLAY,		// selfplay: uses same policy as the learning agent
+			//HANDSET		// not done yet: must be implemented for each game individually
+			ENUM_COUNT_ELEMENTS	// must be last element in enum, do not remove: used to return the number of elements in enumerator
+		};
+		static const char * stringLabels[ENUM_COUNT_ELEMENTS];
+	};
+	static const OPPONENT_POLICIES::TYPE DEFAULT_OPPONENT_POLICY = OPPONENT_POLICIES::SELFPLAY;
+
+	struct REWARD_GOALS{
+		enum TYPE {
+			MAXIMIZE,
+			MINIMIZE,
+			UNKNOWN,	// to mark other player's actions whose purpose was unknown (used for opponent's move on external game)
+			ENUM_COUNT_ELEMENTS	// must be last element in enum, do not remove: used to return the number of elements in enumerator
+		};
+		static const char * stringLabels[ENUM_COUNT_ELEMENTS];
 	};
 
-#define DEFAULT_OPPONENT_POLICY		OPPONENT_SELFPLAY
-	enum OPPONENT_POLICIES{
-		OPPONENT_RANDOM,
-		OPPONENT_GREEDY,
-		OPPONENT_SELFPLAY,		// selfplay: uses same policy as agent
-		//OPPONENT_HANDSET		// not done yet: must be implemented for each game individually
+	struct NUMERCIAL_CORRECTIONS{
+		enum TYPE {
+			DISABLED,
+			ENABLED,
+			ENABLED_WITH_WARNINGS,
+			ENUM_COUNT_ELEMENTS	// must be last element in enum, do not remove: used to return the number of elements in enumerator
+		};
+		static const char * stringLabels[ENUM_COUNT_ELEMENTS];
 	};
+	static const NUMERCIAL_CORRECTIONS::TYPE DEFAULT_NUMERICAL_CORRECTION = NUMERCIAL_CORRECTIONS::DISABLED;
 
-	enum REWARD_GOALS{
-		REWARD_MAXIMIZE,
-		REWARD_MINIMIZE,
-		GOAL_UNKNOWN		// to mark other player's actions whose purpose was unknown (used for opponent's move on external game)
-	};
+	static const double EPSILON_TIEBRAKER;
+	static const double SMALLEST_TDERROR;
+	static const double EPSILON_TRACE_CUTOFF;
 
-#define DEFAULT_NUMERICAL_CORRECTION	NUM_CORRECTION_DISABLED
-	enum NUMERCIAL_CORRECTIONS{
-		NUM_CORRECTION_DISABLED,
-		NUM_CORRECTION_ENABLED,
-		NUM_CORRECTION_ENABLED_WARNINGS,
-	};
-#define EPSILON_TIEBRAKER		((double)(0.000000001))
-#define SMALLEST_TDERROR		EPSILON_TIEBRAKER
-#define EPSILON_TRACE_CUTOFF	EPSILON_TIEBRAKER
+	// MCTS tree and optimization parameters
+	static const int DEFAULT_MEMORY_LIMIT_MB = 2048;	//in MegaBytes
+	static const bool OPTIMIZATION_INTERNAL_FORCE_COPY = false;
 
+	// VISUALIZATION
 
-	//MCTS tree and optimization parameters
-#define DEFAULT_MEMORY_LIMIT_MB				1024
-#define OPTIMIZATION_INTERNAL_FORCE_COPY	false
-
-	//VISUALIZATION
-
-#define	DEFAULT_OUTPUT_DEPTH	1	// the general switch to set the depth of output printing
+	static const int DEFAULT_OUTPUT_DEPTH = 2;	// the general switch to set the depth of output printing
 	// 0 - disabled
 	// 1 - after each external move
 	// 2 - after each episode
 	// 3 - after each simulated move
 
-//individual switches (printing depths for each individual visualization component, 0 - disabled)
-#define DEFAULT_OUTPUT_TRAJECTORY_DEPTH		0	// last followed trajectory (suggested max 2)
-#define DEFAULT_OUTPUT_MEMORY_DEPTH			2	// memorized structures (tree or hash table) (suggested max 2)
-#define DEFAULT_OUTPUT_SUMMARY_DEPTH		2	// stats summary (suggested max 2)
-#define DEFAULT_OUTPUT_CURRENTINFO_DEPTH	0	// current info (counters, root node value) (max 3)
-#define DEFAULT_OUTPUT_SIMGAMESTATE_DEPTH	0	// current state/position of the simulated game (max 3)
+	//individual switches (printing depths for each individual visualization component, 0 - disabled)
+	static const int DEFAULT_OUTPUT_TRAJECTORY_DEPTH = 2;		// last followed trajectory (suggested max 2)
+	static const int DEFAULT_OUTPUT_MEMORY_DEPTH = 2;			// memorized structures (tree or hash table) (suggested max 2)
+	static const int DEFAULT_OUTPUT_SUMMARY_DEPTH = 2;			// stats summary (suggested max 2)
+	static const int DEFAULT_OUTPUT_CURRENTINFO_DEPTH = 0;		// current info (counters, root node value) (max 3)
+	static const int DEFAULT_OUTPUT_SIMGAMESTATE_DEPTH = 0;	// current state/position of the simulated game (max 3)
+															
+	static const int DEFAULT_OUTPUT_TDBACKUP_DEPTH = 2;		// TD backups, output_depth must be at least 2! (0 - disabled, 1 - print TD errors, 2 - output whole backups)
 
-#define DEFAULT_OUTPUT_TDBACKUP_DEPTH		2	// TD backups, output_depth must be at least 2! (0 - disabled, 1 - print TD errors, 2 - output whole backups)
+	static const int DEFAULT_OUTPUT_PAUSE_DEPTH = 0;			// pauses depth (waits for user to press key, 0 - disabled)
 
-#define DEFAULT_OUTPUT_PAUSE_DEPTH			0	// pauses depth (waits for user to press key, 0 - disabled)
+	//additional visualization settings
+	static const int DEFAULT_OUTPUT_MEMORY_TREEDEPTH = 3;	// print depth of the memorzied tree (-1 - entire tree, 0 - root, 1 - root's children, ... )
 
-//additional visualization settings
-#define DEFAULT_OUTPUT_MEMORY_TREEDEPTH		3	// print depth of the memorzied tree (-1 - entire tree, 0 - root, 1 - root's children, ... )
-
-////---- OLD DEFINES
-
-
-#define PARAM_FUNC_APP_TYPE		0	//LRP parameter search (MUST set on 0 when evaluating fixed setting)
-	//0 - disabled, constant parameter values
-	//1 - direct search
-	//2 - single neuron (sigmoid function) search
-	//3 - dual-layer feed forward net
-
-#define	FUNC_APPROX_NUM_INPUTS		2	//set number of weights for the function approximator or (if dual-layer perceptron) number of inputs in the net
-#define	FUNC_APPROX_NUM_OUTPUTS		3	//set number of outputs from the single- or dual-layer neural network
-#define	FUNC_APPROX_HIDD_LAYER		3	//dual-layer perceptron: number of hidden layer neurons
-#define FUNC_APPROX_NEURAL_FUNC	NN_FUNCTION_TYPES_SIGMOID_CENTER_ZERO	//neuron threshold function: see below at "enum" for a list of possible functions
-
-	enum NN_FUNCTION_TYPES {
-		NN_FUNCTION_TYPES_SIGMOID_CENTER_ZERO,
-		NN_FUNCTION_TYPES_SIGMOID,
-		NN_FUNCTION_TYPES_STEP,
-		NN_FUNCTION_TYPES_LINEAR
+	// EXPERIMENTAL SETTINGS
+	struct EXPERIMENTAL_SETTINGS{	// do not change the ordering
+		enum TYPE {
+			NONE,
+			METRICS_PER_EPISODES,
+			METRICS_PER_TIMESTEPS,
+			ENUM_COUNT_ELEMENTS	// must be last element in enum, do not remove: used to return the number of elements in enumerator
+		};
+		static const char * stringLabels[ENUM_COUNT_ELEMENTS];
 	};
+	static const EXPERIMENTAL_SETTINGS::TYPE DEFAULT_EXPERIMENTAL_SETTING = EXPERIMENTAL_SETTINGS::NONE;
 
-	//TESTING OPPONENT MODEL
-#define RANDOM_TREE_OPPONENT_THRESHOLD		0.0		//0.0 = disabled
+	static const int DEFAULT_OUTPUT_WARNING_QBOUNDS = 1;	// output
 
-
-	// -- code from old TomTest implementation
-
-#define TOMPLAYER_AI_UCT_TOMTEST_PARAM_SIMULATIONS_PER_ITER	1
-
-	// -- debug defines --
-
-	//defines - DEBUG checking
-#define DEBUG_HISTORY_COPY_CHECK	(1 && TOM_DEBUG)
-
-	//defines - DEBUG behaviour
-#define DEBUG_DISABLE_RANDOM		((1 && TOM_DEBUG) || TOM_DISABLE_RANDOM)
-
-	//defines - DEBUG VISUALIZATION
-#define VISUALIZE_LEVEL			2		//set visualization depth
-#define VISUALIZE_LEVEL_UCT		((1 >= VISUALIZE_LEVEL) && TOM_DEBUG)
-
-#define VISUALIZE_UCT_GETC_AFTER_MOVE	(0 && VISUALIZE_LEVEL_UCT)
-#define VISUALIZE_UCT_ACTIONS_TREE		(0 && VISUALIZE_LEVEL_UCT)
-#define VISUALIZE_UCT_ACTIONS_PLAYOUT	(0 && VISUALIZE_LEVEL_UCT)
-
-#define DEBUG_ROOT_CHILDREN_VALUES	(0 && TOM_DEBUG)
-#define DEBUG_TRACE_SELECTED_NODE	0 //(0 && TOM_DEBUG)
-#define DEBUG_TREE_EXPANSION		(0 && TOM_DEBUG)
-#define DEBUG_TREE_EXPANSION_SIM	0 //(0 && TOM_DEBUG)
-#define DEBUG_SIMULATED_GAMES_OUT	(0 && TOM_DEBUG)
-
-#define DEBUG_DISABLE_RANDOM_MULTIPLE_BEST	0
-#define DEBUG_DISABLE_RANDOM_EXPAND		0
-
-	// -- END of user defines section -- //
-
-	// -- auto-defines -- //
-#if(PARAM_FUNC_APP_TYPE < 2)
-#define FUNC_APPROX_NUM_PARAMS		FUNC_APPROX_NUM_INPUTS
-#elif(PARAM_FUNC_APP_TYPE == 2)
-#define FUNC_APPROX_NUM_PARAMS		(FUNC_APPROX_NUM_INPUTS+1)*FUNC_APPROX_NUM_OUTPUTS
-#elif(PARAM_FUNC_APP_TYPE == 3)
-#define FUNC_APPROX_NUM_PARAMS		(FUNC_APPROX_HIDD_LAYER*(FUNC_APPROX_NUM_INPUTS+1) + FUNC_APPROX_NUM_OUTPUTS*(FUNC_APPROX_HIDD_LAYER+1))
-#endif
+	// ---- END OF class global constants ---- //
 
 	//history of rewards in visited states in the last episode
 	typedef struct trajectoryRecord {
 		int action;					// chosen action (bound to game)
 		HashTree::TreeNode* state;	// chosen state
 		double reward;				// reward received when transiting to new state
-		REWARD_GOALS goal;			// what was the goal of that move (to maximize or minimize the reward)
+		REWARD_GOALS::TYPE goal;	// what was the goal of that move (to maximize or minimize the reward)
 		double bestActionValue;		// needed for off-policy control: value of best action
 		int exploratoryAction;		// needed for off-policy control: flag whether the move was exploratory (set by the Control Policy)
 		double stateVisitsTotal;	// number of total visits of this state so far
 
 		//statics
-		static const char * const trajectoryRecordLabels[];
-		static const char * const trajectoryRecordFormat[];
+		static const int structNumElements = 7;
+		static const char * trajectoryRecordLabels[structNumElements];
+		static const char * trajectoryRecordFormat[structNumElements];
 	};
 
 	//public procedures
@@ -289,33 +315,32 @@ public:
 
 	//public procedures - debug and visualization	
 	virtual void Output_Settings();
-	virtual void Output_Log_Level_Create_Headers();
 
 	//configuration variables
-	PRESET_ALGORITHMS					config_preset_algorithm;
-	CONTROL_POLICIES					config_control_policy;
-	POLICY_EVALUATION_TYPES				config_policy_evaluation;
-	TD_UPDATE_TYPES						config_TDupdateType;
-	Q_TRACE_TYPES						config_trace_type;
-	Q_TRACE_RESET_TYPES					config_trace_exploratory_reset;
-	Game_Engine::TRANSPOSITION_TYPES	config_transpositions;
+	PRESET_ALGORITHMS::TYPE				config_preset_algorithm;
+	CONTROL_POLICIES::TYPE				config_control_policy;
+	POLICY_EVALUATIONS::TYPE			config_policy_evaluation;
+	TD_UPDATES::TYPE					config_TDupdateType;
+	ELIGIBILITY_TRACES::TYPE			config_trace_type;
+	ELIGIBILITY_EXPLORATORY_RESET::TYPE	config_trace_exploratory_reset;
+	Game_Engine::TRANSPOSITIONS::TYPE	config_transpositions;
 
-	bool				config_offpolicy_backup_recheck_best;
+	int							config_offpolicy_backup_recheck_best;
 	
-	int					config_nonEpisodicTasks_updateInterval;
-	int					config_num_new_nodes_per_episode;
+	int							config_nonEpisodicTasks_updateInterval;
+	int							config_num_new_nodes_per_episode;
 
-	ROLLOUT_ASSUMPTIONS	config_rollout_assumption;
+	ROLLOUT_VALUE_ASSUMPTIONS::TYPE		config_rollout_assumption;
 
-	UPDATESTEP_ALPHA_TYPES			config_alpha_type;
+	UPDATESTEP_ALPHA::TYPE				config_alpha_type;
 
-	UCB_VISIT_TYPES					config_ucb_visit_type;
-	UCB_NORMALIZATION_TYPES			config_ucb_norm_type;
-	UCB_NORMALIZATION_GLOBAL_TYPES	config_ucb_norm_global;
-	UCB_NORMALIZATION_LOCAL_TYPES	config_ucb_norm_local;
+	UCB_VISITS::TYPE					config_ucb_visit_type;
+	UCB_NORMALIZATION_LOCALITY::TYPE	config_ucb_norm_type;
+	UCB_GLOBAL_NORMALIZATIONS::TYPE		config_ucb_norm_global;
+	UCB_LOCAL_NORMALIZATIONS::TYPE		config_ucb_norm_local;
 
-	OPPONENT_ALIGNMENTS config_opponent_alignment;
-	OPPONENT_POLICIES	config_opponent_policy;
+	OPPONENT_ALIGNMENTS::TYPE	config_opponent_alignment;
+	OPPONENT_POLICIES::TYPE		config_opponent_policy;
 
 	double par_egreedy_e;
 	double par_ucb_c;
@@ -331,19 +356,26 @@ public:
 	
 	double config_memory_limitMB;	//ammount of available memory (memory budget) in MB
 
-	NUMERCIAL_CORRECTIONS	config_numerical_correction;
+	NUMERCIAL_CORRECTIONS::TYPE	config_numerical_correction;
 
 	//public variables - tabular value function
 	HashTree* memory;
+
 	trajectoryRecord* trajectory;
 	int trajectory_length;		//length of the current trajectory
 	int trajectory_maxLength;	//maximum length of a trajectory (usually defined by the maximum length of an episodic task/game)
-	int exploratory_move_trace_cutOff;	//needed for backups when using offpolicy learning with eligibility traces
+	
+	int exploratory_move_trace_cutOff, exploratory_move_trace_cutOff_new;		//needed for backups when using offpolicy learning with eligibility traces
+	int lastMetMemorizedState_trajIndex;	//needed for backup value assumptions of non-memorized nodes
+	int nextPendingBackup_trajIndex;		//needed for backup value assumptions of non-memorized nodes
+
+	//HashTree::TreeNode* lastMetMemorizedState;	
 
 	//current state variables
 	HashTree::TreeNode* internalGameActiveNode;	//the active starting state (node) for each simulation - the root node for each episode
 	int		numEpisodes_lastMove;				//number of computed episodes in last external move (last batch)
 	int		numEpisodes_total;					//number of all computed episodes (also over all external game steps) (since reset())
+	int		numSimulatedActions_previousEpisode;//number of simulated actions in the previous episode (gets updated at each episode termination)
 	int		numSimulatedActions_lastEpisode;	//number of simulated actions in last episode
 	int		numSimulatedActions_lastMove;		//number of simulated actions in last getMove() call
 	int		numSimulatedActions_total;			//number of all simulated actions, number of calls to simulatedGame->Play_Move()
@@ -364,9 +396,9 @@ public:
 	////public variables - UCT learning parameters
 	//int		UCT_param_SimPerIter;				//number of simulations per iteration
 
-	//public variables - function approximation parameters
-	Tom_Function_Approximator* Func_App_UCT_Params;
-	int Func_App_UCT_num_params;
+	////public variables - function approximation parameters
+	//Tom_Function_Approximator* Func_App_UCT_Params;
+	//int Func_App_UCT_num_params;
 
 	////public variables - current state
 	//int UCT_num_plys;
@@ -387,13 +419,27 @@ public:
 	int config_output_pause;
 
 	int config_output_memory_treeDepth;
+
+	//public vairables - warnings' switches
+	int config_outputWarning_Qbounds;
+
+	//public variables - experimental settings and memory storage pointers
+	EXPERIMENTAL_SETTINGS::TYPE config_experiment;	// externally selected experimental setting
+	Tool_Sample_Storage*** experiment_results;	// externally allocated 2d array of pointers to objects Tool_Sample_Storage to store results
+	double* experiment_timers;					// array of times (usually contains externally defined starting times)
+
 	//int  output_type;
 	//double	debug_dbl_cnt1, debug_dbl_cnt2;
 	//int	 output_level_headers_created;
 
 	//statics
-	static const char * const settingsLabels[];
-	static const char * const settingsFormat[];
+	static const char * settingsLabels[];
+	static const char * settingsFormat[];
+	static const int	experimentNumMetrics[EXPERIMENTAL_SETTINGS::ENUM_COUNT_ELEMENTS];
+	static const char * experimentLabels[EXPERIMENTAL_SETTINGS::ENUM_COUNT_ELEMENTS][20];
+	
+	static char * labelsPresetAlgorithms[];
+
 
 protected:
 
@@ -403,20 +449,20 @@ protected:
 	virtual void Clear_Memory();
 	virtual void New_Game2();
 
-	virtual void Apply_Preset_Config(PRESET_ALGORITHMS preset);	//set parameters by the selected preset - overrides certain settings, depending on which preset was selected
+	virtual void Apply_Preset_Config(PRESET_ALGORITHMS::TYPE preset);	//set parameters by the selected preset - overrides certain settings, depending on which preset was selected
 
 	//RL procedures
-	virtual int			RL_Algorithm();
-	virtual bool		RL_Single_Episode();
+	virtual int			SingleExternalMove();
+	virtual bool		SingleEpisode();
 
-	virtual std::tuple<int, int, int, double, double, REWARD_GOALS>	RL_Control_Policy(Game_Engine* localGame, HashTree::TreeNode* currentState, CONTROL_POLICIES policy, REWARD_GOALS rewardGoal);
-	virtual std::tuple<int, int, int, double, double, REWARD_GOALS>	RL_Opponent_Model(Game_Engine* localGame, HashTree::TreeNode* currentState);
+	virtual std::tuple<int, int, int, double, double, REWARD_GOALS::TYPE>	RL_Control_Policy(Game_Engine* localGame, HashTree::TreeNode* currentState, CONTROL_POLICIES::TYPE policy, REWARD_GOALS::TYPE rewardGoal);
+	virtual std::tuple<int, int, int, double, double, REWARD_GOALS::TYPE>	RL_Opponent_Model(Game_Engine* localGame, HashTree::TreeNode* currentState);
 	virtual std::tuple<double, int, int>							RL_Perform_Action(Game_Engine* localGame, int actionID);
 
 	virtual void				Update_Memory_After_External_Change(int number_actions);
 	virtual HashTree::TreeNode*	MemorizeNextState(Game_Engine* localGame, HashTree::TreeNode* previousState, int hashKey, int selected_child_index);
 	virtual void				MarkStateVisit(HashTree::TreeNode* visitedNode);
-	virtual void				AddTrajectoryEntry(int action, HashTree::TreeNode* state, double reward, REWARD_GOALS rewardGoal, double onPolicyChildValue, double bestActionValue);
+	virtual void				AddTrajectoryEntry(int action, HashTree::TreeNode* state, double reward, REWARD_GOALS::TYPE rewardGoal, double onPolicyChildValue, double bestActionValue);
 	
 	virtual void				HandleEpisodeStep();
 	virtual void				HandleEpisodeEnd();
@@ -425,25 +471,31 @@ protected:
 	virtual void				UpdateTrajectoryBounds();
 	virtual void				UpdateKnownReturnBounds(double lastReturn);
 
-	virtual HashTree::TreeNode* AddNode(Game_Engine* localGame, int hashKey, HashTree::TreeNode* parent, int child_seq_index);
-	virtual void				ResetNode(HashTree::TreeNode* newNode);
+	virtual HashTree::TreeNode* AddNode(Game_Engine* localGame, int hashKey, HashTree::TreeNode* parent, int child_seq_index, double initialValue);
+	virtual void				ResetNode(HashTree::TreeNode* newNode, double initialValue);
 
-	virtual std::tuple<int, int, int, double, double>	RL_Control_Egreedy(Game_Engine* localGame, HashTree::TreeNode* currentState, double par_epsilon, REWARD_GOALS goal);
-	virtual std::tuple<int, int, int, double, double>	RL_Control_UCB(Game_Engine* localGame, HashTree::TreeNode* currentState, double par_C, REWARD_GOALS goal);
-	virtual void		RL_TDofflineBackup();
-	virtual void		RL_TDsingleBackup(int trajectory_index, double gamma, double alpha, double lambda, char* printLinePrefix = NULL);
-	virtual double		RL_GetAssumedStateValue(HashTree::TreeNode* node);
-	virtual double		RL_GetBestActionValue(HashTree::TreeNode* node, REWARD_GOALS goal);
+	virtual std::tuple<int, int, int, double, double>	RL_Control_Egreedy(Game_Engine* localGame, HashTree::TreeNode* currentState, double par_epsilon, REWARD_GOALS::TYPE goal);
+	virtual std::tuple<int, int, int, double, double>	RL_Control_UCB(Game_Engine* localGame, HashTree::TreeNode* currentState, double par_C, REWARD_GOALS::TYPE goal);
+	virtual void		RLofflineBackup();
+	virtual void		RLsingleBackup(int trajectory_index, char* printLinePrefix = NULL);
+	
+	virtual double		GetTDerror(int trajectory_index, char* printLinePrefix = NULL);
+	virtual void		BackupTDerror(double TDerror, int trajectory_index, char* printLinePrefix = NULL);
+
+	virtual void		ConstantMCsingleBackup(int trajectory_index, char* printLinePrefix = NULL);
+
+	virtual double		GetRolloutAssumedValue(int trajectory_index);
+	virtual double		GetStateBestActionValue(HashTree::TreeNode* node, REWARD_GOALS::TYPE goal);
 
 	virtual double		NumericalErrorCorrection(double value);
 
-	//support procedures
-	virtual double		Neural_Network_Threshold_Function(double input_weight_sum, const int function_type = FUNC_APPROX_NEURAL_FUNC);
-
-	//private protected procedures - visualization and debug
-	virtual void		Output_ExternalMove_Level();
-	virtual void		Output_Episode_Level();
-	virtual void		Output_SimulatedMove_Level();
+	//protected procedures - visualization and debug
+	virtual void		Output_ExternalMove_Start();
+	virtual void		Output_Episode_Start();
+	virtual void		Output_SimulatedMove_Start();
+	virtual void		Output_ExternalMove_End();
+	virtual void		Output_Episode_End();
+	virtual void		Output_SimulatedMove_End();
 
 	virtual void		Output_Batch(int depth);
 	virtual void		Output_Current_Info(char* printLinePrefix = NULL);
@@ -454,6 +506,10 @@ protected:
 	virtual void		Output_TDbackup1(int trajectory_index, double TDerror, double nextStateVal, double stateVal, int exploratory_move_trace_reset, char* printLinePrefix);
 	virtual void		Output_TDbackup21(int b, int trajectory_index, double trace, HashTree::TreeNode* backupNode, char* printLinePrefix);
 	virtual void		Output_TDbackup22(int b, HashTree::TreeNode* backupNode, double alpha, char* printLinePrefix);
+
+	//protected procedures - experiments
+	virtual void		Experiment_EpisodeMetrics(int depth);
+	virtual void		Experiment_TimeStepMetrics(int depth);
 
 	////private protected variables
 	////double* actionsWeight;

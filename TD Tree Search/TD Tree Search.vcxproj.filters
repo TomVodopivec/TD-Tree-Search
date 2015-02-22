@@ -138,6 +138,9 @@
     <ClInclude Include="Source\tools\Tool_HashTree.hpp">
       <Filter>Header Files\tools</Filter>
     </ClInclude>
+    <ClInclude Include="Source\tools\Tool_Sample_Storage.hpp">
+      <Filter>Header Files\tools</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Source\tools\Support_GetCPUTime.cpp">
@@ -213,6 +216,9 @@
       <Filter>Source Files\players</Filter>
     </ClCompile>
     <ClCompile Include="Source\tools\Tool_HashTree.cpp">
+      <Filter>Source Files\tools</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\tools\Tool_Sample_Storage.cpp">
       <Filter>Source Files\tools</Filter>
     </ClCompile>
   </ItemGroup>

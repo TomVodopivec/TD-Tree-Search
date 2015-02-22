@@ -1,6 +1,20 @@
 //include header
 #include "Player_AI_RL.hpp"
 
+//TEMPORARILY MOVED HERE FROM HEADER: is already valid by the c++11 standard (in-header static const double initialization), but is not yet implemented in VS2013
+const double Player_AI_RL::DEFAULT_PAR_EPSILON = 1.0;
+const double Player_AI_RL::DEFAULT_PAR_UCB_C = sqrt(2.0);
+
+const double Player_AI_RL::DEFAULT_PAR_TASK_GAMMA = 1.0;
+const double Player_AI_RL::DEFAULT_PAR_TD_ALPHA = 0.1;
+const double Player_AI_RL::DEFAULT_PAR_TD_LAMBDA = 1.0;
+const double Player_AI_RL::DEFAULT_PAR_TD_INITVAL = 0.0;
+
+const double Player_AI_RL::EPSILON_TIEBRAKER = 0.000000001;
+const double Player_AI_RL::SMALLEST_TDERROR = EPSILON_TIEBRAKER;
+const double Player_AI_RL::EPSILON_TRACE_CUTOFF = EPSILON_TIEBRAKER;
+
+
 /**
 Constructor for AI UCT player module calling general game player constructor
 
@@ -13,8 +27,8 @@ Player_AI_RL::Player_AI_RL(Game_Engine* game, int player_number) : Player_Engine
 	this->is_initialized = false;
 	this->is_allocated = false;
 
-	//temporary moved from Init_Settings()
-	Func_App_UCT_num_params = FUNC_APPROX_NUM_PARAMS;
+	////temporary moved from Init_Settings()
+	//Func_App_UCT_num_params = FUNC_APPROX_NUM_PARAMS;
 
 	//call initialization procedures
 	if (game != NULL)
@@ -56,11 +70,11 @@ void Player_AI_RL::Init_Settings()
 
 	config_control_policy = DEFAULT_CONTROL_POLICY;
 	config_policy_evaluation = DEFAULT_POLICY_EVALUATION;
-	config_TDupdateType = DEFAULT_TD_UPDATE_TYPE;
-	config_trace_type = DEFAULT_Q_TRACE_TYPE;
-	config_trace_exploratory_reset = DEFAULT_TRACE_EXPLORATORY_RESET;
-	config_transpositions = DEFAULT_USE_TRANSPOSITIONS;
-	config_rollout_assumption = DEFAULT_ROLLOUT_ASSUMPTION;
+	config_TDupdateType = DEFAULT_TD_UPDATE;
+	config_trace_type = DEFAULT_ELIGIBILITY_TRACES;
+	config_trace_exploratory_reset = DEFAULT_ELIGIBILITY_EXPLORATORY_RESET;
+	config_transpositions = DEFAULT_TRANSPOSITIONS;
+	config_rollout_assumption = DEFAULT_ROLLOUT_VALUE_ASSUMPTION;
 
 	config_offpolicy_backup_recheck_best = DEFAULT_OFFPOLICY_BACKUP_RECHECK_BEST;
 	config_nonEpisodicTasks_updateInterval = DEFAULT_NONEPISODICTASKS_UPDATEINTERVAL;
@@ -70,12 +84,12 @@ void Player_AI_RL::Init_Settings()
 	config_opponent_alignment = DEFAULT_OPPONENT_ALIGNMENT;
 	config_opponent_policy = DEFAULT_OPPONENT_POLICY;
 
-	config_alpha_type = DEFAULT_UPDATESTEP_ALPHA_TYPE;
+	config_alpha_type = DEFAULT_UPDATESTEP_ALPHA;
 
-	config_ucb_visit_type = DEFAULT_UCB_VISITS_TYPE;
-	config_ucb_norm_type = DEFAULT_UCB_NORMALIZATION_TYPE;
-	config_ucb_norm_global = DEFAULT_UCB_NORMALIZATION_GLOBAL_TYPE;
-	config_ucb_norm_local = DEFAULT_UCB_NORMALIZATION_LOCAL_TYPE;
+	config_ucb_visit_type = DEFAULT_UCB_VISITS;
+	config_ucb_norm_type = DEFAULT_UCB_NORMALIZATION_LOCALITY;
+	config_ucb_norm_global = DEFAULT_UCB_GLOBAL_NORMALIZATION;
+	config_ucb_norm_local = DEFAULT_UCB_LOCAL_NORMALIZATION;
 
 	par_egreedy_e = DEFAULT_PAR_EPSILON;
 	par_ucb_c = DEFAULT_PAR_UCB_C;
@@ -104,6 +118,13 @@ void Player_AI_RL::Init_Settings()
 
 	config_output_memory_treeDepth = DEFAULT_OUTPUT_MEMORY_TREEDEPTH;
 
+	config_outputWarning_Qbounds =	DEFAULT_OUTPUT_WARNING_QBOUNDS;
+
+	//experimental settings and externally-defined structures
+	config_experiment = DEFAULT_EXPERIMENTAL_SETTING;
+	experiment_results = NULL;
+	experiment_timers = NULL;
+
 	////old
 	//output_level_headers_created = false;
 
@@ -113,6 +134,7 @@ void Player_AI_RL::Init_Settings()
 
 	//set parameters by the selected preset - overrides certain settings, depending on which preset was selected
 	Apply_Preset_Config(this->config_preset_algorithm);
+
 }
 
 void Player_AI_RL::Allocate_Memory()
@@ -132,10 +154,10 @@ void Player_AI_RL::Allocate_Memory()
 
 	//memory strucure
 	int hashMapSize = 0;
-	if (config_transpositions != (Game_Engine::TRANSPOSITION_TYPES::TRANSPOSITIONS_DISABLED)){		// get size of table if using transpositions
+	if (config_transpositions != (Game_Engine::TRANSPOSITIONS::DISABLED)){		// get size of table if using transpositions
 		hashMapSize = game->HashKey_getNum(config_transpositions);
 		if (hashMapSize == 0)
-			gmp->Print("WARNING: Player_AI_RL::Allocate_Memory() : game %s does not allow transpositions, switching to TRANSPOSITIONS_DISABLED\n", game->game_name.c_str());
+			gmp->Print("WARNING: Player_AI_RL::Allocate_Memory() : game %s does not allow transpositions, switching to DISABLED\n", game->game_name.c_str());
 	}
 
 	memory = new HashTree(config_memory_limitMB, hashMapSize);
@@ -197,6 +219,7 @@ void Player_AI_RL::New_Game2()
 	//zero the counters
 	this->numEpisodes_lastMove = 0;
 	this->numEpisodes_total = 0;
+	this->numSimulatedActions_previousEpisode = -1;
 	this->numSimulatedActions_lastEpisode = 0;
 	this->numSimulatedActions_lastMove = 0;
 	this->numSimulatedActions_total = 0;
@@ -230,13 +253,13 @@ void Player_AI_RL::New_Game2()
 	this->numerical_correction_possible = 0;
 	if (
 		(
-		(!((this->config_num_new_nodes_per_episode != -1) && (this->config_rollout_assumption != ROLLOUT_NODE_ASSUME_INITIAL_VALUE))) &&
-		(this->config_transpositions == Game_Engine::TRANSPOSITION_TYPES::TRANSPOSITIONS_DISABLED) &&
-		(this->config_policy_evaluation != EVALUATION_TDLAMBDA_OFFPOLICY_Q_LEARNING)
+		(!((this->config_num_new_nodes_per_episode != -1) && (this->config_rollout_assumption != ROLLOUT_VALUE_ASSUMPTIONS::INITIAL))) &&
+		(this->config_transpositions == Game_Engine::TRANSPOSITIONS::DISABLED) &&
+		(this->config_policy_evaluation != POLICY_EVALUATIONS::TDLAMBDA_OFFPOLICY_Q_LEARNING)
 		) || 
 		(
-		(!((this->config_trace_type == Q_TRACE_ACCUMULATING) && (this->config_alpha_type == ALPHA_CONSTANT))) &&
-		(!((this->config_trace_exploratory_reset == Q_TRACE_EXPLORATORY_RESET_ENABLED) && (this->config_TDupdateType == TD_UPDATE_OFFLINE)))
+		(!((this->config_trace_type == ELIGIBILITY_TRACES::ACCUMULATING) && (this->config_alpha_type == UPDATESTEP_ALPHA::CONSTANT))) &&
+		(!((this->config_trace_exploratory_reset == ELIGIBILITY_EXPLORATORY_RESET::ENABLED) && (this->config_TDupdateType == TD_UPDATES::BATCH_EPISODIC)))
 		//also not yet sure when DEFAULT_NUM_NEW_NODES_PER_EPISODE different than -1
 		)
 		){
@@ -248,9 +271,9 @@ void Player_AI_RL::New_Game2()
 }
 
 //set parameters by the selected preset - overrides certain settings, depending on which preset was selected
-void Player_AI_RL::Apply_Preset_Config(PRESET_ALGORITHMS preset)
+void Player_AI_RL::Apply_Preset_Config(PRESET_ALGORITHMS::TYPE preset)
 {
-	if (preset == NO_PRESET_ALGORITHM)
+	if (preset == PRESET_ALGORITHMS::NONE)
 	{
 		//// list of all settable parameters:
 		//this->config_preset_algorithm;
@@ -294,71 +317,93 @@ void Player_AI_RL::Apply_Preset_Config(PRESET_ALGORITHMS preset)
 		//this->par_td_lambda;
 	}
 
-	else if (preset == ALGORITHM_FIRSTVISIT_MC_ONPOLICY)
+	else if (preset == PRESET_ALGORITHMS::FIRSTVISIT_MC_ONPOLICY)
 	{
-		this->config_policy_evaluation = EVALUATION_TDLAMBDA_ONPOLICY;
-		this->config_TDupdateType = TD_UPDATE_OFFLINE;
-		this->config_trace_type = Q_TRACE_REPLACING;
-		//this->config_rollout_assumption = ROLLOUT_NODE_ASSUME_CONVERGED_REWARD;	//this is probably needed (not sure yet) when gamma < 1
-		this->config_alpha_type = ALPHA_MONTE_CARLO;
+		this->config_policy_evaluation = POLICY_EVALUATIONS::TDLAMBDA_ONPOLICY;
+		this->config_TDupdateType = TD_UPDATES::BATCH_EPISODIC;
+		this->config_trace_type = ELIGIBILITY_TRACES::REPLACING;
+		//this->config_rollout_assumption = CONVERGED_TO_REWARD;	//this is probably needed (not sure yet) when gamma < 1
+		this->config_alpha_type = UPDATESTEP_ALPHA::MONTE_CARLO;
 		this->par_td_lambda = 1.0;
 	}
 
-	else if (preset == ALGORITHM_EVERYVISIT_MC_ONPOLICY)
+	else if (preset == PRESET_ALGORITHMS::EVERYVISIT_MC_ONPOLICY)
 	{
-		this->config_policy_evaluation = EVALUATION_TDLAMBDA_ONPOLICY;
-		this->config_TDupdateType = TD_UPDATE_OFFLINE;
-		this->config_trace_type = Q_TRACE_ACCUMULATING;
-		//this->config_rollout_assumption = ROLLOUT_NODE_ASSUME_CONVERGED_REWARD;	//this is probably needed (not sure yet) when gamma < 1
-		this->config_alpha_type = ALPHA_MONTE_CARLO;
+		this->config_policy_evaluation = POLICY_EVALUATIONS::TDLAMBDA_ONPOLICY;
+		this->config_TDupdateType = TD_UPDATES::BATCH_EPISODIC;
+		this->config_trace_type = ELIGIBILITY_TRACES::ACCUMULATING;
+		//this->config_rollout_assumption = CONVERGED_TO_REWARD;	//this is probably needed (not sure yet) when gamma < 1
+		this->config_alpha_type = UPDATESTEP_ALPHA::MONTE_CARLO;
 		this->par_td_lambda = 1.0;
 	}
 
-	else if (preset == ALGORITHM_TD_ZERO_ONPOLICY)
+	else if (preset == PRESET_ALGORITHMS::EPISODIC_CONSTANT_MC)
 	{
-		this->config_policy_evaluation = EVALUATION_TDLAMBDA_ONPOLICY;
+		this->config_policy_evaluation = POLICY_EVALUATIONS::CONSTANT_MC;
+		// should be this->config_TDupdateType = TD_UPDATES::BATCH_EPISODIC; or BATCH_EPISODIC_INPLACE
+		this->config_alpha_type = UPDATESTEP_ALPHA::CONSTANT;
+		this->par_td_lambda = 1.0;
+	}
+
+	else if (preset == PRESET_ALGORITHMS::EPISODIC_LAMBDA_RETURN)
+	{
+		this->config_policy_evaluation = POLICY_EVALUATIONS::CONSTANT_MC;
+		// should be this->config_TDupdateType = TD_UPDATES::BATCH_EPISODIC; or BATCH_EPISODIC_INPLACE
+	}
+
+	else if (preset == PRESET_ALGORITHMS::ONLINE_TD_ZERO_ONPOLICY)
+	{
+		this->config_policy_evaluation = POLICY_EVALUATIONS::TDLAMBDA_ONPOLICY;
+		this->config_TDupdateType = TD_UPDATES::ONLINE;
 		this->par_td_lambda = 0.0;
 	}
 
-	else if (preset == ALGORITHM_TD_LAMBDA)
+	else if (preset == PRESET_ALGORITHMS::EPISODIC_TD_ZERO_ONPOLICY)
 	{
-		this->config_policy_evaluation = EVALUATION_TDLAMBDA_ONPOLICY;
+		this->config_policy_evaluation = POLICY_EVALUATIONS::TDLAMBDA_ONPOLICY;
+		this->config_TDupdateType = TD_UPDATES::BATCH_EPISODIC;
+		this->par_td_lambda = 0.0;
 	}
 
-	else if (preset == ALGORITHM_ONLINE_WATKINS_Q)
+	else if (preset == PRESET_ALGORITHMS::TD_LAMBDA)
 	{
-		this->config_policy_evaluation = EVALUATION_TDLAMBDA_OFFPOLICY_Q_LEARNING;
-		this->config_TDupdateType = TD_UPDATE_ONLINE;	//may also be OFFLINE_INPLACE
-		this->config_trace_exploratory_reset = Q_TRACE_EXPLORATORY_RESET_ENABLED;
+		this->config_policy_evaluation = POLICY_EVALUATIONS::TDLAMBDA_ONPOLICY;
 	}
 
-	else if (preset == ALGORITHM_ONLINE_NAIVE_Q)
+	else if (preset == PRESET_ALGORITHMS::ONLINE_WATKINS_Q)
 	{
-		this->config_policy_evaluation = EVALUATION_TDLAMBDA_OFFPOLICY_Q_LEARNING;
-		this->config_TDupdateType = TD_UPDATE_ONLINE;	//may also be OFFLINE_INPLACE
-		this->config_trace_exploratory_reset = Q_TRACE_EXPLORATORY_RESET_DISABLED;
+		this->config_policy_evaluation = POLICY_EVALUATIONS::TDLAMBDA_OFFPOLICY_Q_LEARNING;
+		this->config_TDupdateType = TD_UPDATES::ONLINE;	//may also be OFFLINE_INPLACE
+		this->config_trace_exploratory_reset = ELIGIBILITY_EXPLORATORY_RESET::ENABLED;
 	}
 
-	//else if (preset == ALGORITHM_PENGS_Q)
+	else if (preset == PRESET_ALGORITHMS::ONLINE_NAIVE_Q)
+	{
+		this->config_policy_evaluation = POLICY_EVALUATIONS::TDLAMBDA_OFFPOLICY_Q_LEARNING;
+		this->config_TDupdateType = TD_UPDATES::ONLINE;	//may also be OFFLINE_INPLACE
+		this->config_trace_exploratory_reset = ELIGIBILITY_EXPLORATORY_RESET::DISABLED;
+	}
+
+	//else if (preset == PENGS_Q)
 	//{
 		// not implemented yet
 	//}
 
-	else if (preset == ALGORITHM_UCT)
+	else if (preset == PRESET_ALGORITHMS::MCTS_UCT)
 	{
-		this->config_control_policy = CONTROL_UCB;
-		this->config_policy_evaluation = EVALUATION_TDLAMBDA_ONPOLICY;
-		this->config_TDupdateType = TD_UPDATE_OFFLINE;
-		this->config_trace_type = Q_TRACE_REPLACING;
+		this->config_control_policy = CONTROL_POLICIES::UCB1;
+		this->config_policy_evaluation = POLICY_EVALUATIONS::TDLAMBDA_ONPOLICY;
+		this->config_TDupdateType = TD_UPDATES::BATCH_EPISODIC;
+		this->config_trace_type = ELIGIBILITY_TRACES::REPLACING;
 		this->config_num_new_nodes_per_episode = 1;
-		//this->config_rollout_assumption = ROLLOUT_NODE_ASSUME_CONVERGED_REWARD;	//this is probably needed when gamma < 1
-		this->config_alpha_type = ALPHA_MONTE_CARLO;
+		//this->config_rollout_assumption = CONVERGED_TO_REWARD;	//this is probably needed when gamma < 1
+		this->config_alpha_type = UPDATESTEP_ALPHA::MONTE_CARLO;
 		this->par_td_lambda = 1.0;
 	}
 	
 	////safety checks
-	//if((this->config_trace_exploratory_reset == Q_TRACE_EXPLORATORY_RESET_ENABLED) && (this->config_TDupdateType == TD_UPDATE_OFFLINE) && (this->config_transpositions == Game_Engine::TRANSPOSITION_TYPES::TRANSPOSITIONS_DISABLED)){
-	//	gmp->Print("\nWARNING: Player_AI_RL::Apply_Preset_Config(): configuration may diverge: Q_TRACE_EXPLORATORY_RESET_ENABLED should not be used with TD_UPDATE_OFFLINE when using transpositions");
+	//if((this->config_trace_exploratory_reset == ENABLED) && (this->config_TDupdateType == TD_UPDATE_OFFLINE) && (this->config_transpositions == Game_Engine::TRANSPOSITIONS::DISABLED)){
+	//	gmp->Print("\nWARNING: Player_AI_RL::Apply_Preset_Config(): configuration may diverge: ENABLED should not be used with TD_UPDATE_OFFLINE when using transpositions");
 	//}
 
 
@@ -370,14 +415,6 @@ int Player_AI_RL::Get_Move()
 	int moveNumber;
 	int number_internal_moves;
 
-#if(DEBUG_TRACE_SELECTED_NODE)
-	gmp->Print("TRACE_NODE_SEL:  ply iter action     value      N      R     Qval\n");
-#endif
-
-	//debug: display tree state
-	//STDprint_UCTtree_state();
-	//STDprintTreeVal(root);
-
 	//How many moves were made in external game since last Get_Move() call
 	number_internal_moves = (game->current_plys - internalGame->current_plys);
 
@@ -387,10 +424,7 @@ int Player_AI_RL::Get_Move()
 	Update_Memory_After_External_Change(number_internal_moves);
 
 	//Execute UCT algortihm and select best action
-	moveNumber = RL_Algorithm();
-
-	// visualization and debug
-	Output_ExternalMove_Level();
+	moveNumber = SingleExternalMove();
 
 	//return selected move
 	return moveNumber;
@@ -424,16 +458,16 @@ void Player_AI_RL::Update_Memory_After_External_Change(int number_actions)
 			std::tie(std::ignore, std::ignore, hashKey) = RL_Perform_Action(internalGame, actionID);
 		
 		//delete irrelevant parts of the tree when transpositions are not used
-		if (this->config_transpositions == (Game_Engine::TRANSPOSITION_TYPES::TRANSPOSITIONS_DISABLED))
+		if (this->config_transpositions == (Game_Engine::TRANSPOSITIONS::DISABLED))
 			this->internalGameActiveNode = memory->Crop_Tree_ActionID(actionID);	//sets new active node
 
 	}
 
 	// set new active node (get next state record) when using transpositions
-	if (this->config_transpositions != (Game_Engine::TRANSPOSITION_TYPES::TRANSPOSITIONS_DISABLED)){
+	if (this->config_transpositions != (Game_Engine::TRANSPOSITIONS::DISABLED)){
 
 		// needed for state-action transpositions to correctly initialize the game-starting state
-		if (this->config_transpositions == (Game_Engine::TRANSPOSITION_TYPES::TRANSPOSITIONS_STATEACTIONS)){
+		if (this->config_transpositions == (Game_Engine::TRANSPOSITIONS::STATEACTIONS)){
 			if (replayGame == false){
 				gmp->Print("ERROR: Player_AI_RL::Update_Memory_After_External_Change() : player does not yet support state-action transpositions on non-determinisic games or with 'force copy' flag set.\n");
 				//TODO: copying state currently not supported for state-action transpositions because ...
@@ -452,7 +486,7 @@ void Player_AI_RL::Update_Memory_After_External_Change(int number_actions)
 		}
 
 		// needed for state transpositions to correctly initialize the game-starting state
-		if (this->config_transpositions == (Game_Engine::TRANSPOSITION_TYPES::TRANSPOSITIONS_STATES)){
+		if (this->config_transpositions == (Game_Engine::TRANSPOSITIONS::STATES)){
 			if ((number_actions == 0) || (replayGame == false))
 				hashKey = internalGame->HashKey_getCurrentState();
 		}
@@ -463,7 +497,7 @@ void Player_AI_RL::Update_Memory_After_External_Change(int number_actions)
 
 	// memorize new state if it was not memorized yet -> also changes root node if transpositions are not used
 	if (this->internalGameActiveNode == NULL)
-		this->internalGameActiveNode = AddNode(internalGame, hashKey, NULL, -1);
+		this->internalGameActiveNode = AddNode(internalGame, hashKey, NULL, -1, this->par_td_initVal);
 
 
 
@@ -480,13 +514,16 @@ void Player_AI_RL::Update_Memory_After_External_Change(int number_actions)
 
 }
 
-int Player_AI_RL::RL_Algorithm()
+int Player_AI_RL::SingleExternalMove()
 {
 
 	// reset counters for current external move
 	this->numSimulatedActions_lastMove = 0;
 	this->numEpisodes_lastMove = 0;
 	this->sumSimulatedRewards_lastMove = 0.0;
+
+	// visualization, experimental output, and debug: before a single external move (before a batch of episodes)
+	Output_ExternalMove_Start();
 
 	//execute MCTS iterations with given computational budget
 	bool computationalBudgetAvailable = true;
@@ -496,57 +533,17 @@ int Player_AI_RL::RL_Algorithm()
 		simulatedGame->Copy_Game_State_From(internalGame, false);
 
 		//reinforcement learning algorithms
-		computationalBudgetAvailable = RL_Single_Episode();
-
-		//DEBUG
-		//internalGame->output_chains_to_STD();
-		//simulatedGame->output_chains_to_STD();
-		//simulatedGame->output_state_to_STD();
-		//printf("sim player %d\n",simulatedGame->current_player);
-
-		//DEBUG
-#if(VISUALIZE_LEVEL_UCT)
-		printf("\nSim num %2d     score", this->numEpisodes_lastMove);
-		//for(int t = 0; t < game->number_players; t++)
-		//	printf("  %3.5f",final_rewards[t]);
-#if(!VISUALIZE_UCT_ACTIONS_TREE)
-		printf("     root  %2d", UCTroot->action_index);
-#else
-		printf("     tree  %2d", UCTroot->action_index);
-		printf("%s", visualizeActionsTree.str().c_str());
-		visualizeActionsTree.str("");		//set stringstream to empty
-		visualizeActionsTree.clear();		//clear flags
-#endif
-#if(VISUALIZE_UCT_ACTIONS_PLAYOUT)
-		printf("    \t playout:");
-		printf("%s", visualizeActionsPlayout.str().c_str());
-		visualizeActionsPlayout.str("");	//set stringstream to empty
-		visualizeActionsPlayout.clear();	//clear flags
-#endif
-#endif
-
-#if(DEBUG_TREE_EXPANSION_SIM)
-		//Output_UCT_Tree();
-		Output_UCT_Tree_Node_Children(UCTroot);
-#endif
-
+		computationalBudgetAvailable = SingleEpisode();
 
 	}
-
-	//DEBUG
-#if(DEBUG_TREE_EXPANSION)
-	Output_UCT_Tree();
-#endif
-
-	//increase global counter of invoked UCT plys
-	//UCT_num_plys++;
-
-	// ---- select the best evaluated move ---- //
 
 	//return best action from root, fully greedy
 	int greedyFinalAction;
 	std::tie(greedyFinalAction, std::ignore, std::ignore, std::ignore, std::ignore)
-		= RL_Control_Egreedy(internalGame, internalGameActiveNode, 0.0, REWARD_MAXIMIZE);
+		= RL_Control_Egreedy(internalGame, internalGameActiveNode, 0.0, REWARD_GOALS::MAXIMIZE);
+
+	// visualization, experimental output, and debug: after a single external move (after a batch of episodes)
+	Output_ExternalMove_End();
 
 	return greedyFinalAction;
 
@@ -554,7 +551,7 @@ int Player_AI_RL::RL_Algorithm()
 
 }
 
-bool Player_AI_RL::RL_Single_Episode()
+bool Player_AI_RL::SingleEpisode()
 {
 
 	//if (this->numEpisodes_lastMove >= 14)
@@ -567,16 +564,19 @@ bool Player_AI_RL::RL_Single_Episode()
 	HashTree::TreeNode* currentState = internalGameActiveNode;
 	HashTree::TreeNode* successorState;
 	int isTerminalState = simulatedGame->game_ended;
-	REWARD_GOALS rewardGoal;
+	REWARD_GOALS::TYPE rewardGoal;
 
 	// reset counters for current episode
 	this->numNewStates_lastEpisode = 0;
 	this->numSimulatedActions_lastEpisode = 0;
 	this->numVisitedKnownStates_lastEpisode = 1;	//how many of the states in this trajectory (episode) were already memorized (known) before this episode, init on 1 because of the starting state (root node)
-	this->sumSimulatedRewards_lastEpisode = NAN;
+	this->sumSimulatedRewards_lastEpisode = 0.0;
 
-	// initialize current episode trace variables
+	// initialize "special" variables for current episode
 	this->exploratory_move_trace_cutOff = 0;	//needed for Watkin's Q-learning to stop the backups at exploratory moves
+	this->exploratory_move_trace_cutOff_new = 0;
+	this->lastMetMemorizedState_trajIndex = -1;	//needed for ROLLOUT_VALUE_ASSUMPTIONS::LAST_MEMORIZED
+	this->nextPendingBackup_trajIndex = 0;		//needed for ROLLOUT_VALUE_ASSUMPTIONS::CONVERGED_TO_REWARD
 
 	// mark last state visits
 	MarkStateVisit(currentState);
@@ -584,10 +584,13 @@ bool Player_AI_RL::RL_Single_Episode()
 	// memorize start of trajectory in current episode, MUST called after RL_StateMarkVisit()
 	this->trajectory_length = -1;	//must be set to -1 because the following procedure AddTrajectoryEntry() first increases the conuter and then writes the record
 	if (this->internalGame->number_players == 1)
-		rewardGoal = REWARD_MAXIMIZE;
+		rewardGoal = REWARD_GOALS::MAXIMIZE;
 	else
-		rewardGoal = GOAL_UNKNOWN;
+		rewardGoal = REWARD_GOALS::UNKNOWN;
 	AddTrajectoryEntry(internalGame->history_moves[internalGame->current_plys], currentState, 0.0, rewardGoal, NAN, NAN);
+
+	// visualization, experimental output, and debug: before a single episode (before a batch of simulated moves)
+	Output_Episode_Start();
 
 	// move through the episode until a terminal state is reached
 	bool computeNextAction = true;
@@ -616,7 +619,7 @@ bool Player_AI_RL::RL_Single_Episode()
 			if (currentState->num_children != simulatedGame->current_number_moves[simulatedGame->current_player]){
 
 				//if transpositons are used and number of actions is different under the same hash key, then hash function is flawed (because it breaks the markov property - the same state cannot change its number of actions)
-				if (this->config_transpositions != (Game_Engine::TRANSPOSITION_TYPES::TRANSPOSITIONS_DISABLED)){
+				if (this->config_transpositions != (Game_Engine::TRANSPOSITIONS::DISABLED)){
 					gmp->Print("ERROR: Player_AI_RL::RL_Single_Episode() : number of allowed actions (%d) does not match memorized number of actions for this state (%d); the HASH function for this game must be flawed (%s, ply %d)\n", simulatedGame->current_number_moves[simulatedGame->current_player], currentState->num_children, simulatedGame->game_name.c_str(), simulatedGame->current_plys);
 					return false;
 				}
@@ -635,12 +638,15 @@ bool Player_AI_RL::RL_Single_Episode()
 		// control policy for the learning agent
 		if (simulatedGame->current_player == this->player_number)
 			std::tie(actionID, onPolicy_selected_child_index, bestChild_index, onPolicyChildValue, bestChildValue, rewardGoal)
-				= RL_Control_Policy(simulatedGame, currentState, this->config_control_policy, REWARD_MAXIMIZE);
+			= RL_Control_Policy(simulatedGame, currentState, this->config_control_policy, REWARD_GOALS::MAXIMIZE);
 
 		// opponent model
 		else
 			std::tie(actionID, onPolicy_selected_child_index, bestChild_index, onPolicyChildValue, bestChildValue, rewardGoal)
-				= RL_Opponent_Model(simulatedGame, currentState);
+			= RL_Opponent_Model(simulatedGame, currentState);
+
+		// visualization, experimental output, and debug: before a single simulated move (before the action is applied to the game state)
+		Output_SimulatedMove_Start();
 
 		//Perform selected action on simulated game. Also updates simulated actions counters.
 		//Returns: reward following that action, termination flag, hashKey next active state.
@@ -662,14 +668,14 @@ bool Player_AI_RL::RL_Single_Episode()
 
 		// check whether allowed horizon for simulated games has been met
 		if (this->par_simulated_horizon_lenght >= 0){
-			if (this->numSimulatedActions_lastEpisode < this->par_simulated_horizon_lenght){
+			if (this->numSimulatedActions_lastEpisode >= this->par_simulated_horizon_lenght){
 				computeNextAction = false;		//terminate the current episode
 			}
 		}
 
 		// check whether computational budget has expired (in number of actions)
 		if (this->par_num_simulatedActions_perMove >= 0){
-			if (this->numSimulatedActions_lastMove < this->par_num_simulatedActions_perMove){
+			if (this->numSimulatedActions_lastMove >= this->par_num_simulatedActions_perMove){
 				computeNextAction = false;		//terminate the current episode
 				computeNextEpisode = false;		//terminate also the episodes loop
 			}
@@ -682,8 +688,8 @@ bool Player_AI_RL::RL_Single_Episode()
 			gmp->Print("WARNING: Player_AI_RL::RL_Single_Episode() : memory budged depleted (limit: %.0f [MB]), at externalMove %d, episode %d, internalMove %d\n", memory->treeMaxMemorySize/1024.0/1024.0, internalGame->current_plys, this->numEpisodes_lastMove, simulatedGame->current_plys);
 		}
 
-		// visualization and debug
-		Output_SimulatedMove_Level();
+		// visualization, experimental output, and debug: after a single simulated move
+		Output_SimulatedMove_End();
 
 	}
 	// end of episode
@@ -698,8 +704,8 @@ bool Player_AI_RL::RL_Single_Episode()
 		}
 	}
 
-	// visualization and debug
-	Output_Episode_Level();
+	// visualization, experimental output, and debug: after a single episode
+	Output_Episode_End();
 		
 	// return bool whether to simulate another episode (if budget is available)
 	return computeNextEpisode;
@@ -718,7 +724,7 @@ std::tuple<double, int, int> Player_AI_RL::RL_Perform_Action(Game_Engine* localG
 	int hashKey = -1;
 
 	// get STATE-ACTION hash entry index -> MUST be called BEFORE the move is effectuated, so before game->Play_Move(actionID);
-	if (this->config_transpositions == (Game_Engine::TRANSPOSITION_TYPES::TRANSPOSITIONS_STATEACTIONS))
+	if (this->config_transpositions == (Game_Engine::TRANSPOSITIONS::STATEACTIONS))
 		hashKey = localGame->HashKey_getCurrentStateAction(actionID);
 
 	// effectuate move on simluated game and observre this player's score
@@ -730,14 +736,18 @@ std::tuple<double, int, int> Player_AI_RL::RL_Perform_Action(Game_Engine* localG
 	UpdateKnownReturnBounds(localGame->score[this->player_number]);
 
 	// get STATE hash entry index -> MUST be called AFTER the move was effectuated, so after game->Play_Move(actionID);
-	if (this->config_transpositions == (Game_Engine::TRANSPOSITION_TYPES::TRANSPOSITIONS_STATES))
+	if (this->config_transpositions == (Game_Engine::TRANSPOSITIONS::STATES))
 		hashKey = localGame->HashKey_getCurrentState();
 
 	// update global counters
-	this->numSimulatedActions_lastEpisode++;
-	this->numSimulatedActions_lastMove++;
-	this->numSimulatedActions_total++;
-	this->sumSimulatedRewards_lastEpisode = simulatedGame->score[this->player_number];
+	if (localGame == this->simulatedGame){
+		this->numSimulatedActions_lastEpisode++;
+		this->numSimulatedActions_lastMove++;
+		this->numSimulatedActions_total++;
+		this->sumSimulatedRewards_lastEpisode += reward;
+		this->sumSimulatedRewards_lastMove += reward;
+		this->sumSimulatedRewards_total += reward;
+	}
 
 	// return
 	return std::make_tuple(reward, isTerminalState, hashKey);
@@ -765,7 +775,7 @@ HashTree::TreeNode*	Player_AI_RL::MemorizeNextState(Game_Engine* localGame, Hash
 	}
 
 	//check if next state was already memorized in a previous episode
-	if (this->config_transpositions != (Game_Engine::TRANSPOSITION_TYPES::TRANSPOSITIONS_DISABLED)){
+	if (this->config_transpositions != (Game_Engine::TRANSPOSITIONS::DISABLED)){
 		nextState = memory->hashMap[hashKey];	//if transpositions are used, look in hash table
 	}
 	else{
@@ -782,7 +792,7 @@ HashTree::TreeNode*	Player_AI_RL::MemorizeNextState(Game_Engine* localGame, Hash
 		this->numVisitedKnownStates_lastEpisode++;
 
 		//if next state was already memorized and transpositions are used then link next state to the current state
-		if (this->config_transpositions != (Game_Engine::TRANSPOSITION_TYPES::TRANSPOSITIONS_DISABLED)){
+		if (this->config_transpositions != (Game_Engine::TRANSPOSITIONS::DISABLED)){
 			if (currentState != NULL){
 				//this state-action was not yet explored
 				if (currentState->children[selected_child_index] == NULL)
@@ -806,7 +816,7 @@ HashTree::TreeNode*	Player_AI_RL::MemorizeNextState(Game_Engine* localGame, Hash
 
 		// check whether the number of new nodes in this episode has exceeded the allowed threshold
 		if ((this->config_num_new_nodes_per_episode < 0) || (this->numNewStates_lastEpisode < this->config_num_new_nodes_per_episode)){
-			nextState = AddNode(localGame, hashKey, currentState, selected_child_index);
+			nextState = AddNode(localGame, hashKey, currentState, selected_child_index, this->par_td_initVal);
 			this->numNewStates_lastEpisode++;
 
 			// update memory tree statistics
@@ -855,30 +865,39 @@ void Player_AI_RL::MarkStateVisit(HashTree::TreeNode* visitedNode)
 	}
 }
 
-void Player_AI_RL::AddTrajectoryEntry(int action, HashTree::TreeNode* state, double reward, REWARD_GOALS rewardGoal, double onPolicyChildValue, double bestActionValue)
+void Player_AI_RL::AddTrajectoryEntry(int action, HashTree::TreeNode* state, double reward, REWARD_GOALS::TYPE rewardGoal, double onPolicyChildValue, double bestActionValue)
 {
 	this->trajectory_length++;
+
+	//safety check
 	if (this->trajectory_length < this->trajectory_maxLength){
-		this->trajectory[this->trajectory_length].action = action;
-		this->trajectory[this->trajectory_length].state = state;
-		this->trajectory[this->trajectory_length].reward = reward;
-		this->trajectory[this->trajectory_length].goal = rewardGoal;
-		this->trajectory[this->trajectory_length].bestActionValue = bestActionValue;
+		
+		//update trajectory record with information about the last timestep
+		this->trajectory[this->trajectory_length].action = action;		// last action taken
+		this->trajectory[this->trajectory_length].state = state;		// pointer to memorized state structure (node)
+		this->trajectory[this->trajectory_length].reward = reward;		// last received reward
+		this->trajectory[this->trajectory_length].goal = rewardGoal;	// last set reward goal (MIN/MAX)
+		this->trajectory[this->trajectory_length].bestActionValue = bestActionValue;	// the value of the best action from the current state, as found by the control policy
+		
+		//flag whether this was an exploratory action
 		if (onPolicyChildValue == bestActionValue)
 			this->trajectory[this->trajectory_length].exploratoryAction = 0;
 		else
 			this->trajectory[this->trajectory_length].exploratoryAction = 1;
+
+		//remember the current total number of visits of current state
 		if (state != NULL)
 			this->trajectory[this->trajectory_length].stateVisitsTotal = state->data->num_visited_total;
 		else
 			this->trajectory[this->trajectory_length].stateVisitsTotal = 0.0;
+
 	}
 	else{
 		gmp->Print("ERROR: Player_AI_RL::AddTrajectoryEntry() : Trajectory counter invalid value %d / %d\n", this->trajectory_length, this->trajectory_maxLength);
 	}
 }
 
-std::tuple<int, int, int, double, double, Player_AI_RL::REWARD_GOALS> Player_AI_RL::RL_Control_Policy(Game_Engine* localGame, HashTree::TreeNode* currentState, CONTROL_POLICIES policy, REWARD_GOALS rewardGoal)
+std::tuple<int, int, int, double, double, Player_AI_RL::REWARD_GOALS::TYPE> Player_AI_RL::RL_Control_Policy(Game_Engine* localGame, HashTree::TreeNode* currentState, CONTROL_POLICIES::TYPE policy, REWARD_GOALS::TYPE rewardGoal)
 {
 	int actionID;
 	int onPolicy_selected_child_index;
@@ -886,17 +905,17 @@ std::tuple<int, int, int, double, double, Player_AI_RL::REWARD_GOALS> Player_AI_
 	double onPolicyChildValue;
 	double bestChildValue;
 
-	if (policy == CONTROL_EGREEDY)
+	if (policy == CONTROL_POLICIES::EGREEDY)
 		std::tie(actionID, onPolicy_selected_child_index, bestChild_index, onPolicyChildValue, bestChildValue)
 		= RL_Control_Egreedy(localGame, currentState, this->par_egreedy_e, rewardGoal);
-	else if (policy == CONTROL_UCB)
+	else if (policy == CONTROL_POLICIES::UCB1)
 		std::tie(actionID, onPolicy_selected_child_index, bestChild_index, onPolicyChildValue, bestChildValue)
 		= RL_Control_UCB(localGame, currentState, this->par_ucb_c, rewardGoal);
 
 	return std::make_tuple(actionID, onPolicy_selected_child_index, bestChild_index, onPolicyChildValue, bestChildValue, rewardGoal);
 }
 
-std::tuple<int, int, int, double, double, Player_AI_RL::REWARD_GOALS> Player_AI_RL::RL_Opponent_Model(Game_Engine* localGame, HashTree::TreeNode* currentState)
+std::tuple<int, int, int, double, double, Player_AI_RL::REWARD_GOALS::TYPE> Player_AI_RL::RL_Opponent_Model(Game_Engine* localGame, HashTree::TreeNode* currentState)
 {
 
 	int actionID;
@@ -904,40 +923,40 @@ std::tuple<int, int, int, double, double, Player_AI_RL::REWARD_GOALS> Player_AI_
 	int bestChild_index;
 	double onPolicyChildValue;
 	double bestChildValue;
-	REWARD_GOALS rewardGoal;
+	REWARD_GOALS::TYPE rewardGoal;
 
 	// check opponent's alignment
-	if (this->config_opponent_alignment == OPPONENT_ADVERSARY)
-		rewardGoal = REWARD_MINIMIZE;
-	else if (this->config_opponent_alignment == OPPONENT_COOPERATIVE)
-		rewardGoal = REWARD_MAXIMIZE;
+	if (this->config_opponent_alignment == OPPONENT_ALIGNMENTS::ADVERSARY)
+		rewardGoal = REWARD_GOALS::MINIMIZE;
+	else if (this->config_opponent_alignment == OPPONENT_ALIGNMENTS::COOPERATIVE)
+		rewardGoal = REWARD_GOALS::MAXIMIZE;
 
 	// check opponent's policy
-	if (this->config_opponent_policy == OPPONENT_SELFPLAY)
+	if (this->config_opponent_policy == OPPONENT_POLICIES::SELFPLAY)
 		std::tie(actionID, onPolicy_selected_child_index, bestChild_index, onPolicyChildValue, bestChildValue, rewardGoal) = RL_Control_Policy(localGame, currentState, this->config_control_policy, rewardGoal);
-	else if (this->config_opponent_policy == OPPONENT_RANDOM)
+	else if (this->config_opponent_policy == OPPONENT_POLICIES::RANDOM)
 		std::tie(actionID, onPolicy_selected_child_index, bestChild_index, onPolicyChildValue, bestChildValue) = RL_Control_Egreedy(localGame, currentState, 1.0, rewardGoal);
-	else if (this->config_opponent_policy == OPPONENT_GREEDY)
+	else if (this->config_opponent_policy == OPPONENT_POLICIES::GREEDY)
 		std::tie(actionID, onPolicy_selected_child_index, bestChild_index, onPolicyChildValue, bestChildValue) = RL_Control_Egreedy(localGame, currentState, 0.0, rewardGoal);
 
 	return std::make_tuple(actionID, onPolicy_selected_child_index, bestChild_index, onPolicyChildValue, bestChildValue, rewardGoal);
 }
 
-HashTree::TreeNode*	Player_AI_RL::AddNode(Game_Engine* localGame, int hashKey, HashTree::TreeNode* parent, int child_seq_index)
+HashTree::TreeNode*	Player_AI_RL::AddNode(Game_Engine* localGame, int hashKey, HashTree::TreeNode* parent, int child_seq_index, double initialValue)
 {
 
 	//create new data structure
 	HashTree::TreeNode* newNode = new HashTree::TreeNode();
 
 	//update hash table entry
-	if (this->config_transpositions != (Game_Engine::TRANSPOSITION_TYPES::TRANSPOSITIONS_DISABLED))
+	if (this->config_transpositions != (Game_Engine::TRANSPOSITIONS::DISABLED))
 		memory->hashMap[hashKey] = newNode;
 
 	//update parent and link tree nodes
 	if (parent == NULL){
 
 		//check if we are creating a new tree root node
-		if (this->config_transpositions == (Game_Engine::TRANSPOSITION_TYPES::TRANSPOSITIONS_DISABLED)){
+		if (this->config_transpositions == (Game_Engine::TRANSPOSITIONS::DISABLED)){
 			//safety check #1
 			if (this->memory->root != NULL){
 				gmp->Print("WARNING: Player_AI_RL::AddNode() : Node without parent created, despite root is not NULL. Erasing whole tree beneath current root and seeting new node as new root.");
@@ -993,14 +1012,14 @@ HashTree::TreeNode*	Player_AI_RL::AddNode(Game_Engine* localGame, int hashKey, H
 	}
 	//printf("size: %0.f\n", memory->treeMaxMemorySize);
 
-	ResetNode(newNode);
+	ResetNode(newNode, initialValue);
 	return newNode;
 
 }
 
-void Player_AI_RL::ResetNode(HashTree::TreeNode* newNode)
+void Player_AI_RL::ResetNode(HashTree::TreeNode* newNode, double initialValue)
 {
-	newNode->data->Q_value = this->par_td_initVal;
+	newNode->data->Q_value = initialValue;
 	newNode->data->offline_delta_Q = 0.0;
 	newNode->data->Z_traceTag = -1;
 
@@ -1011,10 +1030,10 @@ void Player_AI_RL::ResetNode(HashTree::TreeNode* newNode)
 
 	newNode->data->maxObservedReturn = -DBL_MAX;
 	newNode->data->minObservedReturn = DBL_MAX;
-	newNode->data->maxBranchQval = this->par_td_initVal;
-	newNode->data->minBranchQval = this->par_td_initVal;
-	newNode->data->maxChildQval = this->par_td_initVal;
-	newNode->data->minChildQval = this->par_td_initVal;
+	newNode->data->maxBranchQval = initialValue;
+	newNode->data->minBranchQval = initialValue;
+	newNode->data->maxChildQval = initialValue;
+	newNode->data->minChildQval = initialValue;
 
 	newNode->data->created_mainGameStep = this->internalGame->current_plys;
 	newNode->data->created_episode = this->numEpisodes_total;
@@ -1033,8 +1052,8 @@ void Player_AI_RL::HandleEpisodeStep()
 {
 
 	// online policy evaluation (update value function)
-	if (this->config_TDupdateType == TD_UPDATE_ONLINE){
-		RL_TDsingleBackup(this->trajectory_length - 1, this->par_task_gamma, this->par_td_alpha, this->par_td_lambda);
+	if (this->config_TDupdateType == TD_UPDATES::ONLINE){
+		RLsingleBackup(this->trajectory_length - 1);
 		UpdateTrajectoryBounds();	//refresh min/max Q-values (and target values) - UCB control policy needs this for normalization of Q-value
 	}
 	else{
@@ -1044,7 +1063,7 @@ void Player_AI_RL::HandleEpisodeStep()
 		{
 			// batch update after a periodic interval
 			if (this->trajectory_length >= config_nonEpisodicTasks_updateInterval){
-				RL_TDofflineBackup();
+				RLofflineBackup();
 				this->trajectory_length = 0;
 				this->numNewStates_lastEpisode = 0;
 				//TOIMP: implement to improve learning performance on continuing tasks when updating offline (this may naver be used), so don't bother, but otherwise the idea is: it could be improved by never really erasing the whole trajectory (like now that we put the conuter on zero), but the last X samples could always remain in the memory
@@ -1058,39 +1077,40 @@ void Player_AI_RL::HandleEpisodeStep()
 // procedure called after episode termination (after terminal state is reached)
 void Player_AI_RL::HandleEpisodeEnd()
 {
+
 	// last (after episode end) online backup
-	if (this->config_TDupdateType == TD_UPDATE_ONLINE){
-		RL_TDsingleBackup(this->trajectory_length, this->par_task_gamma, this->par_td_alpha, this->par_td_lambda);
+	if (this->config_TDupdateType == TD_UPDATES::ONLINE){
+		RLsingleBackup(this->trajectory_length);
 		UpdateTrajectoryBounds();	//refresh min/max Q-values (and target values) - UCB control policy needs this for normalization of Q-value
 	}
 	// offline (batch) policy evaluation (update value function)
 	else{
-		RL_TDofflineBackup();
+		RLofflineBackup();
 	}
 
-	// increase global counters
+	// update global counters
 	this->numEpisodes_lastMove++;
 	this->numEpisodes_total++;
-	this->sumSimulatedRewards_lastMove += simulatedGame->score[this->player_number];
-	this->sumSimulatedRewards_total += simulatedGame->score[this->player_number];
+	this->numSimulatedActions_previousEpisode = numSimulatedActions_lastEpisode;
 
 }
 
 // offline (batch) policy evaluation (update value function)
-void Player_AI_RL::RL_TDofflineBackup()
+void Player_AI_RL::RLofflineBackup()
 {
-	if ((this->config_TDupdateType == TD_UPDATE_OFFLINE) || (this->config_TDupdateType == TD_UPDATE_OFFLINE_INPLACE)){
+	if ((this->config_TDupdateType == TD_UPDATES::BATCH_EPISODIC) || (this->config_TDupdateType == TD_UPDATES::BATCH_EPISODIC_INPLACE)){
 		
 		//backup all steps in the trajectory
-		for (int t = 0; t <= this->trajectory_length; t++)
-			RL_TDsingleBackup(t, this->par_task_gamma, this->par_td_alpha, this->par_td_lambda);
+		for (int t = 0; t <= this->trajectory_length; t++){
+			RLsingleBackup(t);
+		}
 
 		//if Q-value updates were not inplace, then apply the changes at this point
-		if (this->config_TDupdateType != TD_UPDATE_OFFLINE_INPLACE)
+		if (this->config_TDupdateType != TD_UPDATES::BATCH_EPISODIC_INPLACE)
 			UpdateTrajectoryOfflineValues();
 
 	}
-	//else{	//TODO: TD_UPDATE_OFFLINE_ASYNC
+	//else{	//TOIMP: TD_UPDATE_OFFLINE_ASYNC
 	//}
 
 	UpdateTrajectoryBounds();	//refresh min/max Q-values (and target values) - UCB control policy needs this for normalization of Q-value
@@ -1167,51 +1187,103 @@ A single TD(lambda) backup.
 WARNING: argument trajectory_index must have a value between 0 and less than this->trajectory_counter
 */
 
-void Player_AI_RL::RL_TDsingleBackup(int trajectory_index, double gamma, double alpha, double lambda, char* printLinePrefix)
+void Player_AI_RL::RLsingleBackup(int trajectory_index, char* printLinePrefix)
 {
-	//if (this->numEpisodes_total == 115)
-	//	this->config_output_TDlambdaBackup = 2;
+	
+	//safety check
+	if (trajectory_index > this->trajectory_length){
+		gmp->Print("ERROR: Player_AI_RL::RLsingleBackup(): called with invalid trajectory_index %d (max %d)\n", trajectory_index, this->trajectory_length);
+		Output_Current_Info();
+		return;
+	}
 
+	//the Monte Carlo update rule
+	if (this->config_policy_evaluation == POLICY_EVALUATIONS::CONSTANT_MC){
+
+		ConstantMCsingleBackup(trajectory_index, printLinePrefix);
+
+	}
+
+	//the TD update rule
+	else{
+
+		if (this->config_rollout_assumption != ROLLOUT_VALUE_ASSUMPTIONS::CONVERGED_TO_REWARD){
+
+			double TDerror = GetTDerror(trajectory_index, printLinePrefix);
+			BackupTDerror(TDerror, trajectory_index, printLinePrefix);
+
+		}
+		else{
+
+			//perform update if trajectory end was reached or if next state is not NULL
+			if ((trajectory_index == this->trajectory_length) || (this->trajectory[trajectory_index + 1].state != NULL)) {
+
+				int lastBackupPosition = this->nextPendingBackup_trajIndex;		//nextPendingBackup_trajIndex may be changed in GetTDerror()
+				double TDerror = GetTDerror(lastBackupPosition, printLinePrefix);
+				BackupTDerror(TDerror, lastBackupPosition, printLinePrefix);
+
+				//safety check
+				if (this->nextPendingBackup_trajIndex > trajectory_index + 1){
+					gmp->Print("ERROR: Player_AI_RL::RLsingleBackup(): ROLLOUT_VALUE_ASSUMPTIONS::CONVERGED_TO_REWARD: nextPendingBackup_trajIndex > trajectory_index + 1\n");
+					Output_Current_Info();
+				}
+			}
+
+		}
+	}
+}
+
+double Player_AI_RL::GetTDerror(int trajectory_index, char* printLinePrefix)
+{
 	HashTree::TreeNode* node;
 	HashTree::TreeNode* nextNode;
-	HashTree::TreeNode* backupNode;
 	double stateVal;
 	double nextStateVal;
 	double reward, TDerror;
-	int exploratory_move_trace_reset = 0;
 
-	//get state in trajectory
+	//get current state in trajectory and it's value
 	node = this->trajectory[trajectory_index].state;
-	stateVal = RL_GetAssumedStateValue(node);
+	stateVal = GetRolloutAssumedValue(trajectory_index);
 
-	//needed for replacing traces
-	if (node != NULL)
-		node->data->Z_traceTag = -1;
+	if (node != NULL){
+		node->data->Z_traceTag = -1;			//needed for ELIGIBILITY_TRACES::REPLACING
+		this->lastMetMemorizedState_trajIndex = trajectory_index;	//needed for ROLLOUT_VALUE_ASSUMPTIONS::LAST_MEMORIZED
+		this->nextPendingBackup_trajIndex = trajectory_index + 1; 	//needed for ROLLOUT_VALUE_ASSUMPTIONS::CONVERGED_TO_REWARD
+	}
 
-	//TODO Q_TRACE_ACTIONEXCLUSIVE
+	//get reward for the transition to the next state
+	reward = this->trajectory[trajectory_index].reward;
+
+	//TOIMP ACTIONEXCLUSIVE
 	//remember last action taken in parent (is this already memorized?)
-	//if(this->config_trace_type == Q_TRACE_ACTIONEXCLUSIVE)
+	//if(this->config_trace_type == ACTIONEXCLUSIVE)
 	//if lastAction != currentAction (so probably a parent will need to be checked)
 	//    node->data->Z_traceTag = this->this->trajectory_length + 1 //this record should not be updated anymore in this episode
 
-	//is state non-terminal?
+	//is current state non-terminal?
 	if (trajectory_index < this->trajectory_length){
 
-		//get next state in trajectory
+		//get next state in trajectory and it's value
 		nextNode = this->trajectory[trajectory_index + 1].state;
-		nextStateVal = RL_GetAssumedStateValue(nextNode);
+		nextStateVal = GetRolloutAssumedValue(trajectory_index + 1);
 
 		//off-policy TD: check whether best action was choosen
-		if (this->config_policy_evaluation == EVALUATION_TDLAMBDA_OFFPOLICY_Q_LEARNING)
+		if (this->config_policy_evaluation == POLICY_EVALUATIONS::TDLAMBDA_OFFPOLICY_Q_LEARNING)
 		{
 			//get the value of the best child
-			if (this->config_offpolicy_backup_recheck_best == false){
+			if (this->config_offpolicy_backup_recheck_best == 0){
 				//memorized by the control policy selection check)
 				nextStateVal = this->trajectory[trajectory_index + 1].bestActionValue;
 			}
 			else{
 				//compute the value of the best child at this moment (might have changed since the control policy checked, only in case when transpositions are used and offline inplace backups, or when using async backups)
-				node->data->offPolicy_selected_child_value = RL_GetBestActionValue(node, this->trajectory[trajectory_index + 1].goal);	//get best-valued node (by greedy policy)
+				node->data->offPolicy_selected_child_value = GetStateBestActionValue(node, this->trajectory[trajectory_index + 1].goal);	//get best-valued node (by greedy policy)
+
+				//this is needed because GetStateBestActionValue() assumes NULL nodes have a value of this->par_td_initVal
+				if ((node == NULL) || (this->trajectory[trajectory_index + 1].state == NULL))
+					nextStateVal = this->par_td_initVal;
+
+				//check if action was exploratory
 				if (node->data->offPolicy_selected_child_value > nextStateVal){
 					nextStateVal = node->data->offPolicy_selected_child_value;
 					this->trajectory[trajectory_index + 1].exploratoryAction = 1;
@@ -1220,31 +1292,49 @@ void Player_AI_RL::RL_TDsingleBackup(int trajectory_index, double gamma, double 
 		}
 
 		//set eligibility traces prior to this state to zero if action is exploratory?
-		if (this->config_trace_exploratory_reset == Q_TRACE_EXPLORATORY_RESET_ENABLED)
-			exploratory_move_trace_reset = this->trajectory[trajectory_index + 1].exploratoryAction;	//true or false
+		if (this->config_trace_exploratory_reset == ELIGIBILITY_EXPLORATORY_RESET::ENABLED){
+			if (this->trajectory[trajectory_index + 1].exploratoryAction)
+				this->exploratory_move_trace_cutOff_new = trajectory_index + 1;
+		}
+
+		//TODO: pomoje tega ne rabim
+		////if CONVERGED_TO_REWARD rollout assumption is used, then non-memorized nodes don't produce any updates (their TDerrors should be zero)
+		//if (this->config_rollout_assumption == ROLLOUT_VALUE_ASSUMPTIONS::CONVERGED_TO_REWARD){
+		//	if (nextNode == NULL){
+		//		reward = 0.0;
+		//		this->exploratory_move_trace_cutOff_new = this->exploratory_move_trace_cutOff;	//do not change the exploratory cut-off point
+		//	}
+		//}
+
 	}
 	//if state is terminal, then it's value is zero and move cannot be exploratory
 	else{
 		nextStateVal = 0.0;
-		exploratory_move_trace_reset = 0;
+		this->exploratory_move_trace_cutOff_new = this->exploratory_move_trace_cutOff;	//do not change the cut off point
 	}
-
-
-	//get reward for transition to new state
-	reward = this->trajectory[trajectory_index].reward;
 
 	//compute the target value for the backup
 	TDerror = reward + par_task_gamma * nextStateVal - stateVal;
 
 	//visualization: output TDerror before backup
-		Output_TDbackup1(trajectory_index, TDerror, nextStateVal, stateVal, exploratory_move_trace_reset, printLinePrefix);
+	Output_TDbackup1(trajectory_index, TDerror, nextStateVal, stateVal, this->exploratory_move_trace_cutOff_new, printLinePrefix);
+
+	return TDerror;
+}
+
+void Player_AI_RL::BackupTDerror(double TDerror, int trajectory_index, char* printLinePrefix)
+{
+	HashTree::TreeNode* backupNode;
+	double gamma = this->par_task_gamma;
+	double alpha = this->par_td_alpha;
+	double lambda = this->par_td_lambda;
 
 	//backup the TDerror through all visited states
 	if ((TDerror > SMALLEST_TDERROR) || (TDerror < -SMALLEST_TDERROR)){
 		double trace = 1.0;
 		//interrupt backup if the trace is too small
 		for (int b = trajectory_index; (b >= this->exploratory_move_trace_cutOff) && (trace > EPSILON_TRACE_CUTOFF); b--){
-			
+
 			backupNode = this->trajectory[b].state;
 
 			//visualization: output backup details
@@ -1252,20 +1342,20 @@ void Player_AI_RL::RL_TDsingleBackup(int trajectory_index, double gamma, double 
 
 			//effectuate backup
 			if (backupNode != NULL){
-				
+
 				//update node (state or state-action) value
-				if ((this->config_trace_type == Q_TRACE_ACCUMULATING) || (backupNode->data->Z_traceTag < trajectory_index))		// prevents to update the same node multiple times in a trajectory (hence the replacing traces mechanics)
+				if ((this->config_trace_type == ELIGIBILITY_TRACES::ACCUMULATING) || (backupNode->data->Z_traceTag < trajectory_index))		// prevents to update the same node multiple times in a trajectory (hence the replacing traces mechanics)
 				{
 					//set the step rate "alpha" to calculate value as statistical mean (default for Monte Carlo contorl methods)
-					if (this->config_alpha_type == ALPHA_MONTE_CARLO){
+					if (this->config_alpha_type == UPDATESTEP_ALPHA::MONTE_CARLO){
 						double num_visits;
-						if (this->config_trace_type == Q_TRACE_ACCUMULATING)
+						if (this->config_trace_type == ELIGIBILITY_TRACES::ACCUMULATING)
 							num_visits = this->trajectory[b].stateVisitsTotal;		// every-visit MC
 						else
 							num_visits = backupNode->data->num_visited_episodes;	// first-visit MC
-						
+
 						//safety check
-						if (num_visits <= 0.0){	
+						if (num_visits <= 0.0){
 							gmp->Print("ERROR: Player_AI_RL::RL_TDlambdaBackup() : invalid visits value %f\n", num_visits);
 							Output_Current_Info("TDERR    ");
 						}
@@ -1275,7 +1365,7 @@ void Player_AI_RL::RL_TDsingleBackup(int trajectory_index, double gamma, double 
 					}
 
 					//update value by TD(lambda)
-					if ((this->config_TDupdateType == TD_UPDATE_ONLINE) || (this->config_TDupdateType == TD_UPDATE_OFFLINE_INPLACE)){
+					if ((this->config_TDupdateType == TD_UPDATES::ONLINE) || (this->config_TDupdateType == TD_UPDATES::BATCH_EPISODIC_INPLACE)){
 						backupNode->data->Q_value += (alpha * trace * TDerror);			// inplace update of Q-value
 						backupNode->data->Q_value = NumericalErrorCorrection(backupNode->data->Q_value);	//check for numerical error
 					}
@@ -1283,14 +1373,16 @@ void Player_AI_RL::RL_TDsingleBackup(int trajectory_index, double gamma, double 
 						backupNode->data->offline_delta_Q += (alpha * trace * TDerror);	// temporary stored delta of Q-value (added to Q-value at a later time)
 
 					//safety check
-					if (this->minimumKnownReturn < this->maximumKnownReturn){
-						double checkVal;
-						if ((this->config_TDupdateType == TD_UPDATE_ONLINE) || (this->config_TDupdateType == TD_UPDATE_OFFLINE_INPLACE))
-							checkVal = backupNode->data->Q_value;
-						else
-							checkVal = backupNode->data->Q_value + backupNode->data->offline_delta_Q;
-						if ((checkVal > this->maximumKnownReturn) || (checkVal < this->minimumKnownReturn)){
-							gmp->Print("\nWARNING: Player_AI_RL::RL_TDlambdaBackup() : Q-value out of return bounds %.10f      (min %.10f , max %.10f)     (extMov %d, epis %d, simMov %d)    ", checkVal, this->minimumKnownReturn, this->maximumKnownReturn, this->internalGame->current_plys, this->numEpisodes_lastMove, this->simulatedGame->current_plys);
+					if (this->config_outputWarning_Qbounds == 1){
+						if (this->minimumKnownReturn < this->maximumKnownReturn){
+							double checkVal;
+							if ((this->config_TDupdateType == TD_UPDATES::ONLINE) || (this->config_TDupdateType == TD_UPDATES::BATCH_EPISODIC_INPLACE))
+								checkVal = backupNode->data->Q_value;
+							else
+								checkVal = backupNode->data->Q_value + backupNode->data->offline_delta_Q;
+							if ((checkVal > this->maximumKnownReturn) || (checkVal < this->minimumKnownReturn)){
+								gmp->Print("\nWARNING: Player_AI_RL::RL_TDlambdaBackup() : Q-value out of return bounds %.10f      (min %.10f , max %.10f)     (extMov %d, epis %d, simMov %d)    ", checkVal, this->minimumKnownReturn, this->maximumKnownReturn, this->internalGame->current_plys, this->numEpisodes_lastMove, this->simulatedGame->current_plys);
+							}
 						}
 					}
 
@@ -1310,31 +1402,138 @@ void Player_AI_RL::RL_TDsingleBackup(int trajectory_index, double gamma, double 
 	}
 
 	//Watkin's Q(lambda) identified an exploratory move: eligibility traces for all states met until now will be zeroed 
-	if (exploratory_move_trace_reset == 1)
-		this->exploratory_move_trace_cutOff = trajectory_index + 1;
-
+	if (this->exploratory_move_trace_cutOff_new > this->exploratory_move_trace_cutOff)
+		this->exploratory_move_trace_cutOff = this->exploratory_move_trace_cutOff_new;
 }
 
-//support function to return the value of a node, considering whether the node was not visited yet then a certain initial value is assumed
-double Player_AI_RL::RL_GetAssumedStateValue(HashTree::TreeNode* node)
+// ------- TOIMP: currently improvised code (copy paste from below): the constant-alpha MC update
+void Player_AI_RL::ConstantMCsingleBackup(int trajectory_index, char* printLinePrefix)
 {
-	double stateVal;
-	if (node != NULL){
-		stateVal = node->data->Q_value;
-	}
-	else{
-		if (this->config_rollout_assumption == ROLLOUT_NODE_ASSUME_INITIAL_VALUE){
-			stateVal = this->par_td_initVal;
+	HashTree::TreeNode* backupNode;
+	double reward;
+	double alpha = this->par_td_alpha;
+
+	if ((trajectory_index == this->trajectory_length) && (this->trajectory_length > 1)){
+		double trace = 1.0;
+		reward = 0.0;
+		for (int b = trajectory_index; b >= 0; b--){
+			reward += this->trajectory[b].reward;
+			backupNode = this->trajectory[b].state;
+			Output_TDbackup21(b, trajectory_index, trace, backupNode, printLinePrefix);
+			if (backupNode != NULL){
+
+				//set the step rate "alpha" to calculate value as statistical mean (default for Monte Carlo contorl methods)
+				if (this->config_alpha_type == UPDATESTEP_ALPHA::MONTE_CARLO){
+					double num_visits;
+					if (this->config_trace_type == ELIGIBILITY_TRACES::ACCUMULATING)
+						num_visits = this->trajectory[b].stateVisitsTotal;		// every-visit MC
+					else
+						num_visits = backupNode->data->num_visited_episodes;	// first-visit MC
+
+					//safety check
+					if (num_visits <= 0.0){
+						gmp->Print("ERROR: Player_AI_RL::RL_TDlambdaBackup() : invalid visits value %f\n", num_visits);
+						Output_Current_Info("TDERR    ");
+					}
+
+					//step rate for statistical mean
+					alpha = 1.0 / backupNode->data->num_visited_episodes;
+				}
+
+				backupNode->data->Q_value += alpha * (trace * reward - backupNode->data->Q_value);
+				backupNode->data->Q_value = NumericalErrorCorrection(backupNode->data->Q_value);	//check for numerical error
+
+				//safety check
+				if (this->minimumKnownReturn < this->maximumKnownReturn){
+					double checkVal;
+					if ((this->config_TDupdateType == TD_UPDATES::ONLINE) || (this->config_TDupdateType == TD_UPDATES::BATCH_EPISODIC_INPLACE))
+						checkVal = backupNode->data->Q_value;
+					else
+						checkVal = backupNode->data->Q_value + backupNode->data->offline_delta_Q;
+					if ((checkVal > this->maximumKnownReturn) || (checkVal < this->minimumKnownReturn)){
+						gmp->Print("\nWARNING: Player_AI_RL::RL_TDlambdaBackup() : Q-value out of return bounds %.10f      (min %.10f , max %.10f)     (extMov %d, epis %d, simMov %d)    ", checkVal, this->minimumKnownReturn, this->maximumKnownReturn, this->internalGame->current_plys, this->numEpisodes_lastMove, this->simulatedGame->current_plys);
+					}
+				}
+			}
+			Output_TDbackup22(b, backupNode, alpha, printLinePrefix);
+			trace *= this->par_td_lambda;
 		}
 	}
-	return stateVal;
+
+	//safety check
+	else{
+		if ((this->config_TDupdateType != TD_UPDATES::BATCH_EPISODIC) && (this->config_TDupdateType != TD_UPDATES::BATCH_EPISODIC_INPLACE))
+			gmp->Print("WARNING: Player_AI_RL::ConstantMCsingleBackup(): not called with BATCH_EPISODIC update type!\n");
+	}
 }
 
-//not needed at the moment (was implemented as part of Egreedy and UCB)
-double Player_AI_RL::RL_GetBestActionValue(HashTree::TreeNode* node, REWARD_GOALS goal)
+
+//return the assumed value of a node if it was not memorized yet, otherwise return its memorized value
+double Player_AI_RL::GetRolloutAssumedValue(int trajectory_index)
 {
+	double assumedVal;
+
+	if (this->trajectory[trajectory_index].state != NULL){
+		assumedVal = this->trajectory[trajectory_index].state->data->Q_value;
+	}
+	else{
+		// assume the default initial value (par_td_initVal)
+		if (this->config_rollout_assumption == ROLLOUT_VALUE_ASSUMPTIONS::INITIAL){
+			assumedVal = this->par_td_initVal;
+		}
+		// assume a value of 0.0
+		else if (this->config_rollout_assumption == ROLLOUT_VALUE_ASSUMPTIONS::ZERO){
+			assumedVal = 0.0;
+		}
+		// assume the value equals to the last memorized node (leaf node in the tree)
+		else if (this->config_rollout_assumption == ROLLOUT_VALUE_ASSUMPTIONS::LAST_MEMORIZED){
+			if (this->lastMetMemorizedState_trajIndex >= 0)
+				assumedVal = (this->trajectory[this->lastMetMemorizedState_trajIndex].state)->data->Q_value;
+			else
+				assumedVal = this->par_td_initVal;
+		}
+
+		// assume values optimally converged considering the rewards received to the end of the episode or, if transpositions are used, until a memorized state is met
+		else if (this->config_rollout_assumption == ROLLOUT_VALUE_ASSUMPTIONS::CONVERGED_TO_REWARD){
+
+			//when CONVERGED_TO_REWARD is used, the procedure RLsingleBackup() MUST NOT be called without a non-NULL or terminal position as the last entry in this->trajectory <- relevant only for ONLINE updates
+
+			//find first memorized state after current state, or reach the end of the trajectory
+			int t = trajectory_index + 1;
+			HashTree::TreeNode* node = NULL;
+			while ((node == NULL) && (t <= this->trajectory_length)){
+				node = this->trajectory[t].state;
+				t++;
+			}
+
+			//was terminal state was reached before any memorized node?
+			if ((t > this->trajectory_length) && (node == NULL)){
+				assumedVal = this->trajectory[t - 1].reward;
+			}
+			else{
+				assumedVal = this->trajectory[t - 1].state->data->Q_value;
+
+				//remember the index in the trajectory of the next state that will have to be updated
+				this->nextPendingBackup_trajIndex = t - 1;
+			}
+
+			//compute the assumed converged value of the state at "this->trajectory[trajectory_index]"
+			for (int a = t - 2; a >= trajectory_index; a--)
+				assumedVal = (assumedVal * this->par_task_gamma) + this->trajectory[a].reward;
+
+		}
+
+	}
+
+	return assumedVal;
+}
+
+//get value of best action for given node
+double Player_AI_RL::GetStateBestActionValue(HashTree::TreeNode* node, REWARD_GOALS::TYPE goal)
+{
+
 	//if an off-policy TD method is used (Q-learning), then find the value of the best child
-	if (this->config_policy_evaluation == EVALUATION_TDLAMBDA_OFFPOLICY_Q_LEARNING)
+	if (this->config_policy_evaluation == POLICY_EVALUATIONS::TDLAMBDA_OFFPOLICY_Q_LEARNING)
 	{
 		if (node != NULL){
 			node->data->offPolicy_selected_child_value = -DBL_MAX;
@@ -1342,6 +1541,7 @@ double Player_AI_RL::RL_GetBestActionValue(HashTree::TreeNode* node, REWARD_GOAL
 				HashTree::TreeNode* child = node->children[c];
 				double stateValue;
 
+				// TOIMP: rethink whether the backup-assumed value should be considered here (instead of the initial value)
 				// check whether state was not visited yet (then use default initial value)
 				if (child == NULL)
 					stateValue = this->par_td_initVal;
@@ -1350,9 +1550,9 @@ double Player_AI_RL::RL_GetBestActionValue(HashTree::TreeNode* node, REWARD_GOAL
 
 				//estimate value in base on specified goal
 				double estimatedValue;
-				if (goal == REWARD_MAXIMIZE)
+				if (goal == REWARD_GOALS::MAXIMIZE)
 					estimatedValue = stateValue;
-				else if (goal == REWARD_MINIMIZE)
+				else if (goal == REWARD_GOALS::MINIMIZE)
 					estimatedValue = -stateValue;
 				else
 					gmp->Print("ERROR Player_AI_RL::RL_GetBestActionValue(): goal unknown!\n");
@@ -1363,7 +1563,7 @@ double Player_AI_RL::RL_GetBestActionValue(HashTree::TreeNode* node, REWARD_GOAL
 			}
 
 			//correct if the value was negated
-			if (goal == REWARD_MINIMIZE)
+			if (goal == REWARD_GOALS::MINIMIZE)
 				node->data->offPolicy_selected_child_value = -node->data->offPolicy_selected_child_value;
 		}
 		else{
@@ -1379,13 +1579,13 @@ double Player_AI_RL::RL_GetBestActionValue(HashTree::TreeNode* node, REWARD_GOAL
 double Player_AI_RL::NumericalErrorCorrection(double value)
 {
 	double retVal = value;
-	if ((this->numerical_correction_possible == 1) && (this->config_numerical_correction != NUM_CORRECTION_DISABLED)){
+	if ((this->numerical_correction_possible == 1) && (this->config_numerical_correction != NUMERCIAL_CORRECTIONS::DISABLED)){
 		if (this->minimumKnownReturn < this->maximumKnownReturn){
 			if (value > this->maximumKnownReturn)
 				retVal = this->maximumKnownReturn;
 			else if (value < this->minimumKnownReturn)
 				retVal = this->minimumKnownReturn;
-			if (this->config_numerical_correction == NUM_CORRECTION_ENABLED_WARNINGS){
+			if (this->config_numerical_correction == NUMERCIAL_CORRECTIONS::ENABLED_WITH_WARNINGS){
 				if (retVal != value){
 					gmp->Print("WARNING: Player_AI_RL::NumErrorCorrect(): Q-value %.10f out of return bounds, correcting to     (min %.10f , max %.10f)     (extMov %d, epis %d, simMov %d)\n", value, this->minimumKnownReturn, this->maximumKnownReturn, this->internalGame->current_plys, this->numEpisodes_lastMove, this->simulatedGame->current_plys);
 				}
@@ -1395,7 +1595,7 @@ double Player_AI_RL::NumericalErrorCorrection(double value)
 	return retVal;
 }
 
-std::tuple<int, int, int, double, double> Player_AI_RL::RL_Control_Egreedy(Game_Engine* localGame, HashTree::TreeNode* currentState, double par_epsilon, REWARD_GOALS goal)
+std::tuple<int, int, int, double, double> Player_AI_RL::RL_Control_Egreedy(Game_Engine* localGame, HashTree::TreeNode* currentState, double par_epsilon, REWARD_GOALS::TYPE goal)
 {
 	int selectedActionID = -1;
 	int selectedChildIndex = -1;
@@ -1422,9 +1622,9 @@ std::tuple<int, int, int, double, double> Player_AI_RL::RL_Control_Egreedy(Game_
 				stateValue = child->data->Q_value;
 
 			//estimate value in base on specified goal
-			if (goal == REWARD_MAXIMIZE)
+			if (goal == REWARD_GOALS::MAXIMIZE)
 				estimatedValue = stateValue;
-			else if (goal == REWARD_MINIMIZE)
+			else if (goal == REWARD_GOALS::MINIMIZE)
 				estimatedValue = -stateValue;
 			else
 				gmp->Print("ERROR Player_AI_RL::RL_Control_Egreedy(): goal unknown!\n");
@@ -1470,7 +1670,7 @@ std::tuple<int, int, int, double, double> Player_AI_RL::RL_Control_Egreedy(Game_
 	return std::make_tuple(selectedActionID, selectedChildIndex, bestChildIndex, selectedChildValue, bestChildValue);
 }
 
-std::tuple<int, int, int, double, double> Player_AI_RL::RL_Control_UCB(Game_Engine* localGame, HashTree::TreeNode* currentState, double par_C, REWARD_GOALS goal)
+std::tuple<int, int, int, double, double> Player_AI_RL::RL_Control_UCB(Game_Engine* localGame, HashTree::TreeNode* currentState, double par_C, REWARD_GOALS::TYPE goal)
 {
 	int selectedActionID = -1;
 	int selectedChildIndex = -1;
@@ -1500,7 +1700,7 @@ std::tuple<int, int, int, double, double> Player_AI_RL::RL_Control_UCB(Game_Engi
 			else{
 				//get action value and number of tries
 				stateValue = child->data->Q_value;
-				if (config_ucb_visit_type == UCB_VISITS_TOTAL)
+				if (config_ucb_visit_type == UCB_VISITS::TOTAL)
 					childVisits = child->data->num_visited_total;
 				else
 					childVisits = child->data->num_visited_episodes;
@@ -1508,9 +1708,9 @@ std::tuple<int, int, int, double, double> Player_AI_RL::RL_Control_UCB(Game_Engi
 			sumVisits += childVisits;
 
 			//estimate max value in base on specified goal
-			if (goal == REWARD_MAXIMIZE)
+			if (goal == REWARD_GOALS::MAXIMIZE)
 				estimatedValue = stateValue;
-			else if (goal == REWARD_MINIMIZE)
+			else if (goal == REWARD_GOALS::MINIMIZE)
 				estimatedValue = -stateValue;
 			else
 				gmp->Print("ERROR Player_AI_RL::RL_Control_UCB(): goal unknown!\n");
@@ -1538,26 +1738,26 @@ std::tuple<int, int, int, double, double> Player_AI_RL::RL_Control_UCB(Game_Engi
 			//get normalization bounds
 			double minNormValue = DBL_MAX;
 			double maxNormValue = -DBL_MAX;
-			if (config_ucb_norm_type != UCB_NORMALIZATION_GLOBAL){
-				if (config_ucb_norm_local == UCB_NORMALIZATION_LOCAL_OBSERVED){
+			if (config_ucb_norm_type != UCB_NORMALIZATION_LOCALITY::GLOBAL){
+				if (config_ucb_norm_local == UCB_LOCAL_NORMALIZATIONS::OBSERVED_RETURN){
 					maxNormValue = currentState->data->maxObservedReturn;
 					minNormValue = currentState->data->minObservedReturn;
 				}
-				else if (config_ucb_norm_local == UCB_NORMALIZATION_LOCAL_QVAL){
+				else if (config_ucb_norm_local == UCB_LOCAL_NORMALIZATIONS::BRANCH_CURRENT_QVAL){
 					maxNormValue = currentState->data->maxBranchQval;
 					minNormValue = currentState->data->minBranchQval;
 				}
-				else if (config_ucb_norm_local == UCB_NORMALIZATION_LOCAL_CHILDREN){
+				else if (config_ucb_norm_local == UCB_LOCAL_NORMALIZATIONS::CHILDREN_CURRENT_QVAL){
 					maxNormValue = currentState->data->maxChildQval;
 					minNormValue = currentState->data->minChildQval;
 				}
 			}
-			if ((config_ucb_norm_type == UCB_NORMALIZATION_GLOBAL) || ((minNormValue >= maxNormValue) && (config_ucb_norm_type == UCB_NORMALIZATION_LOCAL_GLOBAL))){
-				if (config_ucb_norm_global == UCB_NORMALIZATION_GLOBAL_KNOWN){
+			if ((config_ucb_norm_type == UCB_NORMALIZATION_LOCALITY::GLOBAL) || ((minNormValue >= maxNormValue) && (config_ucb_norm_type == UCB_NORMALIZATION_LOCALITY::LOCAL_THEN_GLOBAL))){
+				if (config_ucb_norm_global == UCB_GLOBAL_NORMALIZATIONS::KNOWN_RETURN){
 					maxNormValue = this->maximumKnownReturn;
 					minNormValue = this->minimumKnownReturn;
 				}
-				else if (config_ucb_norm_global == UCB_NORMALIZATION_GLOBAL_OBSERVED){
+				else if (config_ucb_norm_global == UCB_GLOBAL_NORMALIZATIONS::OBSERVED_RETURN){
 					maxNormValue = this->maximumObservedReturn;
 					minNormValue = this->minimumObservedReturn;
 				}
@@ -1575,7 +1775,7 @@ std::tuple<int, int, int, double, double> Player_AI_RL::RL_Control_UCB(Game_Engi
 
 					//get action value and number of tries
 					stateValue = child->data->Q_value;
-					if (config_ucb_visit_type == UCB_VISITS_TOTAL)
+					if (config_ucb_visit_type == UCB_VISITS::TOTAL)
 						childVisits = child->data->num_visited_total;
 					else
 						childVisits = child->data->num_visited_episodes;
@@ -1584,9 +1784,9 @@ std::tuple<int, int, int, double, double> Player_AI_RL::RL_Control_UCB(Game_Engi
 					normalizedValue = (stateValue - minNormValue) / (maxNormValue - minNormValue);
 
 					//consider goal
-					if (goal == REWARD_MAXIMIZE)
+					if (goal == REWARD_GOALS::MAXIMIZE)
 						estimatedValue = normalizedValue;
-					else if (goal == REWARD_MINIMIZE)
+					else if (goal == REWARD_GOALS::MINIMIZE)
 						estimatedValue = 1.0 - normalizedValue;
 					else
 						gmp->Print("ERROR Player_AI_RL::RL_Control_UCB(): goal unknown!\n");
@@ -1630,7 +1830,45 @@ std::tuple<int, int, int, double, double> Player_AI_RL::RL_Control_UCB(Game_Engi
 	return std::make_tuple(selectedActionID, selectedChildIndex, bestChildIndex, selectedChildValue, bestChildValue);
 }
 
-void Player_AI_RL::Output_ExternalMove_Level()
+//---- Visualization and output
+
+void Player_AI_RL::Output_ExternalMove_Start()
+{
+	int depth = 1;
+	if (this->config_output_depth >= depth){
+	}
+
+	if (this->config_experiment == EXPERIMENTAL_SETTINGS::METRICS_PER_EPISODES)
+		Experiment_EpisodeMetrics(depth+1);
+	else if (this->config_experiment == EXPERIMENTAL_SETTINGS::METRICS_PER_TIMESTEPS)
+		Experiment_TimeStepMetrics(depth+2);
+}
+
+void Player_AI_RL::Output_Episode_Start()
+{
+	int depth = 2;
+	if (this->config_output_depth >= depth){
+	}
+
+	if (this->config_experiment == EXPERIMENTAL_SETTINGS::METRICS_PER_EPISODES)
+		Experiment_EpisodeMetrics(depth+1);
+	else if (this->config_experiment == EXPERIMENTAL_SETTINGS::METRICS_PER_TIMESTEPS)
+		Experiment_TimeStepMetrics(depth+2);
+}
+
+void Player_AI_RL::Output_SimulatedMove_Start()
+{
+	int depth = 3;
+	if (this->config_output_depth >= depth){
+	}
+
+	if (this->config_experiment == EXPERIMENTAL_SETTINGS::METRICS_PER_EPISODES)
+		Experiment_EpisodeMetrics(depth+1);
+	else if (this->config_experiment == EXPERIMENTAL_SETTINGS::METRICS_PER_TIMESTEPS)
+		Experiment_TimeStepMetrics(depth+3);
+}
+
+void Player_AI_RL::Output_ExternalMove_End()
 {
 	int depth = 1;
 	if (this->config_output_depth >= depth){
@@ -1643,9 +1881,13 @@ void Player_AI_RL::Output_ExternalMove_Level()
 		if (this->config_output_pause >= depth)
 			cin.get();
 	}
+	if (this->config_experiment == EXPERIMENTAL_SETTINGS::METRICS_PER_EPISODES)
+		Experiment_EpisodeMetrics(depth);
+	else if (this->config_experiment == EXPERIMENTAL_SETTINGS::METRICS_PER_TIMESTEPS)
+		Experiment_TimeStepMetrics(depth);
 }
 
-void Player_AI_RL::Output_Episode_Level()
+void Player_AI_RL::Output_Episode_End()
 {
 	int depth = 2;
 	if (this->config_output_depth >= depth){
@@ -1659,9 +1901,13 @@ void Player_AI_RL::Output_Episode_Level()
 		if (this->config_output_pause >= depth)
 			cin.get();
 	}
+	if (this->config_experiment == EXPERIMENTAL_SETTINGS::METRICS_PER_EPISODES)
+		Experiment_EpisodeMetrics(depth);
+	else if (this->config_experiment == EXPERIMENTAL_SETTINGS::METRICS_PER_TIMESTEPS)
+		Experiment_TimeStepMetrics(depth);
 }
 
-void Player_AI_RL::Output_SimulatedMove_Level()
+void Player_AI_RL::Output_SimulatedMove_End()
 {
 	int depth = 3;
 	if (this->config_output_depth >= depth){
@@ -1674,6 +1920,10 @@ void Player_AI_RL::Output_SimulatedMove_Level()
 		if (this->config_output_pause >= depth)
 			cin.get();
 	}
+	if (this->config_experiment == EXPERIMENTAL_SETTINGS::METRICS_PER_EPISODES)
+		Experiment_EpisodeMetrics(depth);
+	else if (this->config_experiment == EXPERIMENTAL_SETTINGS::METRICS_PER_TIMESTEPS)
+		Experiment_TimeStepMetrics(depth);
 }
 
 void Player_AI_RL::Output_Batch(int depth)
@@ -1739,7 +1989,7 @@ void Player_AI_RL::Output_Memory(char* printLinePrefix)
 	gmp->Print("\n%s", printLinePrefix); gmp->Print("BEGIN Output_Memory_State()");
 	gmp->Print("\n%s", printLinePrefix);
 
-	if (this->config_transpositions != Game_Engine::TRANSPOSITION_TYPES::TRANSPOSITIONS_DISABLED){
+	if (this->config_transpositions != Game_Engine::TRANSPOSITIONS::DISABLED){
 		this->memory->Output_HashTable(printLinePrefix);
 	}
 	else{
@@ -1766,7 +2016,7 @@ void Player_AI_RL::Output_Trajectory(char* printLinePrefix)
 	gmp->Print("\n%s", printLinePrefix);
 	gmp->Print("   index");
 	gmp->Print("  simPly");
-	for (int h = 0; h < 7; h++){
+	for (int h = 0; h < trajectoryRecord::structNumElements; h++){
 		gmp->Print("  "); gmp->Print(trajectoryRecord::trajectoryRecordLabels[h]);
 	}
 	gmp->Print("  "); gmp->Print(HashTree::TreeNodeAtrLabels[7]);
@@ -1783,9 +2033,9 @@ void Player_AI_RL::Output_Trajectory(char* printLinePrefix)
 		gmp->Print("  "); gmp->Print(trajectoryRecord::trajectoryRecordFormat[1], this->trajectory[t].reward);
 		gmp->Print("  "); gmp->Print(trajectoryRecord::trajectoryRecordFormat[2], this->trajectory[t].stateVisitsTotal);
 		gmp->Print("  ");
-		if (this->trajectory[t].goal == REWARD_GOALS::REWARD_MAXIMIZE)
+		if (this->trajectory[t].goal == REWARD_GOALS::MAXIMIZE)
 			gmp->Print("   MAX");
-		else if (this->trajectory[t].goal == REWARD_GOALS::REWARD_MINIMIZE)
+		else if (this->trajectory[t].goal == REWARD_GOALS::MINIMIZE)
 			gmp->Print("   MIN");
 		else
 			gmp->Print(" UNKNW");
@@ -1863,7 +2113,7 @@ void Player_AI_RL::Output_TDbackup21(int b, int trajectory_index, double trace, 
 		if (backupNode != NULL){
 			gmp->Print("  "); gmp->Print(trajectoryRecord::trajectoryRecordFormat[6], backupNode);
 			gmp->Print("  ");
-			if ((this->config_trace_type == Q_TRACE_ACCUMULATING) || (backupNode->data->Z_traceTag < trajectory_index))
+			if ((this->config_trace_type == ELIGIBILITY_TRACES::ACCUMULATING) || (backupNode->data->Z_traceTag < trajectory_index))
 				gmp->Print("     yes");
 			else
 				gmp->Print("      no");
@@ -1901,39 +2151,47 @@ void Player_AI_RL::Output_Settings()
 {
 	gmp->Print("\n");
 	gmp->Print("Player_AI_RL()::Output_Settings()\n");
-	gmp->Print(settingsLabels[1]); gmp->Print("    "); gmp->Print(settingsFormat[1], this->config_preset_algorithm); gmp->Print("\n");
-	gmp->Print(settingsLabels[2]); gmp->Print("    "); gmp->Print(settingsFormat[2], this->config_control_policy); gmp->Print("\n");
-	gmp->Print(settingsLabels[3]); gmp->Print("    "); gmp->Print(settingsFormat[3], this->config_policy_evaluation); gmp->Print("\n");
-	gmp->Print(settingsLabels[4]); gmp->Print("    "); gmp->Print(settingsFormat[4], this->config_TDupdateType); gmp->Print("\n");
-	gmp->Print(settingsLabels[5]); gmp->Print("    "); gmp->Print(settingsFormat[5], this->config_trace_type); gmp->Print("\n");
-	gmp->Print(settingsLabels[6]); gmp->Print("    "); gmp->Print(settingsFormat[6], this->config_trace_exploratory_reset); gmp->Print("\n");
-	gmp->Print(settingsLabels[7]); gmp->Print("    "); gmp->Print(settingsFormat[7], this->config_transpositions); gmp->Print("\n");
-	gmp->Print(settingsLabels[8]); gmp->Print("    "); gmp->Print(settingsFormat[8], this->config_offpolicy_backup_recheck_best); gmp->Print("\n");
-	gmp->Print(settingsLabels[9]); gmp->Print("    "); gmp->Print(settingsFormat[9], this->config_nonEpisodicTasks_updateInterval); gmp->Print("\n");
-	gmp->Print(settingsLabels[10]); gmp->Print("    "); gmp->Print(settingsFormat[10], this->config_num_new_nodes_per_episode); gmp->Print("\n");
-	gmp->Print(settingsLabels[11]); gmp->Print("    "); gmp->Print(settingsFormat[11], this->config_rollout_assumption); gmp->Print("\n");
-	gmp->Print(settingsLabels[12]); gmp->Print("    "); gmp->Print(settingsFormat[12], this->config_alpha_type); gmp->Print("\n");
-	gmp->Print(settingsLabels[13]); gmp->Print("    "); gmp->Print(settingsFormat[13], this->config_ucb_visit_type); gmp->Print("\n");
-	gmp->Print(settingsLabels[14]); gmp->Print("    "); gmp->Print(settingsFormat[14], this->config_ucb_norm_type); gmp->Print("\n");
-	gmp->Print(settingsLabels[15]); gmp->Print("    "); gmp->Print(settingsFormat[15], this->config_ucb_norm_global); gmp->Print("\n");
-	gmp->Print(settingsLabels[16]); gmp->Print("    "); gmp->Print(settingsFormat[16], this->config_ucb_norm_local); gmp->Print("\n");
-	gmp->Print(settingsLabels[17]); gmp->Print("    "); gmp->Print(settingsFormat[17], this->config_opponent_alignment); gmp->Print("\n");
-	gmp->Print(settingsLabels[18]); gmp->Print("    "); gmp->Print(settingsFormat[18], this->config_opponent_policy); gmp->Print("\n");
-	gmp->Print(settingsLabels[19]); gmp->Print("    "); gmp->Print(settingsFormat[19], this->par_egreedy_e); gmp->Print("\n");
-	gmp->Print(settingsLabels[20]); gmp->Print("    "); gmp->Print(settingsFormat[20], this->par_ucb_c); gmp->Print("\n");
-	gmp->Print(settingsLabels[21]); gmp->Print("    "); gmp->Print(settingsFormat[21], this->par_task_gamma); gmp->Print("\n");
-	gmp->Print(settingsLabels[22]); gmp->Print("    "); gmp->Print(settingsFormat[22], this->par_td_alpha); gmp->Print("\n");
-	gmp->Print(settingsLabels[23]); gmp->Print("    "); gmp->Print(settingsFormat[23], this->par_td_lambda); gmp->Print("\n");
-	gmp->Print(settingsLabels[24]); gmp->Print("    "); gmp->Print(settingsFormat[24], this->par_td_initVal); gmp->Print("\n");
-	gmp->Print(settingsLabels[25]); gmp->Print("    "); gmp->Print(settingsFormat[25], this->par_num_episodes); gmp->Print("\n");
-	gmp->Print(settingsLabels[26]); gmp->Print("    "); gmp->Print(settingsFormat[26], this->par_num_simulatedActions_perMove); gmp->Print("\n");
-	gmp->Print(settingsLabels[27]); gmp->Print("    "); gmp->Print(settingsFormat[27], this->par_simulated_horizon_lenght); gmp->Print("\n");
-	gmp->Print(settingsLabels[28]); gmp->Print("    "); gmp->Print(settingsFormat[28], this->config_memory_limitMB); gmp->Print("\n");
+
+	gmp->Print("%40s", settingsLabels[1]);  gmp->Print("    "); gmp->Print(PRESET_ALGORITHMS::stringLabels[this->config_preset_algorithm]);						gmp->Print("\n");
+	gmp->Print("%40s", settingsLabels[2]);  gmp->Print("    "); gmp->Print(CONTROL_POLICIES::stringLabels[this->config_control_policy]);						gmp->Print("\n");
+	gmp->Print("%40s", settingsLabels[3]);  gmp->Print("    "); gmp->Print(POLICY_EVALUATIONS::stringLabels[this->config_policy_evaluation]);					gmp->Print("\n");
+	gmp->Print("%40s", settingsLabels[4]);  gmp->Print("    "); gmp->Print(TD_UPDATES::stringLabels[this->config_TDupdateType]);								gmp->Print("\n");
+	gmp->Print("%40s", settingsLabels[5]);  gmp->Print("    "); gmp->Print(ELIGIBILITY_TRACES::stringLabels[this->config_trace_type]);							gmp->Print("\n");
+	gmp->Print("%40s", settingsLabels[6]);  gmp->Print("    "); gmp->Print(ELIGIBILITY_EXPLORATORY_RESET::stringLabels[this->config_trace_exploratory_reset]);	gmp->Print("\n");
+	gmp->Print("%40s", settingsLabels[7]);  gmp->Print("    "); gmp->Print(Game_Engine::TRANSPOSITIONS::stringLabels[this->config_transpositions]);				gmp->Print("\n");
+
+	gmp->Print("%40s", settingsLabels[8]);  gmp->Print("    "); gmp->Print(settingsFormat[8], this->config_offpolicy_backup_recheck_best);						gmp->Print("\n");
+	gmp->Print("%40s", settingsLabels[9]);  gmp->Print("    "); gmp->Print(settingsFormat[9], this->config_nonEpisodicTasks_updateInterval);					gmp->Print("\n");
+	gmp->Print("%40s", settingsLabels[10]); gmp->Print("    "); gmp->Print(settingsFormat[10], this->config_num_new_nodes_per_episode);							gmp->Print("\n");
+
+	gmp->Print("%40s", settingsLabels[11]); gmp->Print("    "); gmp->Print(ROLLOUT_VALUE_ASSUMPTIONS::stringLabels[this->config_rollout_assumption]);			gmp->Print("\n");
+	gmp->Print("%40s", settingsLabels[12]); gmp->Print("    "); gmp->Print(UPDATESTEP_ALPHA::stringLabels[this->config_alpha_type]);							gmp->Print("\n");
+	gmp->Print("%40s", settingsLabels[13]); gmp->Print("    "); gmp->Print(UCB_VISITS::stringLabels[this->config_ucb_visit_type]);								gmp->Print("\n");
+	gmp->Print("%40s", settingsLabels[14]); gmp->Print("    "); gmp->Print(UCB_NORMALIZATION_LOCALITY::stringLabels[this->config_ucb_norm_type]);				gmp->Print("\n");
+	gmp->Print("%40s", settingsLabels[15]); gmp->Print("    "); gmp->Print(UCB_GLOBAL_NORMALIZATIONS::stringLabels[this->config_ucb_norm_global]);				gmp->Print("\n");
+	gmp->Print("%40s", settingsLabels[16]); gmp->Print("    "); gmp->Print(UCB_LOCAL_NORMALIZATIONS::stringLabels[this->config_ucb_norm_local]);				gmp->Print("\n");
+	gmp->Print("%40s", settingsLabels[17]); gmp->Print("    "); gmp->Print(OPPONENT_ALIGNMENTS::stringLabels[this->config_opponent_alignment]);					gmp->Print("\n");
+	gmp->Print("%40s", settingsLabels[18]); gmp->Print("    "); gmp->Print(OPPONENT_POLICIES::stringLabels[this->config_opponent_policy]);						gmp->Print("\n");
+	gmp->Print("%40s", settingsLabels[30]); gmp->Print("    "); gmp->Print(NUMERCIAL_CORRECTIONS::stringLabels[this->config_numerical_correction]);				gmp->Print("\n");
+	gmp->Print("%40s", settingsLabels[29]); gmp->Print("    "); gmp->Print(EXPERIMENTAL_SETTINGS::stringLabels[this->config_experiment]);						gmp->Print("\n");
+
+	gmp->Print("%40s", settingsLabels[19]); gmp->Print("    "); gmp->Print(settingsFormat[19], this->par_egreedy_e);										gmp->Print("\n");
+	gmp->Print("%40s", settingsLabels[20]); gmp->Print("    "); gmp->Print(settingsFormat[20], this->par_ucb_c);											gmp->Print("\n");
+	gmp->Print("%40s", settingsLabels[21]); gmp->Print("    "); gmp->Print(settingsFormat[21], this->par_task_gamma);										gmp->Print("\n");
+	gmp->Print("%40s", settingsLabels[22]); gmp->Print("    "); gmp->Print(settingsFormat[22], this->par_td_alpha);											gmp->Print("\n");
+	gmp->Print("%40s", settingsLabels[23]); gmp->Print("    "); gmp->Print(settingsFormat[23], this->par_td_lambda);										gmp->Print("\n");
+	gmp->Print("%40s", settingsLabels[24]); gmp->Print("    "); gmp->Print(settingsFormat[24], this->par_td_initVal);										gmp->Print("\n");
+	gmp->Print("%40s", settingsLabels[25]); gmp->Print("    "); gmp->Print(settingsFormat[25], this->par_num_episodes);										gmp->Print("\n");
+	gmp->Print("%40s", settingsLabels[26]); gmp->Print("    "); gmp->Print(settingsFormat[26], this->par_num_simulatedActions_perMove);						gmp->Print("\n");
+	gmp->Print("%40s", settingsLabels[27]); gmp->Print("    "); gmp->Print(settingsFormat[27], this->par_simulated_horizon_lenght);							gmp->Print("\n");
+	gmp->Print("%40s", settingsLabels[28]); gmp->Print("    "); gmp->Print(settingsFormat[28], this->config_memory_limitMB);								gmp->Print("\n");
+	
 	gmp->Print("\n");
 }
 
-//static structures
-const char * const Player_AI_RL::settingsLabels[] = {
+//---- static structures
+
+const char * Player_AI_RL::settingsLabels[] = {
 	"INVALID",
 	"config_preset_algorithm",
 	"config_control_policy",
@@ -1963,8 +2221,10 @@ const char * const Player_AI_RL::settingsLabels[] = {
 	"par_num_simulatedActions_perMove",
 	"par_simulated_horizon_lenght",
 	"config_memory_limitMB",
+	"config_experiment",
+	"config_numerical_correction",
 };
-const char * const Player_AI_RL::settingsFormat[] = {
+const char * Player_AI_RL::settingsFormat[] = {
 	"%d",
 	"%d",
 	"%d",
@@ -1993,9 +2253,11 @@ const char * const Player_AI_RL::settingsFormat[] = {
 	"%d",
 	"%d",
 	"%d",
-	"%f",
+	"%.0f",
+	"%d",
+	"%d",
 };
-const char * const Player_AI_RL::trajectoryRecord::trajectoryRecordLabels[] = {
+const char * Player_AI_RL::trajectoryRecord::trajectoryRecordLabels[trajectoryRecord::structNumElements] = {
 	"action",	//0
 	"reward",	//1
 	"visTot",	//2 number of total visits to current state so far
@@ -2004,15 +2266,354 @@ const char * const Player_AI_RL::trajectoryRecord::trajectoryRecordLabels[] = {
 	"isExpl",	//5 was move exploratory
 	"statePtr",	//6 pointer to memorized structure
 };
-const char * const Player_AI_RL::trajectoryRecord::trajectoryRecordFormat[] = {
+const char * Player_AI_RL::trajectoryRecord::trajectoryRecordFormat[trajectoryRecord::structNumElements] = {
 	"% 6d",
-	"% 6.2f",
+	"% 6.3f",
 	"%6.1f",
 	"%6d",
 	"% 6.2f",
 	"%6d",
 	"%8p",
 };
+
+const char * Player_AI_RL::PRESET_ALGORITHMS::stringLabels[ENUM_COUNT_ELEMENTS] =
+{
+	"NONE",
+	"FIRSTVISIT_MC_ONPOLICY",
+	"EVERYVISIT_MC_ONPOLICY",
+	"EPISODIC_CONSTANT_MC",
+	"EPISODIC_LAMBDA_RETURN",
+	"ONLINE_TD_ZERO_ONPOLICY",
+	"EPISODIC_TD_ZERO_ONPOLICY",
+	"TD_LAMBDA",
+	"ONLINE_WATKINS_Q",
+	"ONLINE_NAIVE_Q",
+	"PENGS_Q",
+	"MCTS_UCT",
+};
+const char * Player_AI_RL::CONTROL_POLICIES::stringLabels[ENUM_COUNT_ELEMENTS] =
+{
+	"EGREEDY",
+	"UCB1",
+};
+const char * Player_AI_RL::POLICY_EVALUATIONS::stringLabels[ENUM_COUNT_ELEMENTS] =
+{
+	"CONSTANT_MC",				
+	"TDLAMBDA_ONPOLICY",			
+	"TDLAMBDA_OFFPOLICY_Q_LEARNING",
+};
+const char * Player_AI_RL::TD_UPDATES::stringLabels[ENUM_COUNT_ELEMENTS] =
+{
+	"ONLINE",					
+	"BATCH_EPISODIC",			
+	"BATCH_EPISODIC_INPLACE",
+};
+const char * Player_AI_RL::ELIGIBILITY_TRACES::stringLabels[ENUM_COUNT_ELEMENTS] =
+{
+	"REPLACING",	
+	"ACCUMULATING",
+};
+const char * Player_AI_RL::ELIGIBILITY_EXPLORATORY_RESET::stringLabels[ENUM_COUNT_ELEMENTS] =
+{
+	"DISABLED",
+	"ENABLED",
+};
+const char * Player_AI_RL::ROLLOUT_VALUE_ASSUMPTIONS::stringLabels[ENUM_COUNT_ELEMENTS] =
+{
+	"INITIAL",
+	"ZERO",
+	"LAST_MEMORIZED",
+	"CONVERGED_TO_NEXT",
+};
+const char * Player_AI_RL::UPDATESTEP_ALPHA::stringLabels[ENUM_COUNT_ELEMENTS] =
+{
+	"CONSTANT",	
+	"MONTE_CARLO",
+};
+const char * Player_AI_RL::UCB_VISITS::stringLabels[ENUM_COUNT_ELEMENTS] =
+{
+	"TOTAL",	
+	"EPISODES",
+};
+const char * Player_AI_RL::UCB_NORMALIZATION_LOCALITY::stringLabels[ENUM_COUNT_ELEMENTS] =
+{
+	"GLOBAL",
+	"LOCAL",
+	"LOCAL_THEN_GLOBAL",
+};
+const char * Player_AI_RL::UCB_GLOBAL_NORMALIZATIONS::stringLabels[ENUM_COUNT_ELEMENTS] =
+{
+	"KNOWN_RETURN",	
+	"OBSERVED_RETURN",
+};
+const char * Player_AI_RL::UCB_LOCAL_NORMALIZATIONS::stringLabels[ENUM_COUNT_ELEMENTS] =
+{
+	"OBSERVED_RETURN",		
+	"BRANCH_CURRENT_QVAL",	
+	"CHILDREN_CURRENT_QVAL",
+};
+const char * Player_AI_RL::OPPONENT_ALIGNMENTS::stringLabels[ENUM_COUNT_ELEMENTS] =
+{
+	"ADVERSARY",	
+	"COOPERATIVE",
+};
+const char * Player_AI_RL::OPPONENT_POLICIES::stringLabels[ENUM_COUNT_ELEMENTS] =
+{
+	"RANDOM",
+	"GREEDY",
+	"SELFPLAY",
+};
+const char * Player_AI_RL::REWARD_GOALS::stringLabels[ENUM_COUNT_ELEMENTS] =
+{
+	"MAXIMIZE",
+	"MINIMIZE",
+	"UNKNOWN",	
+};
+const char * Player_AI_RL::NUMERCIAL_CORRECTIONS::stringLabels[ENUM_COUNT_ELEMENTS] =
+{
+	"DISABLED",
+	"ENABLED",
+	"ENABLED_WITH_WARNINGS",
+};
+const char * Player_AI_RL::EXPERIMENTAL_SETTINGS::stringLabels[ENUM_COUNT_ELEMENTS] =
+{
+	"NONE",
+	"METRICS_PER_EPISODES",
+	"METRICS_PER_TIMESTEPS",
+};
+
+
+
+//------------------------ experimental scenarios --------------------------//
+
+// !!WARNING!! currently works only for randomWalk with a 100% random policy
+void Player_AI_RL::Experiment_EpisodeMetrics(int depth)
+{
+
+	double trueValue, predictedValue;
+	double e, mse, rmse;
+	double bestVal, bestInd;
+
+	//per episode level
+	if (depth == 2){
+
+		int num_samples = this->internalGame->HashKey_getNumStates();
+		int randomWalk_startingState = (int)((num_samples - 1) / 2);
+		if (num_samples < 3){
+			gmp->Print("ERROR: Player_AI_RL::Experiment_valueError_per_episodes(): game has less than 3 states (%d)\n", num_samples);
+			return;
+		}
+
+		//if (this->par_task_gamma != 1.0)
+		//	gmp->Print("WARNING: Player_AI_RL::Experiment_valueError_per_episodes(): gamma not equal 1.0, errors will be incorrect!\n");
+
+		//[0] get the RMSE across all states (ONLY if STATES transpositions are in use)
+		rmse = 0.0;	
+		mse = 0.0;
+		if (this->config_transpositions == Game_Engine::TRANSPOSITIONS::STATES){
+			for (int s = 0; s < num_samples; s++){
+
+				trueValue = (double)s * (1.0 / (num_samples - 1));
+				if (this->memory->hashMap[s] != NULL)
+					predictedValue = this->memory->hashMap[s]->data->Q_value;
+				else
+					predictedValue = this->par_td_initVal;
+
+				mse += ((predictedValue - trueValue) * (predictedValue - trueValue));
+
+			}
+			rmse = sqrt(mse / (double)num_samples);
+			if (this->par_task_gamma == 1.0)
+				(this->experiment_results[0][this->numEpisodes_lastMove])->Add_Sample(rmse, true, true);
+		}
+
+		//[1] get the error of the initial state
+		trueValue = (double)(randomWalk_startingState) * (1.0 / (num_samples - 1));
+		if (this->internalGameActiveNode != NULL)
+			predictedValue = this->internalGameActiveNode->data->Q_value;
+		else
+			predictedValue = this->par_td_initVal;
+
+		e = abs(trueValue - predictedValue);
+		if (this->par_task_gamma == 1.0)
+			(this->experiment_results[1][this->numEpisodes_lastMove])->Add_Sample(e, true, true);
+
+		//[2] get the RMSE errors of initial state-actions (regardless whether transpositions are used or not)
+		//[3] is the optimal action evaluated better than the others?
+		rmse = 0.0;
+		mse = 0.0;
+		bestInd = 0;
+		bestVal = -DBL_MAX;
+		if (this->internalGameActiveNode != NULL){
+			for (int i = 0; i < this->internalGameActiveNode->num_children; i++){
+				if (i == 0)
+					trueValue = (double)(randomWalk_startingState - 1) * (1.0 / (num_samples - 1));
+				else 
+					trueValue = (double)(randomWalk_startingState + 1) * (1.0 / (num_samples - 1));
+
+				if (this->internalGameActiveNode->children[i] != NULL)
+					predictedValue = this->internalGameActiveNode->children[i]->data->Q_value;
+				else
+					predictedValue = this->par_td_initVal;
+
+				mse += ((predictedValue - trueValue) * (predictedValue - trueValue));
+
+				if (predictedValue > bestVal){
+					bestVal = predictedValue;
+					bestInd = i;
+				}
+			}
+			rmse = sqrt(mse / (double)(this->internalGameActiveNode->num_children));
+		}
+		if (this->par_task_gamma == 1.0)
+			(this->experiment_results[2][this->numEpisodes_lastMove])->Add_Sample(rmse, true, true);
+
+		double rootActionOptimal = 0.0;
+		if (bestInd == 1)
+			rootActionOptimal = 1.0;
+		(this->experiment_results[3][this->numEpisodes_lastMove])->Add_Sample(rootActionOptimal, true, true);
+
+		//[4] is the whole policy optimal? (e.g., in randomWalk all actions lead to right by following a greedy policy)
+		double policyOptimal = 0.0;
+		HashTree::TreeNode* currentNode = this->internalGameActiveNode;
+		int stateInd = randomWalk_startingState;
+		while ((currentNode != NULL) && (stateInd < num_samples - 1)){
+			bestInd = 0;
+			bestVal = -DBL_MAX;
+			for (int i = 0; i < this->internalGameActiveNode->num_children; i++){
+				if (this->internalGameActiveNode->children[i] != NULL)
+					predictedValue = this->internalGameActiveNode->children[i]->data->Q_value;
+				else
+					predictedValue = this->par_td_initVal;
+				if (predictedValue > bestVal){
+					bestVal = predictedValue;
+					bestInd = i;
+				}
+			}
+			if (bestInd == 1){
+				stateInd++;
+				if (stateInd == (num_samples - 1))
+					policyOptimal = 1.0;	//if right-end was reached, then policy is optimal
+				else
+					currentNode = currentNode->children[1];
+			}
+			else{
+				currentNode = NULL;	//terminate loop (policy is not optimal)
+			}
+		}
+		(this->experiment_results[4][this->numEpisodes_lastMove])->Add_Sample(policyOptimal, true, true);
+
+	}
+}
+
+// !!WARNING!! currently works only for randomWalk, evaluates RMSE based on an optimal policy
+void Player_AI_RL::Experiment_TimeStepMetrics(int depth)
+{
+	double trueValue, predictedValue;
+	double e, mse, rmse;
+	double bestVal, bestInd;
+
+	//per time step (action) level
+	if (depth == 3){
+
+		int num_samples = this->internalGame->HashKey_getNumStates();
+		int randomWalk_startingState = (int)((num_samples - 1) / 2);
+		if (num_samples < 5){
+			gmp->Print("ERROR: Player_AI_RL::Experiment_valueError_per_episodes(): game has less than 5 states (%d)\n", num_samples);
+			return;
+		}
+
+		//[0] save the ammount of simulated reward gathered so far
+		(this->experiment_results[0][this->numSimulatedActions_lastMove])->Add_Sample(sumSimulatedRewards_total, true, true);
+
+		//[1] get the error of the initial state value
+		trueValue = pow(this->par_task_gamma, (num_samples - 1) - (randomWalk_startingState));
+		if (this->internalGameActiveNode != NULL)
+			predictedValue = this->internalGameActiveNode->data->Q_value;
+		else
+			predictedValue = this->par_td_initVal;
+
+		e = abs(trueValue - predictedValue);
+		(this->experiment_results[1][this->numSimulatedActions_lastMove])->Add_Sample(e, true, true);
+
+		//[2] get the RMSE errors of initial state-actions (regardless whether transpositions are used or not)
+		//[3] is the optimal action evaluated better than the others?
+		rmse = 0.0;
+		mse = 0.0;
+		bestInd = 0;
+		bestVal = -DBL_MAX;
+		if (this->internalGameActiveNode != NULL){
+			for (int i = 0; i < this->internalGameActiveNode->num_children; i++){
+				if (i == 0)
+					trueValue = pow(this->par_task_gamma, (num_samples - 1) - (randomWalk_startingState - 1));
+				else
+					trueValue = pow(this->par_task_gamma, (num_samples - 1) - (randomWalk_startingState + 1));
+				if (this->internalGameActiveNode->children[i] != NULL)
+					predictedValue = this->internalGameActiveNode->children[i]->data->Q_value;
+				else
+					predictedValue = this->par_td_initVal;
+
+				mse += ((predictedValue - trueValue) * (predictedValue - trueValue));
+
+				if (predictedValue > bestVal){
+					bestVal = predictedValue;
+					bestInd = i;
+				}
+			}
+			rmse = sqrt(mse / (double)(this->internalGameActiveNode->num_children));
+		}
+		(this->experiment_results[2][this->numSimulatedActions_lastMove])->Add_Sample(rmse, true, true);
+
+		double rootActionOptimal = 0.0;
+		if (bestInd == 1)
+			rootActionOptimal = 1.0;
+		(this->experiment_results[3][this->numSimulatedActions_lastMove])->Add_Sample(rootActionOptimal, true, true);
+
+		//[4] average reward increase per timeStep (computed out of two successive samples), the inverse value (1/x) equals to the average episode duration
+		if (this->numSimulatedActions_lastMove > 0){
+			double prevR, nextR;
+
+			//get previous sum of rewards
+			if (this->numSimulatedActions_lastMove == 1)
+				prevR = 0.0;
+			else{
+				int IprevR = this->experiment_results[0][this->numSimulatedActions_lastMove - 2]->n - 1;
+				prevR = this->experiment_results[0][this->numSimulatedActions_lastMove - 2]->samples[IprevR];
+			}
+
+			//get next sum of rewards
+			int InextR = this->experiment_results[0][this->numSimulatedActions_lastMove]->n - 1;
+			nextR = this->experiment_results[0][this->numSimulatedActions_lastMove]->samples[InextR];
+
+			//average the increase over two timesteps (softens the variance when experimenting with randomWalk with an even number of steps from starting to terminal state)
+			double increase = (nextR - prevR) / 2.0;
+
+			//store sample
+			(this->experiment_results[4][this->numSimulatedActions_lastMove - 1])->Add_Sample(increase, true, true);
+
+			//memorize also increase in last step (although there is no next step)
+			if (this->numSimulatedActions_lastMove == this->par_num_simulatedActions_perMove){
+
+				int IprevR = this->experiment_results[0][this->numSimulatedActions_lastMove - 1]->n - 1;
+				prevR = this->experiment_results[0][this->numSimulatedActions_lastMove - 1]->samples[IprevR];
+				increase = (nextR - prevR) / 2.0;
+				(this->experiment_results[4][this->numSimulatedActions_lastMove])->Add_Sample(increase, true, true);
+
+			}
+		}
+	}
+}
+
+const int Player_AI_RL::experimentNumMetrics[EXPERIMENTAL_SETTINGS::ENUM_COUNT_ELEMENTS] = {
+	0, 5, 5
+};
+const char * Player_AI_RL::experimentLabels[EXPERIMENTAL_SETTINGS::ENUM_COUNT_ELEMENTS][20] = {
+	{ "INVALID" },
+	{ "RMSEst", "errIni", "RMSEac", "optAct", "optPol" },
+	{ "sumRew", "errIni", "RMSEac", "optAct", "incRew" },
+};
+
+
 
 
 
@@ -2625,81 +3226,53 @@ const char * const Player_AI_RL::trajectoryRecord::trajectoryRecordFormat[] = {
 //
 //}
 
-
-
-void Player_AI_RL::Output_Log_Level_Create_Headers()
-{
-#if(TOM_GLOBAL_ENABLE_MCTS_OUTPUT_LEVEL)
-	if (output_level_headers_created)
-		return;
-
-	output_level_headers_created = true;
-
-	// -- lvl0 -- //
-#if(TOM_GLOBAL_MCTS_OUTPUT_NUM_LEVELS > 0)
-	gmp->PrintI(0, "setting \t batch_repeat \t ");
-	gmp->PrintI(0, "\n");
-#endif
-
-#if(TOM_GLOBAL_MCTS_OUTPUT_NUM_LEVELS > 1)
-	// -- lvl1 -- //
-	gmp->PrintI(1, "setting \t batch_repeat \t game_repeat \t ");
-	gmp->PrintI(1, "\n");
-#endif
-
-#if(TOM_GLOBAL_MCTS_OUTPUT_NUM_LEVELS > 2)
-	// -- lvl2 -- //
-	gmp->PrintI(2, "setting \t batch_repeat \t game_repeat \t extern_ply_num \t ");
-	gmp->PrintI(2, "MCTS_iter_per_ply \n");
-#endif
-
-#if(TOM_GLOBAL_MCTS_OUTPUT_NUM_LEVELS > 3)
-	// -- lvl3 -- //
-	gmp->PrintI(3, "setting \t batch_repeat \t game_repeat \t extern_ply_num \t MCTS_iteration \t ");
-	gmp->PrintI(3, "\n");
-#endif
-
-	// -- lvl4 -- //
-#if(TOM_GLOBAL_MCTS_OUTPUT_NUM_LEVELS > 4)
-	gmp->PrintI(4, "setting \t batch_repeat \t game_repeat \t extern_ply_num \t MCTS_iteration \t simulated_ply_num \t ");
-	gmp->PrintI(4, "\n");
-#endif
-
-#if(TOM_GLOBAL_MCTS_OUTPUT_NUM_LEVELS > 5)
-	// -- lvl5 -- //
-	gmp->PrintI(5, TOMPLAYER_AI_RL_output_log_level5_header);
-	for (int i = 0; i < FUNC_APPROX_NUM_INPUTS; i++)
-		gmp->PrintI(5, "L5/child->NN_input_%d \t", i);
-	gmp->PrintI(5, "\n");
-#endif
-#endif
-}
+//
+//
+//void Player_AI_RL::Output_Log_Level_Create_Headers()
+//{
+//#if(TOM_GLOBAL_ENABLE_MCTS_OUTPUT_LEVEL)
+//	if (output_level_headers_created)
+//		return;
+//
+//	output_level_headers_created = true;
+//
+//	// -- lvl0 -- //
+//#if(TOM_GLOBAL_MCTS_OUTPUT_NUM_LEVELS > 0)
+//	gmp->PrintI(0, "setting \t batch_repeat \t ");
+//	gmp->PrintI(0, "\n");
+//#endif
+//
+//#if(TOM_GLOBAL_MCTS_OUTPUT_NUM_LEVELS > 1)
+//	// -- lvl1 -- //
+//	gmp->PrintI(1, "setting \t batch_repeat \t game_repeat \t ");
+//	gmp->PrintI(1, "\n");
+//#endif
+//
+//#if(TOM_GLOBAL_MCTS_OUTPUT_NUM_LEVELS > 2)
+//	// -- lvl2 -- //
+//	gmp->PrintI(2, "setting \t batch_repeat \t game_repeat \t extern_ply_num \t ");
+//	gmp->PrintI(2, "MCTS_iter_per_ply \n");
+//#endif
+//
+//#if(TOM_GLOBAL_MCTS_OUTPUT_NUM_LEVELS > 3)
+//	// -- lvl3 -- //
+//	gmp->PrintI(3, "setting \t batch_repeat \t game_repeat \t extern_ply_num \t MCTS_iteration \t ");
+//	gmp->PrintI(3, "\n");
+//#endif
+//
+//	// -- lvl4 -- //
+//#if(TOM_GLOBAL_MCTS_OUTPUT_NUM_LEVELS > 4)
+//	gmp->PrintI(4, "setting \t batch_repeat \t game_repeat \t extern_ply_num \t MCTS_iteration \t simulated_ply_num \t ");
+//	gmp->PrintI(4, "\n");
+//#endif
+//
+//#if(TOM_GLOBAL_MCTS_OUTPUT_NUM_LEVELS > 5)
+//	// -- lvl5 -- //
+//	gmp->PrintI(5, TOMPLAYER_AI_RL_output_log_level5_header);
+//	for (int i = 0; i < FUNC_APPROX_NUM_INPUTS; i++)
+//		gmp->PrintI(5, "L5/child->NN_input_%d \t", i);
+//	gmp->PrintI(5, "\n");
+//#endif
+//#endif
+//}
 // -- END - Output_Log_Level_Create_Headers -- //
-
-double Player_AI_RL::Neural_Network_Threshold_Function(double input_weight_sum, const int function_type)
-{
-
-	if (function_type == NN_FUNCTION_TYPES_SIGMOID_CENTER_ZERO){
-		return (1.0 / (1.0 + exp(-input_weight_sum)) - 0.5);
-
-	}
-	else if (function_type == NN_FUNCTION_TYPES_SIGMOID){
-		return (1.0 / (1.0 + exp(-input_weight_sum)));
-
-	}
-	else if (function_type == NN_FUNCTION_TYPES_STEP){
-		return ((double)(input_weight_sum > 0.0));
-
-	}
-	else if (function_type == NN_FUNCTION_TYPES_LINEAR){
-		return (input_weight_sum);
-
-	}
-	else{
-		//wrong parameter call
-		gmp->Print(stderr, "Player_AI_RL::Neural_Network_Threshold_Function: ERROR: incorrect function_type: %d\n", function_type);
-		return -1;
-
-	}
-
-}

@@ -54,14 +54,16 @@ void Game_RandomWalk::Init_Settings()
 	board_size = board_length * board_height;
 	number_players = 1;
 	maximum_allowed_moves = 2;
+
+	config_walk_length = DEFAULT_WALK_LENGTH;
 	maximum_plys = DEFAULT_MAXPLIES;
 	param_score_win = DEFAULT_REWARD_WIN;
 	param_score_lose = DEFAULT_REWARD_LOSE;
 	param_score_draw = DEFAULT_REWARD_MAXPLIES;
 	param_score_step = DEFAULT_REWARD_STEP;
 
-	//maxScore = TODO
-	//minScore = TODO
+	//maxScore = TODO, currently set to 1
+	//minScore = TODO, currently set to 0
 
 	//general debug settings
 	show_warnings = TOM_DEBUG;
@@ -78,6 +80,7 @@ void Game_RandomWalk::Copy_Settings(Game_Engine* source_game)
 	board_size = source_game->board_size;
 	number_players = source_game->number_players;
 	maximum_allowed_moves = source_game->maximum_allowed_moves;
+	config_walk_length = ((Game_RandomWalk*)source_game)->config_walk_length;
 	maximum_plys = source_game->maximum_plys;
 	param_score_win = source_game->param_score_win;
 	param_score_lose = source_game->param_score_lose;
@@ -142,7 +145,7 @@ WARNING: move list is not created
 void Game_RandomWalk::Game_Reset()
 {
 	//reset game state variables
-	board_state[0] = (int)((DEFAULT_LENGTH - 1) / 2);
+	board_state[0] = (int)((config_walk_length - 1) / 2);
 
 	current_number_moves[0] = maximum_allowed_moves;
 	current_moves[0][0] = true;
@@ -238,7 +241,7 @@ int Game_RandomWalk::Game_Dynamics(int selected_move)
 
 int Game_RandomWalk::Check_Game_Win(int position)
 {
-	if (position == DEFAULT_LENGTH - 1){
+	if (position == config_walk_length - 1){
 		this->score[0] += this->param_score_win;
 		this->game_ended = true;
 	}
@@ -263,12 +266,12 @@ int Game_RandomWalk::Check_Game_Win(int position)
 
 int Game_RandomWalk::HashKey_getNumStates()
 {
-	return DEFAULT_LENGTH;
+	return config_walk_length;
 }
 
 int Game_RandomWalk::HashKey_getNumStateActions()
 {
-	return (DEFAULT_LENGTH-2) * 2 + 1;	//added +1 because of the initial state (that has no preceeding action)
+	return (config_walk_length - 2) * 2 + 1;	//added +1 because of the initial state (that has no preceeding action)
 }
 
 int Game_RandomWalk::HashKey_getCurrentState()
@@ -347,3 +350,40 @@ void Game_RandomWalk::Output_Board_State(char* printLinePrefix)
 	fflush(stdout);
 
 }
+
+
+void Game_RandomWalk::Output_Settings(bool calledByDescription)
+{
+	if (!calledByDescription){
+		gmp->Print("\n");
+		gmp->Print("Game_Engine()::Output_Description()\n");
+	}
+
+	gmp->Print("%30s", settingsLabels[0]);  gmp->Print("    "); gmp->Print(settingsFormat[0], config_walk_length);	gmp->Print("\n");
+	gmp->Print("%30s", settingsLabels[1]);  gmp->Print("    "); gmp->Print(settingsFormat[1], maximum_plys);		gmp->Print("\n");
+	gmp->Print("%30s", settingsLabels[2]);  gmp->Print("    "); gmp->Print(settingsFormat[2], param_score_win);		gmp->Print("\n");
+	gmp->Print("%30s", settingsLabels[3]);  gmp->Print("    "); gmp->Print(settingsFormat[3], param_score_step);	gmp->Print("\n");
+	gmp->Print("%30s", settingsLabels[4]);  gmp->Print("    "); gmp->Print(settingsFormat[4], param_score_lose);	gmp->Print("\n");
+	gmp->Print("%30s", settingsLabels[5]);  gmp->Print("    "); gmp->Print(settingsFormat[5], param_score_draw);	gmp->Print("\n");
+
+	if (!calledByDescription)
+		gmp->Print("\n");
+}
+
+//---- static structures
+const char * Game_RandomWalk::settingsLabels[] = {
+	"board_length",
+	"maximum_plys",
+	"param_score_win",
+	"param_score_step",
+	"param_score_lose",
+	"param_score_timeOut",
+};
+const char * Game_RandomWalk::settingsFormat[] = {
+	"%d",
+	"%d",
+	"%f",
+	"%f",
+	"%f",
+	"%f",
+};

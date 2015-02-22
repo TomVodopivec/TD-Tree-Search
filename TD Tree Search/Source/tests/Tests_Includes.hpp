@@ -30,6 +30,7 @@
 
 #include "..\optimizers\Tom_Lrp.hpp"
 
+#include "..\tools\Tool_Sample_Storage.hpp"
 #include "..\tools\Tom_Sample_Storage.hpp"
 #include "..\tools\Support_MultiPrint.hpp"
 #include "..\tools\Support_InputFile.hpp"

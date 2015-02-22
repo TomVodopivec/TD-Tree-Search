@@ -42,6 +42,7 @@ using namespace std;
 //global variables
 struct tm * program_start_time;
 string program_start_time_output_str;
+string executable_filename_str;
 string output_data_filename;
 string output_conf_filename;
 string extern_call_command;

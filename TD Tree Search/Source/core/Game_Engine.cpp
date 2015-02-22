@@ -455,24 +455,24 @@ int Game_Engine::Human_Move_Translate(int m)
 	return m;
 }
 
-int Game_Engine::HashKey_getNum(TRANSPOSITION_TYPES transpositions_type){
+int Game_Engine::HashKey_getNum(TRANSPOSITIONS::TYPE transpositions_type){
 	int num;
-	if (transpositions_type == TRANSPOSITIONS_DISABLED)
+	if (transpositions_type == TRANSPOSITIONS::DISABLED)
 		num = 0;
-	else if (transpositions_type == TRANSPOSITIONS_STATES)
+	else if (transpositions_type == TRANSPOSITIONS::STATES)
 		num = HashKey_getNumStates();
-	else if (transpositions_type == TRANSPOSITIONS_STATEACTIONS)
+	else if (transpositions_type == TRANSPOSITIONS::STATEACTIONS)
 		num = HashKey_getNumStateActions();
 	return num;
 }
 
-int Game_Engine::HashKey_get(TRANSPOSITION_TYPES transpositions_type, int action){
+int Game_Engine::HashKey_get(TRANSPOSITIONS::TYPE transpositions_type, int action){
 	int keyVal;
-	if (transpositions_type == TRANSPOSITIONS_DISABLED)
+	if (transpositions_type == TRANSPOSITIONS::DISABLED)
 		keyVal = - 1;
-	else if (transpositions_type == TRANSPOSITIONS_STATES)
+	else if (transpositions_type == TRANSPOSITIONS::STATES)
 		keyVal = HashKey_getCurrentState();
-	else if (transpositions_type == TRANSPOSITIONS_STATEACTIONS)
+	else if (transpositions_type == TRANSPOSITIONS::STATEACTIONS)
 		keyVal = HashKey_getCurrentStateAction(action);
 	return keyVal;
 }
@@ -1209,6 +1209,93 @@ Player_Engine** Game_Engine::Validate_Players(Player_Engine** specified_players)
 	return specified_players;
 
 }
+
+void Game_Engine::Output_Description(bool output_settings)
+{
+
+	gmp->Print("\n");
+	gmp->Print("Game_Engine()::Output_Description()\n");
+
+	gmp->Print("%30s", definitionsLabels[0]);  gmp->Print("    "); gmp->Print(definitionsFormat[0], game_name.c_str());	gmp->Print("\n");
+	gmp->Print("%30s", definitionsLabels[1]);  gmp->Print("    "); gmp->Print(definitionsFormat[1], is_deterministic);	gmp->Print("\n");
+	gmp->Print("%30s", definitionsLabels[2]);  gmp->Print("    "); gmp->Print(definitionsFormat[2], is_episodic);	gmp->Print("\n");
+	gmp->Print("%30s", definitionsLabels[3]);  gmp->Print("    "); gmp->Print(definitionsFormat[3], revealsScoreInfo);	gmp->Print("\n");
+	gmp->Print("%30s", definitionsLabels[4]);  gmp->Print("    "); gmp->Print(definitionsFormat[4], allows_transpositions);	gmp->Print("\n");
+	gmp->Print("%30s", definitionsLabels[5]);  gmp->Print("    "); gmp->Print(definitionsFormat[5], minScore);	gmp->Print("\n");
+	gmp->Print("%30s", definitionsLabels[6]);  gmp->Print("    "); gmp->Print(definitionsFormat[6], maxScore);	gmp->Print("\n");
+
+	if (output_settings)
+		Output_Settings(true);
+
+	gmp->Print("\n");
+}
+
+void Game_Engine::Output_Settings(bool calledByDescription)
+{
+	if (!calledByDescription){
+		gmp->Print("\n");
+		gmp->Print("Game_Engine()::Output_Settings()\n");
+	}
+
+	gmp->Print("%30s", settingsLabels[0]);  gmp->Print("    "); gmp->Print(settingsFormat[0], board_length);	gmp->Print("\n");
+	gmp->Print("%30s", settingsLabels[1]);  gmp->Print("    "); gmp->Print(settingsFormat[1], board_height);	gmp->Print("\n");
+	gmp->Print("%30s", settingsLabels[2]);  gmp->Print("    "); gmp->Print(settingsFormat[2], number_players);	gmp->Print("\n");
+	gmp->Print("%30s", settingsLabels[3]);  gmp->Print("    "); gmp->Print(settingsFormat[3], maximum_allowed_moves);	gmp->Print("\n");
+	gmp->Print("%30s", settingsLabels[4]);  gmp->Print("    "); gmp->Print(settingsFormat[4], maximum_plys);	gmp->Print("\n");
+	gmp->Print("%30s", settingsLabels[5]);  gmp->Print("    "); gmp->Print(settingsFormat[5], param_score_win);	gmp->Print("\n");
+	gmp->Print("%30s", settingsLabels[6]);  gmp->Print("    "); gmp->Print(settingsFormat[6], param_score_lose);	gmp->Print("\n");
+	gmp->Print("%30s", settingsLabels[7]);  gmp->Print("    "); gmp->Print(settingsFormat[7], param_score_draw);	gmp->Print("\n");
+
+	if (!calledByDescription)
+		gmp->Print("\n");
+}
+
+//---- static structures
+const char * Game_Engine::definitionsLabels[] = {
+	"game_name",
+	"is_deterministic",
+	"is_episodic",
+	"revealsScoreInfo",
+	"allows_transpositions",
+	"minScore",
+	"maxScore",
+};
+const char * Game_Engine::definitionsFormat[] = {
+	"%s",
+	"%d",
+	"%d",
+	"%d",
+	"%d",
+	"%f",
+	"%f",
+};
+const char * Game_Engine::settingsLabels[] = {
+	"board_length",
+	"board_height",
+	"number_players",
+	"maximum_allowed_moves",
+	"maximum_plys",
+	"param_score_win",
+	"param_score_lose",
+	"param_score_draw",
+};
+const char * Game_Engine::settingsFormat[] = {
+	"%d",
+	"%d",
+	"%d",
+	"%d",
+	"%d",
+	"%f",
+	"%f",
+	"%f",
+};
+const char * Game_Engine::TRANSPOSITIONS::stringLabels[ENUM_COUNT_ELEMENTS] =
+{
+	"DISABLED",
+	"STATES",
+	"STATEACTIONS",
+};
+
 
 //
 ///**

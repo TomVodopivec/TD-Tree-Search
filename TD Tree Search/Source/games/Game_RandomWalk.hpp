@@ -14,7 +14,7 @@ class Game_RandomWalk : public Game_Engine
 public:
 
 	//default values
-#define DEFAULT_LENGTH				5		//currently maximum 255 (or 127, not sure, due to 'char' type implementation of Game_Engine)
+#define DEFAULT_WALK_LENGTH			5		//currently maximum 255 (or 127, not sure, due to 'char' type implementation of Game_Engine)
 #define DEFAULT_MAXPLIES			10000
 #define DEFAULT_REWARD_WIN			1.0
 #define DEFAULT_REWARD_LOSE			0.0
@@ -34,8 +34,10 @@ public:
 	virtual void Make_Moves_List();
 
 	//public procedures - debug and visualization
+	virtual void Output_Settings(bool calledByDescription = false);
 
 	//public variables - game settings
+	int config_walk_length;
 	double param_score_step;
 
 	//public variables - game state
@@ -48,6 +50,9 @@ public:
 
 	//public variables - debug
 
+	//statics
+	static const char * settingsLabels[];
+	static const char * settingsFormat[];
 
 protected:
 	//private procedures
@@ -66,7 +71,7 @@ protected:
 	void Output_Board_State(char* printLinePrefix = "");
 
 	//private variables - game state
-	char starting_state;
+	int starting_state;
 
 };
 

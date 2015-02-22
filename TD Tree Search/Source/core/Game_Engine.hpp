@@ -36,10 +36,14 @@ class Game_Engine
 //public procedures and variables
 public:
 
-	enum TRANSPOSITION_TYPES{
-		TRANSPOSITIONS_DISABLED,		// if states cannot be distinguished or state-space is too large, then a search tree is grown (default for UCT)
-		TRANSPOSITIONS_STATES,			// evaluate states V(s) <- TD
-		TRANSPOSITIONS_STATEACTIONS		// evaluate state-actions Q(s,a) <- SARSA / Q-learning
+	struct TRANSPOSITIONS{
+		enum TYPE {
+			DISABLED,		// if states cannot be distinguished or state-space is too large, then a search tree is grown (default for UCT)
+			STATES,			// evaluate states V(s) <- TD
+			STATEACTIONS,	// evaluate state-actions Q(s,a) <- SARSA / Q-learning
+			ENUM_COUNT_ELEMENTS	// must be last element in enum, do not remove: used to return the number of elements in enumerator
+		};
+		static const char * stringLabels[ENUM_COUNT_ELEMENTS];
 	};
 
 	//constructor
@@ -65,14 +69,16 @@ public:
 	int Get_Previous_Player_MultiPlayer(int p);
 
 	//virtual public variables - game state
-	virtual int HashKey_getNum(TRANSPOSITION_TYPES transpositions_type);
+	virtual int HashKey_getNum(TRANSPOSITIONS::TYPE transpositions_type);
 	virtual int HashKey_getNumStates();
 	virtual int HashKey_getNumStateActions();
-	virtual int HashKey_get(TRANSPOSITION_TYPES transpositions_type, int action);
+	virtual int HashKey_get(TRANSPOSITIONS::TYPE transpositions_type, int action);
 	virtual int HashKey_getCurrentState();
 	virtual int HashKey_getCurrentStateAction(int action);
 
 	//virtual public procedures - debug and visualization
+	virtual void Output_Description(bool output_settings = true);
+	virtual void Output_Settings(bool calledByDescription = false);
 	virtual void Output_Board_State(char* printLinePrefix = "");
 	virtual void Output_Board_State_Raw();
 
@@ -154,7 +160,6 @@ public:
 	double minScore;
 	double maxScore;
 
-
 	//public variables - external links
 	Player_Engine** players;
 
@@ -190,6 +195,12 @@ public:
 	int current_plys;
 	int* history_moves;
 
+	//statics
+	static const char * definitionsLabels[];
+	static const char * definitionsFormat[];
+	static const char * settingsLabels[];
+	static const char * settingsFormat[];
+
 protected:
 
 	//virtual protected procedures
@@ -214,6 +225,7 @@ protected:
 	Player_Engine** Validate_Players(Player_Engine** specified_players);
 
 	//protected variables - debug and visualizaton
+
 
 };
 

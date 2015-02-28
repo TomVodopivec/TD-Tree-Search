@@ -180,7 +180,6 @@ void Player_AI_RL::Clear_Memory()
 		delete(simulatedGame);
 		delete(memory);
 		delete[] trajectory;
-
 		////simulations feedback structures
 		//delete(simulatedGame_startingState);
 		//delete[] sim_feedback_scores_avg;
@@ -253,7 +252,7 @@ void Player_AI_RL::New_Game2()
 	this->numerical_correction_possible = 0;
 	if (
 		(
-		(!((this->config_num_new_nodes_per_episode != -1) && (this->config_rollout_assumption != ROLLOUT_VALUE_ASSUMPTIONS::INITIAL))) &&
+		(!((this->config_num_new_nodes_per_episode != -1) && (this->config_rollout_assumption != ROLLOUT_VALUE_ASSUMPTIONS::EQUAL_INITIAL))) &&
 		(this->config_transpositions == Game_Engine::TRANSPOSITIONS::DISABLED) &&
 		(this->config_policy_evaluation != POLICY_EVALUATIONS::TDLAMBDA_OFFPOLICY_Q_LEARNING)
 		) || 
@@ -322,8 +321,9 @@ void Player_AI_RL::Apply_Preset_Config(PRESET_ALGORITHMS::TYPE preset)
 		this->config_policy_evaluation = POLICY_EVALUATIONS::TDLAMBDA_ONPOLICY;
 		this->config_TDupdateType = TD_UPDATES::BATCH_EPISODIC;
 		this->config_trace_type = ELIGIBILITY_TRACES::REPLACING;
-		//this->config_rollout_assumption = CONVERGED_TO_REWARD;	//this is probably needed (not sure yet) when gamma < 1
-		this->config_alpha_type = UPDATESTEP_ALPHA::MONTE_CARLO;
+		this->config_rollout_assumption = ROLLOUT_VALUE_ASSUMPTIONS::EQUAL_ZERO;
+		//this->config_alpha_type = UPDATESTEP_ALPHA::MONTE_CARLO;
+		this->par_task_gamma = 1.0;
 		this->par_td_lambda = 1.0;
 	}
 
@@ -332,23 +332,19 @@ void Player_AI_RL::Apply_Preset_Config(PRESET_ALGORITHMS::TYPE preset)
 		this->config_policy_evaluation = POLICY_EVALUATIONS::TDLAMBDA_ONPOLICY;
 		this->config_TDupdateType = TD_UPDATES::BATCH_EPISODIC;
 		this->config_trace_type = ELIGIBILITY_TRACES::ACCUMULATING;
-		//this->config_rollout_assumption = CONVERGED_TO_REWARD;	//this is probably needed (not sure yet) when gamma < 1
+		this->config_rollout_assumption = ROLLOUT_VALUE_ASSUMPTIONS::EQUAL_ZERO;
 		this->config_alpha_type = UPDATESTEP_ALPHA::MONTE_CARLO;
+		this->par_task_gamma = 1.0;
 		this->par_td_lambda = 1.0;
 	}
 
-	else if (preset == PRESET_ALGORITHMS::EPISODIC_CONSTANT_MC)
+	else if (preset == PRESET_ALGORITHMS::FIRSTVISIT_EPISODIC_ALPHA_MC)
 	{
-		this->config_policy_evaluation = POLICY_EVALUATIONS::CONSTANT_MC;
-		// should be this->config_TDupdateType = TD_UPDATES::BATCH_EPISODIC; or BATCH_EPISODIC_INPLACE
-		this->config_alpha_type = UPDATESTEP_ALPHA::CONSTANT;
+		this->config_policy_evaluation = POLICY_EVALUATIONS::EPISODIC_MC;
+		this->config_TDupdateType = TD_UPDATES::BATCH_EPISODIC;
+		this->config_trace_type = ELIGIBILITY_TRACES::REPLACING;
+		this->par_task_gamma = 1.0;
 		this->par_td_lambda = 1.0;
-	}
-
-	else if (preset == PRESET_ALGORITHMS::EPISODIC_LAMBDA_RETURN)
-	{
-		this->config_policy_evaluation = POLICY_EVALUATIONS::CONSTANT_MC;
-		// should be this->config_TDupdateType = TD_UPDATES::BATCH_EPISODIC; or BATCH_EPISODIC_INPLACE
 	}
 
 	else if (preset == PRESET_ALGORITHMS::ONLINE_TD_ZERO_ONPOLICY)
@@ -577,6 +573,7 @@ bool Player_AI_RL::SingleEpisode()
 	this->exploratory_move_trace_cutOff_new = 0;
 	this->lastMetMemorizedState_trajIndex = -1;	//needed for ROLLOUT_VALUE_ASSUMPTIONS::LAST_MEMORIZED
 	this->nextPendingBackup_trajIndex = 0;		//needed for ROLLOUT_VALUE_ASSUMPTIONS::CONVERGED_TO_REWARD
+	this->lastAssumedValue = 0.0;				//needed for ROLLOUT_VALUE_ASSUMPTIONS::CONVERGED_TO_LEAF
 
 	// mark last state visits
 	MarkStateVisit(currentState);
@@ -1198,16 +1195,16 @@ void Player_AI_RL::RLsingleBackup(int trajectory_index, char* printLinePrefix)
 	}
 
 	//the Monte Carlo update rule
-	if (this->config_policy_evaluation == POLICY_EVALUATIONS::CONSTANT_MC){
+	if (this->config_policy_evaluation == POLICY_EVALUATIONS::EPISODIC_MC){
 
-		ConstantMCsingleBackup(trajectory_index, printLinePrefix);
+		EpisodicMCsingleBackup(trajectory_index, printLinePrefix);
 
 	}
 
 	//the TD update rule
 	else{
 
-		if (this->config_rollout_assumption != ROLLOUT_VALUE_ASSUMPTIONS::CONVERGED_TO_REWARD){
+		if (this->config_rollout_assumption != ROLLOUT_VALUE_ASSUMPTIONS::CONVERGED_TO_NEXT_MEMORIZED){
 
 			double TDerror = GetTDerror(trajectory_index, printLinePrefix);
 			BackupTDerror(TDerror, trajectory_index, printLinePrefix);
@@ -1244,6 +1241,7 @@ double Player_AI_RL::GetTDerror(int trajectory_index, char* printLinePrefix)
 	//get current state in trajectory and it's value
 	node = this->trajectory[trajectory_index].state;
 	stateVal = GetRolloutAssumedValue(trajectory_index);
+	this->lastAssumedValue = stateVal;
 
 	if (node != NULL){
 		node->data->Z_traceTag = -1;			//needed for ELIGIBILITY_TRACES::REPLACING
@@ -1407,17 +1405,17 @@ void Player_AI_RL::BackupTDerror(double TDerror, int trajectory_index, char* pri
 }
 
 // ------- TOIMP: currently improvised code (copy paste from below): the constant-alpha MC update
-void Player_AI_RL::ConstantMCsingleBackup(int trajectory_index, char* printLinePrefix)
+void Player_AI_RL::EpisodicMCsingleBackup(int trajectory_index, char* printLinePrefix)
 {
 	HashTree::TreeNode* backupNode;
-	double reward;
+	double rewardSum;
 	double alpha = this->par_td_alpha;
 
 	if ((trajectory_index == this->trajectory_length) && (this->trajectory_length > 1)){
 		double trace = 1.0;
-		reward = 0.0;
+		rewardSum = 0.0;
 		for (int b = trajectory_index; b >= 0; b--){
-			reward += this->trajectory[b].reward;
+			rewardSum += this->trajectory[b].reward;
 			backupNode = this->trajectory[b].state;
 			Output_TDbackup21(b, trajectory_index, trace, backupNode, printLinePrefix);
 			if (backupNode != NULL){
@@ -1440,30 +1438,20 @@ void Player_AI_RL::ConstantMCsingleBackup(int trajectory_index, char* printLineP
 					alpha = 1.0 / backupNode->data->num_visited_episodes;
 				}
 
-				backupNode->data->Q_value += alpha * (trace * reward - backupNode->data->Q_value);
-				backupNode->data->Q_value = NumericalErrorCorrection(backupNode->data->Q_value);	//check for numerical error
+				double returnError = rewardSum - backupNode->data->Q_value;
+				backupNode->data->offline_delta_Q = (alpha * returnError);	// temporary stored delta of Q-value (added to Q-value at a later time)
 
-				//safety check
-				if (this->minimumKnownReturn < this->maximumKnownReturn){
-					double checkVal;
-					if ((this->config_TDupdateType == TD_UPDATES::ONLINE) || (this->config_TDupdateType == TD_UPDATES::BATCH_EPISODIC_INPLACE))
-						checkVal = backupNode->data->Q_value;
-					else
-						checkVal = backupNode->data->Q_value + backupNode->data->offline_delta_Q;
-					if ((checkVal > this->maximumKnownReturn) || (checkVal < this->minimumKnownReturn)){
-						gmp->Print("\nWARNING: Player_AI_RL::RL_TDlambdaBackup() : Q-value out of return bounds %.10f      (min %.10f , max %.10f)     (extMov %d, epis %d, simMov %d)    ", checkVal, this->minimumKnownReturn, this->maximumKnownReturn, this->internalGame->current_plys, this->numEpisodes_lastMove, this->simulatedGame->current_plys);
-					}
-				}
 			}
 			Output_TDbackup22(b, backupNode, alpha, printLinePrefix);
-			trace *= this->par_td_lambda;
 		}
+
+		UpdateTrajectoryOfflineValues();
 	}
 
 	//safety check
 	else{
 		if ((this->config_TDupdateType != TD_UPDATES::BATCH_EPISODIC) && (this->config_TDupdateType != TD_UPDATES::BATCH_EPISODIC_INPLACE))
-			gmp->Print("WARNING: Player_AI_RL::ConstantMCsingleBackup(): not called with BATCH_EPISODIC update type!\n");
+			gmp->Print("WARNING: Player_AI_RL::EpisodicMCsingleBackup(): not called with BATCH_EPISODIC update type!\n");
 	}
 }
 
@@ -1478,15 +1466,15 @@ double Player_AI_RL::GetRolloutAssumedValue(int trajectory_index)
 	}
 	else{
 		// assume the default initial value (par_td_initVal)
-		if (this->config_rollout_assumption == ROLLOUT_VALUE_ASSUMPTIONS::INITIAL){
+		if (this->config_rollout_assumption == ROLLOUT_VALUE_ASSUMPTIONS::EQUAL_INITIAL){
 			assumedVal = this->par_td_initVal;
 		}
 		// assume a value of 0.0
-		else if (this->config_rollout_assumption == ROLLOUT_VALUE_ASSUMPTIONS::ZERO){
+		else if (this->config_rollout_assumption == ROLLOUT_VALUE_ASSUMPTIONS::EQUAL_ZERO){
 			assumedVal = 0.0;
 		}
 		// assume the value equals to the last memorized node (leaf node in the tree)
-		else if (this->config_rollout_assumption == ROLLOUT_VALUE_ASSUMPTIONS::LAST_MEMORIZED){
+		else if (this->config_rollout_assumption == ROLLOUT_VALUE_ASSUMPTIONS::EQUAL_LAST_MEMORIZED){
 			if (this->lastMetMemorizedState_trajIndex >= 0)
 				assumedVal = (this->trajectory[this->lastMetMemorizedState_trajIndex].state)->data->Q_value;
 			else
@@ -1494,7 +1482,7 @@ double Player_AI_RL::GetRolloutAssumedValue(int trajectory_index)
 		}
 
 		// assume values optimally converged considering the rewards received to the end of the episode or, if transpositions are used, until a memorized state is met
-		else if (this->config_rollout_assumption == ROLLOUT_VALUE_ASSUMPTIONS::CONVERGED_TO_REWARD){
+		else if (this->config_rollout_assumption == ROLLOUT_VALUE_ASSUMPTIONS::CONVERGED_TO_NEXT_MEMORIZED){
 
 			//when CONVERGED_TO_REWARD is used, the procedure RLsingleBackup() MUST NOT be called without a non-NULL or terminal position as the last entry in this->trajectory <- relevant only for ONLINE updates
 
@@ -1521,6 +1509,11 @@ double Player_AI_RL::GetRolloutAssumedValue(int trajectory_index)
 			for (int a = t - 2; a >= trajectory_index; a--)
 				assumedVal = (assumedVal * this->par_task_gamma) + this->trajectory[a].reward;
 
+		}
+
+		// assume values optimally converged to leaf value
+		else if (this->config_rollout_assumption == ROLLOUT_VALUE_ASSUMPTIONS::CONVERGED_TO_LAST_MEMORIZED){
+			assumedVal = (1.0 / this->par_task_gamma) * this->lastAssumedValue;
 		}
 
 	}
@@ -1838,9 +1831,9 @@ void Player_AI_RL::Output_ExternalMove_Start()
 	if (this->config_output_depth >= depth){
 	}
 
-	if (this->config_experiment == EXPERIMENTAL_SETTINGS::METRICS_PER_EPISODES)
+	if (this->config_experiment == EXPERIMENTAL_SETTINGS::RW_RIGHTWIN_METRICS_PER_EPISODES)
 		Experiment_EpisodeMetrics(depth+1);
-	else if (this->config_experiment == EXPERIMENTAL_SETTINGS::METRICS_PER_TIMESTEPS)
+	else if (this->config_experiment == EXPERIMENTAL_SETTINGS::RW_RIGHTWIN_METRICS_PER_TIMESTEPS)
 		Experiment_TimeStepMetrics(depth+2);
 }
 
@@ -1850,9 +1843,9 @@ void Player_AI_RL::Output_Episode_Start()
 	if (this->config_output_depth >= depth){
 	}
 
-	if (this->config_experiment == EXPERIMENTAL_SETTINGS::METRICS_PER_EPISODES)
+	if (this->config_experiment == EXPERIMENTAL_SETTINGS::RW_RIGHTWIN_METRICS_PER_EPISODES)
 		Experiment_EpisodeMetrics(depth+1);
-	else if (this->config_experiment == EXPERIMENTAL_SETTINGS::METRICS_PER_TIMESTEPS)
+	else if (this->config_experiment == EXPERIMENTAL_SETTINGS::RW_RIGHTWIN_METRICS_PER_TIMESTEPS)
 		Experiment_TimeStepMetrics(depth+2);
 }
 
@@ -1862,9 +1855,9 @@ void Player_AI_RL::Output_SimulatedMove_Start()
 	if (this->config_output_depth >= depth){
 	}
 
-	if (this->config_experiment == EXPERIMENTAL_SETTINGS::METRICS_PER_EPISODES)
+	if (this->config_experiment == EXPERIMENTAL_SETTINGS::RW_RIGHTWIN_METRICS_PER_EPISODES)
 		Experiment_EpisodeMetrics(depth+1);
-	else if (this->config_experiment == EXPERIMENTAL_SETTINGS::METRICS_PER_TIMESTEPS)
+	else if (this->config_experiment == EXPERIMENTAL_SETTINGS::RW_RIGHTWIN_METRICS_PER_TIMESTEPS)
 		Experiment_TimeStepMetrics(depth+3);
 }
 
@@ -1881,9 +1874,9 @@ void Player_AI_RL::Output_ExternalMove_End()
 		if (this->config_output_pause >= depth)
 			cin.get();
 	}
-	if (this->config_experiment == EXPERIMENTAL_SETTINGS::METRICS_PER_EPISODES)
+	if (this->config_experiment == EXPERIMENTAL_SETTINGS::RW_RIGHTWIN_METRICS_PER_EPISODES)
 		Experiment_EpisodeMetrics(depth);
-	else if (this->config_experiment == EXPERIMENTAL_SETTINGS::METRICS_PER_TIMESTEPS)
+	else if (this->config_experiment == EXPERIMENTAL_SETTINGS::RW_RIGHTWIN_METRICS_PER_TIMESTEPS)
 		Experiment_TimeStepMetrics(depth);
 }
 
@@ -1901,9 +1894,9 @@ void Player_AI_RL::Output_Episode_End()
 		if (this->config_output_pause >= depth)
 			cin.get();
 	}
-	if (this->config_experiment == EXPERIMENTAL_SETTINGS::METRICS_PER_EPISODES)
+	if (this->config_experiment == EXPERIMENTAL_SETTINGS::RW_RIGHTWIN_METRICS_PER_EPISODES)
 		Experiment_EpisodeMetrics(depth);
-	else if (this->config_experiment == EXPERIMENTAL_SETTINGS::METRICS_PER_TIMESTEPS)
+	else if (this->config_experiment == EXPERIMENTAL_SETTINGS::RW_RIGHTWIN_METRICS_PER_TIMESTEPS)
 		Experiment_TimeStepMetrics(depth);
 }
 
@@ -1920,9 +1913,9 @@ void Player_AI_RL::Output_SimulatedMove_End()
 		if (this->config_output_pause >= depth)
 			cin.get();
 	}
-	if (this->config_experiment == EXPERIMENTAL_SETTINGS::METRICS_PER_EPISODES)
+	if (this->config_experiment == EXPERIMENTAL_SETTINGS::RW_RIGHTWIN_METRICS_PER_EPISODES)
 		Experiment_EpisodeMetrics(depth);
-	else if (this->config_experiment == EXPERIMENTAL_SETTINGS::METRICS_PER_TIMESTEPS)
+	else if (this->config_experiment == EXPERIMENTAL_SETTINGS::RW_RIGHTWIN_METRICS_PER_TIMESTEPS)
 		Experiment_TimeStepMetrics(depth);
 }
 
@@ -2281,8 +2274,7 @@ const char * Player_AI_RL::PRESET_ALGORITHMS::stringLabels[ENUM_COUNT_ELEMENTS] 
 	"NONE",
 	"FIRSTVISIT_MC_ONPOLICY",
 	"EVERYVISIT_MC_ONPOLICY",
-	"EPISODIC_CONSTANT_MC",
-	"EPISODIC_LAMBDA_RETURN",
+	"FIRSTVISIT_EPISODIC_MC",
 	"ONLINE_TD_ZERO_ONPOLICY",
 	"EPISODIC_TD_ZERO_ONPOLICY",
 	"TD_LAMBDA",
@@ -2298,7 +2290,7 @@ const char * Player_AI_RL::CONTROL_POLICIES::stringLabels[ENUM_COUNT_ELEMENTS] =
 };
 const char * Player_AI_RL::POLICY_EVALUATIONS::stringLabels[ENUM_COUNT_ELEMENTS] =
 {
-	"CONSTANT_MC",				
+	"EPISODIC_MC",				
 	"TDLAMBDA_ONPOLICY",			
 	"TDLAMBDA_OFFPOLICY_Q_LEARNING",
 };
@@ -2320,10 +2312,11 @@ const char * Player_AI_RL::ELIGIBILITY_EXPLORATORY_RESET::stringLabels[ENUM_COUN
 };
 const char * Player_AI_RL::ROLLOUT_VALUE_ASSUMPTIONS::stringLabels[ENUM_COUNT_ELEMENTS] =
 {
-	"INITIAL",
-	"ZERO",
-	"LAST_MEMORIZED",
-	"CONVERGED_TO_NEXT",
+	"EQUAL_INITIAL",
+	"EQUAL_ZERO",
+	"EQUAL_LAST_MEMORIZED",
+	"CONVERGED_TO_NEXT_MEMORIZED",
+	"CONVERGED_TO_LAST_MEMORIZED",
 };
 const char * Player_AI_RL::UPDATESTEP_ALPHA::stringLabels[ENUM_COUNT_ELEMENTS] =
 {
@@ -2378,8 +2371,8 @@ const char * Player_AI_RL::NUMERCIAL_CORRECTIONS::stringLabels[ENUM_COUNT_ELEMEN
 const char * Player_AI_RL::EXPERIMENTAL_SETTINGS::stringLabels[ENUM_COUNT_ELEMENTS] =
 {
 	"NONE",
-	"METRICS_PER_EPISODES",
-	"METRICS_PER_TIMESTEPS",
+	"RW_RIGHTWIN_METRICS_PER_EPISODES",
+	"RW_RIGHTWIN_METRICS_PER_TIMESTEPS",
 };
 
 
@@ -2413,7 +2406,7 @@ void Player_AI_RL::Experiment_EpisodeMetrics(int depth)
 		if (this->config_transpositions == Game_Engine::TRANSPOSITIONS::STATES){
 			for (int s = 0; s < num_samples; s++){
 
-				trueValue = (double)s * (1.0 / (num_samples - 1));
+				trueValue = game->optimalValueFunction[s];
 				if (this->memory->hashMap[s] != NULL)
 					predictedValue = this->memory->hashMap[s]->data->Q_value;
 				else
@@ -2425,10 +2418,15 @@ void Player_AI_RL::Experiment_EpisodeMetrics(int depth)
 			rmse = sqrt(mse / (double)num_samples);
 			if (this->par_task_gamma == 1.0)
 				(this->experiment_results[0][this->numEpisodes_lastMove])->Add_Sample(rmse, true, true);
+			else
+				(this->experiment_results[0][this->numEpisodes_lastMove])->Add_Sample(NAN, true, true);
+		}
+		else{
+			(this->experiment_results[0][this->numEpisodes_lastMove])->Add_Sample(NAN, true, true);
 		}
 
 		//[1] get the error of the initial state
-		trueValue = (double)(randomWalk_startingState) * (1.0 / (num_samples - 1));
+		trueValue = game->optimalValueFunction[randomWalk_startingState];
 		if (this->internalGameActiveNode != NULL)
 			predictedValue = this->internalGameActiveNode->data->Q_value;
 		else
@@ -2437,6 +2435,8 @@ void Player_AI_RL::Experiment_EpisodeMetrics(int depth)
 		e = abs(trueValue - predictedValue);
 		if (this->par_task_gamma == 1.0)
 			(this->experiment_results[1][this->numEpisodes_lastMove])->Add_Sample(e, true, true);
+		else
+			(this->experiment_results[1][this->numEpisodes_lastMove])->Add_Sample(NAN, true, true);
 
 		//[2] get the RMSE errors of initial state-actions (regardless whether transpositions are used or not)
 		//[3] is the optimal action evaluated better than the others?
@@ -2447,9 +2447,9 @@ void Player_AI_RL::Experiment_EpisodeMetrics(int depth)
 		if (this->internalGameActiveNode != NULL){
 			for (int i = 0; i < this->internalGameActiveNode->num_children; i++){
 				if (i == 0)
-					trueValue = (double)(randomWalk_startingState - 1) * (1.0 / (num_samples - 1));
+					trueValue = game->optimalValueFunction[randomWalk_startingState - 1];
 				else 
-					trueValue = (double)(randomWalk_startingState + 1) * (1.0 / (num_samples - 1));
+					trueValue = game->optimalValueFunction[randomWalk_startingState + 1];
 
 				if (this->internalGameActiveNode->children[i] != NULL)
 					predictedValue = this->internalGameActiveNode->children[i]->data->Q_value;
@@ -2467,6 +2467,8 @@ void Player_AI_RL::Experiment_EpisodeMetrics(int depth)
 		}
 		if (this->par_task_gamma == 1.0)
 			(this->experiment_results[2][this->numEpisodes_lastMove])->Add_Sample(rmse, true, true);
+		else
+			(this->experiment_results[2][this->numEpisodes_lastMove])->Add_Sample(NAN, true, true);
 
 		double rootActionOptimal = 0.0;
 		if (bestInd == 1)
@@ -2534,7 +2536,10 @@ void Player_AI_RL::Experiment_TimeStepMetrics(int depth)
 			predictedValue = this->par_td_initVal;
 
 		e = abs(trueValue - predictedValue);
-		(this->experiment_results[1][this->numSimulatedActions_lastMove])->Add_Sample(e, true, true);
+		if ((game->param_score_win == 1.0) && (game->param_score_lose == 0.0))	//should check also ->param_score_step != 0.0, but is not implemented yet (not visible from Game_Engine*)
+			(this->experiment_results[1][this->numSimulatedActions_lastMove])->Add_Sample(e, true, true);
+		else
+			(this->experiment_results[1][this->numSimulatedActions_lastMove])->Add_Sample(NAN, true, true);
 
 		//[2] get the RMSE errors of initial state-actions (regardless whether transpositions are used or not)
 		//[3] is the optimal action evaluated better than the others?
@@ -2562,7 +2567,10 @@ void Player_AI_RL::Experiment_TimeStepMetrics(int depth)
 			}
 			rmse = sqrt(mse / (double)(this->internalGameActiveNode->num_children));
 		}
-		(this->experiment_results[2][this->numSimulatedActions_lastMove])->Add_Sample(rmse, true, true);
+		if ((game->param_score_win == 1.0) && (game->param_score_lose == 0.0))	//should check also ->param_score_step != 0.0, but is not implemented yet (not visible from Game_Engine*)
+			(this->experiment_results[2][this->numSimulatedActions_lastMove])->Add_Sample(rmse, true, true);
+		else
+			(this->experiment_results[2][this->numSimulatedActions_lastMove])->Add_Sample(NAN, true, true);
 
 		double rootActionOptimal = 0.0;
 		if (bestInd == 1)

@@ -1,6 +1,14 @@
 //include header
 #include "Game_RandomWalk.hpp"
 
+//TEMPORARILY MOVED HERE FROM HEADER: is already valid by the c++11 standard (in-header static const double initialization), but is not yet implemented in VS2013
+const int		Game_RandomWalk::DEFAULT_WALK_LENGTH = 11;		//currently maximum 255 (or 127, not sure, due to 'char' type implementation of Game_Engine)
+const int		Game_RandomWalk::DEFAULT_MAXPLIES = 10000;
+const double	Game_RandomWalk::DEFAULT_REWARD_WIN = 1.0;
+const double	Game_RandomWalk::DEFAULT_REWARD_LOSE = 0.0;
+const double	Game_RandomWalk::DEFAULT_REWARD_STEP = 0.0;
+const double	Game_RandomWalk::DEFAULT_REWARD_MAXPLIES = 0.0;
+
 //constructor
 Game_RandomWalk::Game_RandomWalk(Game_Engine* source_game)
 {
@@ -67,6 +75,8 @@ void Game_RandomWalk::Init_Settings()
 
 	//general debug settings
 	show_warnings = TOM_DEBUG;
+
+	optimalValueFunction = NULL;
 
 }
 
@@ -136,6 +146,11 @@ void Game_RandomWalk::Clear_Memory()
 	delete[] current_moves_list;
 	delete[] score;
 	delete[] history_moves;
+
+	if (optimalValueFunction != NULL){
+		delete[] optimalValueFunction;
+		optimalValueFunction = NULL;
+	}
 }
 
 /**
@@ -295,6 +310,60 @@ int Game_RandomWalk::HashKey_getCurrentStateAction(int action)
 	}
 
 	return key;
+}
+
+void Game_RandomWalk::Compute_OptimalStateValues()
+{
+	// set up memory structure
+	if (this->optimalValueFunction != NULL){
+		delete[] this->optimalValueFunction;
+		this->optimalValueFunction = NULL;
+	}
+	int num_states = this->HashKey_getNumStates();
+	if (this->optimalValueFunction == NULL){
+		this->optimalValueFunction = new double[num_states];
+		for (int s = 0; s < num_states; s++)
+			this->optimalValueFunction[s] = 0.0;
+	}
+
+	// get starting state
+	int randomWalk_startingState = (int)((num_states - 1) / 2);
+
+	//optimalne vrednosti za RW, ko za vsak premik dobiš - 1 reward in na levi in desni sta terminal state z reward 0:
+	//*optimalne vrednosti : terminal node ima reward 0, potem pa akumuliraš proti sredini tako da nastaviš X(zaèetna) = dolžina - 2 in potem vsakiè X zmanjšaš za 2 (do najmanj 3) in kumulativno odštevaš
+	//	->primer : pri RW dolžine 9 imajo stanja vrednosti : 0, -7, -7 - 5, -7 - 5 - 3, -7 - 5 - 3, -7 - 5 - 3, -7 - 5, -7, 0
+	//	* èe je na levi terminal state z - 1 : potem se samo vsem stanjem odšteje naslednjo vrednost(od desne proti desni, i od 0 do dolžina) : (dolžina - 1)*i
+	//	->primer : PRI RW dolžine 5 imajo stanja vrednosti : -1, -3.75, -3.50, -3.25, 0
+
+	// negative reward after each step
+	if (this->param_score_step < 0.0){
+		this->optimalValueFunction[0] = 0.0;
+		int subVal = num_states - 2;
+		int se = 1;
+		for (se = 1; se < (num_states - 1) / 2; se++){
+			this->optimalValueFunction[se] = this->optimalValueFunction[se - 1] + subVal * this->param_score_step;
+			subVal -= 2;
+		}
+		this->optimalValueFunction[se] = this->optimalValueFunction[se - 1];
+		se++;
+		for (; se < num_states; se++)
+			this->optimalValueFunction[se] = this->optimalValueFunction[num_states - 1 - se];
+	}
+
+	//positive reward at right end
+	if (this->param_score_win > 0.0){
+		for (int s = 0; s < num_states; s++){
+			this->optimalValueFunction[s] += (double)s * (1.0 / (num_states - 1));
+		}
+	}
+
+	//negative reward at left end
+	if (this->param_score_lose < 0.0){
+		for (int s = 0; s < num_states; s++){
+			this->optimalValueFunction[s] += -(double)(num_states - 1 - s) * (1.0 / (num_states - 1));
+		}
+	}
+
 }
 
 /**

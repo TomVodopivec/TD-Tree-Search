@@ -93,6 +93,8 @@ public:
 	virtual int Get_Next_Player()			{return Get_Next_Player(current_player);};		//return next player on move
 	virtual int Get_Previous_Player()		{return Get_Previous_Player(current_player);};	//return previous player
 
+	virtual void Compute_OptimalStateValues()	{};
+
 	//--- many (if not all) of the following procedures and variables should be put in Game_Interface
 
 	int experiment_repeat_index;
@@ -194,6 +196,9 @@ public:
 	//public variables - game history
 	int current_plys;
 	int* history_moves;
+
+	//public variables - experiments
+	double* optimalValueFunction;
 
 	//statics
 	static const char * definitionsLabels[];

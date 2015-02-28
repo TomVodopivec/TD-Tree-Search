@@ -18,15 +18,16 @@ namespace Tests_TDMCTS
 		//Tests_TDMCTS::Experiment_RandomWalk_perEpisode();
 		//Tests_TDMCTS::Experiment_RandomWalk_perTimeStep();
 
-		//Tests_TDMCTS::Experiment_RandomWalk_perEpisode_Batch();
+		Tests_TDMCTS::Experiment_RandomWalk_perEpisode_Batch();
 
-		//Tests_TDMCTS::Experiment_RandomWalk_perEpisode_Batch(0, 1439);
-		//Tests_TDMCTS::Experiment_RandomWalk_perEpisode_Batch(1440,1799);
-		Tests_TDMCTS::Experiment_RandomWalk_perEpisode_Batch(1800,-1);
+		//Tests_TDMCTS::Experiment_RandomWalk_perEpisode_Batch(0, 899);
+		//Tests_TDMCTS::Experiment_RandomWalk_perEpisode_Batch(900, 1349);
+		//Tests_TDMCTS::Experiment_RandomWalk_perEpisode_Batch(1350,2249);
+		//Tests_TDMCTS::Experiment_RandomWalk_perEpisode_Batch(2250,2699);
 		
 	}
 
-	//currently this experiment measures the performance of 8 different algorithms under 4 control variables for a total of 2160 different configurations (3*3*48*5)
+	//currently this experiment measures the performance of 8 different algorithms under 4 control variables for a total of 2700 different configurations (2*3*3*30*5)
 	void Experiment_RandomWalk_perEpisode_Batch(int startIndex, int endIndex)
 	{
 
@@ -49,7 +50,7 @@ namespace Tests_TDMCTS
 		double config_confidenceInterval = Tool_Sample_Storage::CONFIDENCE_INTERVAL_T_99;
 
 		//output settings
-		bool config_show_individual_final_output = false;
+		bool config_show_individual_final_output = true;
 
 		//-- END OF EXECUTION SETTINGS --//
 		
@@ -60,12 +61,11 @@ namespace Tests_TDMCTS
 		Player_Engine* players[] = { player };
 		game->players = players;
 		player->player_number = 0;
-		player->config_experiment = Player_AI_RL::EXPERIMENTAL_SETTINGS::METRICS_PER_EPISODES;
+		player->config_experiment = Player_AI_RL::EXPERIMENTAL_SETTINGS::RW_RIGHTWIN_METRICS_PER_EPISODES;
 		char* procedureName = "Experiment_RandomWalk_perEpisode_Batch()";
 		char* xAxisLabel = " episode";
-		char printLinePrefix[256];
 
-		int total_number_configurations = 2160;		//CHANGE HERE IF YOU ADD/REMOVE SOME EXPERIMENTAL CONFIGURATIONS
+		int total_number_configurations = 2700;		//CHANGE HERE IF YOU ADD/REMOVE SOME EXPERIMENTAL CONFIGURATIONS
 		int config_max_num_episodes = 100;
 		int config_max_num_repeats = 20000;
 
@@ -81,10 +81,7 @@ namespace Tests_TDMCTS
 		//---- common settings for this experiment ---- //
 
 		//-- game configuration
-		game->param_score_win = 1.0;
-		game->param_score_lose = 0.0;
 		game->param_score_draw = 0.0;
-		game->param_score_step = 0.0;
 		game->maxScore = 1.0;
 		game->minScore = 0.0;
 
@@ -151,7 +148,7 @@ namespace Tests_TDMCTS
 		for (int f = 0; f < results_num_files; f++){
 			resultsFilePrinter->PrintI(f, "\nExperiment_RandomWalk_perEpisode_Batch()\n");
 			resultsFilePrinter->PrintI(f, "Runtime configs: indexStart %d, indexEnd %d, confidenceIntervalFactor %f\n\n", config_IndexStart, config_IndexEnd, config_confidenceInterval);
-			resultsFilePrinter->PrintI(f, "  wl iv tn ra al  TDalp  TDlam  ConfigID  ");
+			resultsFilePrinter->PrintI(f, "  rf wl iVa tn ra al  TDalp  TDlam  ConfigID  ");
 			for (int e = 0; e < config_max_num_episodes + 1; e++)
 				resultsFilePrinter->PrintI(f, "  %8d", e);
 			resultsFilePrinter->PrintI(f, "\n");
@@ -159,7 +156,7 @@ namespace Tests_TDMCTS
 
 		//---- execute batch of experiments ----//
 
-		int num_repeats;;
+		int num_repeats;
 		double par_td_initVal;
 		int config_walk_length;
 		int maximum_plys;
@@ -170,158 +167,145 @@ namespace Tests_TDMCTS
 		int config_num_new_nodes_per_episode;
 		//double par_td_alpha;
 		//double par_td_lambda;
+		char printLinePrefix[256];
 
-		//currently this experiment measures 2160 different configurations
+		//currently this experiment measures 2700 different configurations
 		int sInd = 0;	//index of current configuration
 
-		//different game sizes
-		for (int wl = 0; wl < 3; wl++){
-			if (wl == 0){
-				config_walk_length = 5;
-				maximum_plys = 10000;
-				par_num_episodes = config_max_num_episodes;	//MUST NOT EXCEED config_max_num_episodes!
-				num_repeats = config_max_num_repeats;
+		//different game definitions (different reward functions)
+		for (int rf = 0; rf < 2; rf++){
+			if (rf == 0){
+				game->param_score_win = 1.0;
+				game->param_score_lose = 0.0;
+				game->param_score_step = 0.0;
 			}
-			else if (wl == 1){
-				config_walk_length = 11;
-				maximum_plys = 10000;
-				par_num_episodes = config_max_num_episodes;	//MUST NOT EXCEED config_max_num_episodes!
-				num_repeats = config_max_num_repeats;
-			}
-			else{
-				config_walk_length = 21;
-				maximum_plys = 10000;
-				par_num_episodes = config_max_num_episodes;	//MUST NOT EXCEED config_max_num_episodes!
-				num_repeats = config_max_num_repeats;
+			else if (rf == 1){
+				game->param_score_win = 0.0;
+				game->param_score_lose = -1.0;
+				game->param_score_step = -1.0;
 			}
 
-			//safety checks
-			if (par_num_episodes > config_max_num_episodes){
-				gmp->Print("ERROR: Experiment_RandomWalk_perEpisode_Batch(): par_num_episodes > config_max_num_episodes\n");
-				return;
-			}
-			if (num_repeats > config_max_num_repeats){
-				gmp->Print("ERROR: Experiment_RandomWalk_perEpisode_Batch(): num_repeats > config_max_num_repeats\n");
-				return;
-			}
-
-			//different initial values
-			for (int iv = 0; iv < 3; iv++){
-				if (iv == 0){
-					par_td_initVal = 0.0;
+			//different game sizes
+			for (int wl = 0; wl < 3; wl++){
+				if (wl == 0){
+					config_walk_length = 5;
+					maximum_plys = 10000;
+					par_num_episodes = config_max_num_episodes;	//MUST NOT EXCEED config_max_num_episodes!
+					num_repeats = config_max_num_repeats;
 				}
-				else if (iv == 1){
-					par_td_initVal = 0.5;
+				else if (wl == 1){
+					config_walk_length = 11;
+					maximum_plys = 10000;
+					par_num_episodes = config_max_num_episodes;	//MUST NOT EXCEED config_max_num_episodes!
+					num_repeats = config_max_num_repeats;
 				}
 				else{
-					par_td_initVal = 1.0;
+					config_walk_length = 21;
+					maximum_plys = 10000;
+					par_num_episodes = config_max_num_episodes;	//MUST NOT EXCEED config_max_num_episodes!
+					num_repeats = config_max_num_repeats;
 				}
 
-				//with/without transpositions, add all nodes or just one (UCT behaviour)
-				for (int tn = 0; tn < 3; tn++){
-					int raMax;
-					if (tn == 0){
-						config_transpositions = Game_Engine::TRANSPOSITIONS::STATES;
-						config_num_new_nodes_per_episode = -1;
-						raMax = 1;
+				//safety checks
+				if (par_num_episodes > config_max_num_episodes){
+					gmp->Print("ERROR: Experiment_RandomWalk_perEpisode_Batch(): par_num_episodes > config_max_num_episodes\n");
+					return;
+				}
+				if (num_repeats > config_max_num_repeats){
+					gmp->Print("ERROR: Experiment_RandomWalk_perEpisode_Batch(): num_repeats > config_max_num_repeats\n");
+					return;
+				}
+
+				//different initial values
+				for (int iv = 0; iv < 3; iv++){
+					if (iv == 0){
+						par_td_initVal = 0.0;
 					}
-					else if (tn == 1){
-						config_transpositions = Game_Engine::TRANSPOSITIONS::DISABLED;
-						config_num_new_nodes_per_episode = -1;
-						raMax = 1;
+					else if (iv == 1){
+						par_td_initVal = 0.5;
 					}
 					else{
-						config_transpositions = Game_Engine::TRANSPOSITIONS::DISABLED;
-						config_num_new_nodes_per_episode = 1;
-						raMax = 3;
+						par_td_initVal = 1.0;
 					}
-					
-					//different rollout assumptions						
-					for (int ra = 0; ra < raMax; ra++){
-						if (ra == 0){
-							config_rollout_assumption = Player_AI_RL::ROLLOUT_VALUE_ASSUMPTIONS::INITIAL;
+
+					//with/without transpositions, add all nodes or just one (UCT behaviour)
+					for (int tn = 0; tn < 3; tn++){
+						int raMax;
+						if (tn == 0){
+							config_transpositions = Game_Engine::TRANSPOSITIONS::STATES;
+							config_num_new_nodes_per_episode = -1;
+							raMax = 1;
 						}
-						else if (ra == 1){
-							config_rollout_assumption = Player_AI_RL::ROLLOUT_VALUE_ASSUMPTIONS::ZERO;
+						else if (tn == 1){
+							config_transpositions = Game_Engine::TRANSPOSITIONS::DISABLED;
+							config_num_new_nodes_per_episode = -1;
+							raMax = 1;
 						}
 						else{
-							config_rollout_assumption = Player_AI_RL::ROLLOUT_VALUE_ASSUMPTIONS::CONVERGED_TO_REWARD;
+							config_transpositions = Game_Engine::TRANSPOSITIONS::DISABLED;
+							config_num_new_nodes_per_episode = 1;
+							raMax = 3;
 						}
 
-						//-//-// single set of different algorithms
+						//different rollout assumptions						
+						for (int ra = 0; ra < raMax; ra++){
+							if (ra == 0){
+								config_rollout_assumption = Player_AI_RL::ROLLOUT_VALUE_ASSUMPTIONS::EQUAL_INITIAL;
+							}
+							else if (ra == 1){
+								config_rollout_assumption = Player_AI_RL::ROLLOUT_VALUE_ASSUMPTIONS::EQUAL_ZERO;
+							}
+							else{
+								config_rollout_assumption = Player_AI_RL::ROLLOUT_VALUE_ASSUMPTIONS::CONVERGED_TO_NEXT_MEMORIZED;
+							}
 
-						sprintf_s(printLinePrefix, "  %2d %2d %2d %2d", wl, iv, tn, ra);
+							//-//-// single set of different algorithms
 
-						//MC, episodic update (cannot be online)
-						config_TDupdateType = Player_AI_RL::TD_UPDATES::BATCH_EPISODIC;
+							sprintf_s(printLinePrefix, "  %2d %2d %3.1f %2d %2d", rf, config_walk_length, par_td_initVal, tn, ra);
 
-						Experiment_RandomWalk_perEpisode_Batch_RunConfiguration(&sInd, 0, config_walk_length, maximum_plys, par_num_episodes, num_repeats, par_td_initVal, 0.00, 1.00, Player_AI_RL::PRESET_ALGORITHMS::FIRSTVISIT_MC_ONPOLICY, config_TDupdateType, Player_AI_RL::ELIGIBILITY_TRACES::REPLACING, Player_AI_RL::UPDATESTEP_ALPHA::MONTE_CARLO, config_transpositions, config_rollout_assumption, config_num_new_nodes_per_episode, game, player, procedureName, xAxisLabel, show_per_repeat_output, config_confidenceInterval, config_show_individual_final_output, gatheredResults, resultsFilePrinter, printLinePrefix, config_IndexStart, config_IndexEnd);
-							
-						Experiment_RandomWalk_perEpisode_Batch_RunConfiguration(&sInd, 1, config_walk_length, maximum_plys, par_num_episodes, num_repeats, par_td_initVal, 0.10, 1.00, Player_AI_RL::PRESET_ALGORITHMS::EPISODIC_CONSTANT_MC, config_TDupdateType, Player_AI_RL::ELIGIBILITY_TRACES::REPLACING, Player_AI_RL::UPDATESTEP_ALPHA::CONSTANT, config_transpositions, config_rollout_assumption, config_num_new_nodes_per_episode, game, player, procedureName, xAxisLabel, show_per_repeat_output, config_confidenceInterval, config_show_individual_final_output, gatheredResults, resultsFilePrinter, printLinePrefix, config_IndexStart, config_IndexEnd);
-						Experiment_RandomWalk_perEpisode_Batch_RunConfiguration(&sInd, 1, config_walk_length, maximum_plys, par_num_episodes, num_repeats, par_td_initVal, 0.05, 1.00, Player_AI_RL::PRESET_ALGORITHMS::EPISODIC_CONSTANT_MC, config_TDupdateType, Player_AI_RL::ELIGIBILITY_TRACES::REPLACING, Player_AI_RL::UPDATESTEP_ALPHA::CONSTANT, config_transpositions, config_rollout_assumption, config_num_new_nodes_per_episode, game, player, procedureName, xAxisLabel, show_per_repeat_output, config_confidenceInterval, config_show_individual_final_output, gatheredResults, resultsFilePrinter, printLinePrefix, config_IndexStart, config_IndexEnd);
-						Experiment_RandomWalk_perEpisode_Batch_RunConfiguration(&sInd, 1, config_walk_length, maximum_plys, par_num_episodes, num_repeats, par_td_initVal, 0.01, 1.00, Player_AI_RL::PRESET_ALGORITHMS::EPISODIC_CONSTANT_MC, config_TDupdateType, Player_AI_RL::ELIGIBILITY_TRACES::REPLACING, Player_AI_RL::UPDATESTEP_ALPHA::CONSTANT, config_transpositions, config_rollout_assumption, config_num_new_nodes_per_episode, game, player, procedureName, xAxisLabel, show_per_repeat_output, config_confidenceInterval, config_show_individual_final_output, gatheredResults, resultsFilePrinter, printLinePrefix, config_IndexStart, config_IndexEnd);
-							
-						Experiment_RandomWalk_perEpisode_Batch_RunConfiguration(&sInd, 2, config_walk_length, maximum_plys, par_num_episodes, num_repeats, par_td_initVal, 0.00, 0.99, Player_AI_RL::PRESET_ALGORITHMS::EPISODIC_LAMBDA_RETURN, config_TDupdateType, Player_AI_RL::ELIGIBILITY_TRACES::REPLACING, Player_AI_RL::UPDATESTEP_ALPHA::MONTE_CARLO, config_transpositions, config_rollout_assumption, config_num_new_nodes_per_episode, game, player, procedureName, xAxisLabel, show_per_repeat_output, config_confidenceInterval, config_show_individual_final_output, gatheredResults, resultsFilePrinter, printLinePrefix, config_IndexStart, config_IndexEnd);
-						Experiment_RandomWalk_perEpisode_Batch_RunConfiguration(&sInd, 2, config_walk_length, maximum_plys, par_num_episodes, num_repeats, par_td_initVal, 0.00, 0.90, Player_AI_RL::PRESET_ALGORITHMS::EPISODIC_LAMBDA_RETURN, config_TDupdateType, Player_AI_RL::ELIGIBILITY_TRACES::REPLACING, Player_AI_RL::UPDATESTEP_ALPHA::MONTE_CARLO, config_transpositions, config_rollout_assumption, config_num_new_nodes_per_episode, game, player, procedureName, xAxisLabel, show_per_repeat_output, config_confidenceInterval, config_show_individual_final_output, gatheredResults, resultsFilePrinter, printLinePrefix, config_IndexStart, config_IndexEnd);
-						Experiment_RandomWalk_perEpisode_Batch_RunConfiguration(&sInd, 2, config_walk_length, maximum_plys, par_num_episodes, num_repeats, par_td_initVal, 0.00, 0.50, Player_AI_RL::PRESET_ALGORITHMS::EPISODIC_LAMBDA_RETURN, config_TDupdateType, Player_AI_RL::ELIGIBILITY_TRACES::REPLACING, Player_AI_RL::UPDATESTEP_ALPHA::MONTE_CARLO, config_transpositions, config_rollout_assumption, config_num_new_nodes_per_episode, game, player, procedureName, xAxisLabel, show_per_repeat_output, config_confidenceInterval, config_show_individual_final_output, gatheredResults, resultsFilePrinter, printLinePrefix, config_IndexStart, config_IndexEnd);
-							
-						Experiment_RandomWalk_perEpisode_Batch_RunConfiguration(&sInd, 3, config_walk_length, maximum_plys, par_num_episodes, num_repeats, par_td_initVal, 0.10, 0.99, Player_AI_RL::PRESET_ALGORITHMS::EPISODIC_LAMBDA_RETURN, config_TDupdateType, Player_AI_RL::ELIGIBILITY_TRACES::REPLACING, Player_AI_RL::UPDATESTEP_ALPHA::CONSTANT, config_transpositions, config_rollout_assumption, config_num_new_nodes_per_episode, game, player, procedureName, xAxisLabel, show_per_repeat_output, config_confidenceInterval, config_show_individual_final_output, gatheredResults, resultsFilePrinter, printLinePrefix, config_IndexStart, config_IndexEnd);
-						Experiment_RandomWalk_perEpisode_Batch_RunConfiguration(&sInd, 3, config_walk_length, maximum_plys, par_num_episodes, num_repeats, par_td_initVal, 0.05, 0.99, Player_AI_RL::PRESET_ALGORITHMS::EPISODIC_LAMBDA_RETURN, config_TDupdateType, Player_AI_RL::ELIGIBILITY_TRACES::REPLACING, Player_AI_RL::UPDATESTEP_ALPHA::CONSTANT, config_transpositions, config_rollout_assumption, config_num_new_nodes_per_episode, game, player, procedureName, xAxisLabel, show_per_repeat_output, config_confidenceInterval, config_show_individual_final_output, gatheredResults, resultsFilePrinter, printLinePrefix, config_IndexStart, config_IndexEnd);
-						Experiment_RandomWalk_perEpisode_Batch_RunConfiguration(&sInd, 3, config_walk_length, maximum_plys, par_num_episodes, num_repeats, par_td_initVal, 0.01, 0.99, Player_AI_RL::PRESET_ALGORITHMS::EPISODIC_LAMBDA_RETURN, config_TDupdateType, Player_AI_RL::ELIGIBILITY_TRACES::REPLACING, Player_AI_RL::UPDATESTEP_ALPHA::CONSTANT, config_transpositions, config_rollout_assumption, config_num_new_nodes_per_episode, game, player, procedureName, xAxisLabel, show_per_repeat_output, config_confidenceInterval, config_show_individual_final_output, gatheredResults, resultsFilePrinter, printLinePrefix, config_IndexStart, config_IndexEnd);
-						Experiment_RandomWalk_perEpisode_Batch_RunConfiguration(&sInd, 3, config_walk_length, maximum_plys, par_num_episodes, num_repeats, par_td_initVal, 0.10, 0.90, Player_AI_RL::PRESET_ALGORITHMS::EPISODIC_LAMBDA_RETURN, config_TDupdateType, Player_AI_RL::ELIGIBILITY_TRACES::REPLACING, Player_AI_RL::UPDATESTEP_ALPHA::CONSTANT, config_transpositions, config_rollout_assumption, config_num_new_nodes_per_episode, game, player, procedureName, xAxisLabel, show_per_repeat_output, config_confidenceInterval, config_show_individual_final_output, gatheredResults, resultsFilePrinter, printLinePrefix, config_IndexStart, config_IndexEnd);
-						Experiment_RandomWalk_perEpisode_Batch_RunConfiguration(&sInd, 3, config_walk_length, maximum_plys, par_num_episodes, num_repeats, par_td_initVal, 0.05, 0.90, Player_AI_RL::PRESET_ALGORITHMS::EPISODIC_LAMBDA_RETURN, config_TDupdateType, Player_AI_RL::ELIGIBILITY_TRACES::REPLACING, Player_AI_RL::UPDATESTEP_ALPHA::CONSTANT, config_transpositions, config_rollout_assumption, config_num_new_nodes_per_episode, game, player, procedureName, xAxisLabel, show_per_repeat_output, config_confidenceInterval, config_show_individual_final_output, gatheredResults, resultsFilePrinter, printLinePrefix, config_IndexStart, config_IndexEnd);
-						Experiment_RandomWalk_perEpisode_Batch_RunConfiguration(&sInd, 3, config_walk_length, maximum_plys, par_num_episodes, num_repeats, par_td_initVal, 0.01, 0.90, Player_AI_RL::PRESET_ALGORITHMS::EPISODIC_LAMBDA_RETURN, config_TDupdateType, Player_AI_RL::ELIGIBILITY_TRACES::REPLACING, Player_AI_RL::UPDATESTEP_ALPHA::CONSTANT, config_transpositions, config_rollout_assumption, config_num_new_nodes_per_episode, game, player, procedureName, xAxisLabel, show_per_repeat_output, config_confidenceInterval, config_show_individual_final_output, gatheredResults, resultsFilePrinter, printLinePrefix, config_IndexStart, config_IndexEnd);
-						Experiment_RandomWalk_perEpisode_Batch_RunConfiguration(&sInd, 3, config_walk_length, maximum_plys, par_num_episodes, num_repeats, par_td_initVal, 0.10, 0.50, Player_AI_RL::PRESET_ALGORITHMS::EPISODIC_LAMBDA_RETURN, config_TDupdateType, Player_AI_RL::ELIGIBILITY_TRACES::REPLACING, Player_AI_RL::UPDATESTEP_ALPHA::CONSTANT, config_transpositions, config_rollout_assumption, config_num_new_nodes_per_episode, game, player, procedureName, xAxisLabel, show_per_repeat_output, config_confidenceInterval, config_show_individual_final_output, gatheredResults, resultsFilePrinter, printLinePrefix, config_IndexStart, config_IndexEnd);
-						Experiment_RandomWalk_perEpisode_Batch_RunConfiguration(&sInd, 3, config_walk_length, maximum_plys, par_num_episodes, num_repeats, par_td_initVal, 0.05, 0.50, Player_AI_RL::PRESET_ALGORITHMS::EPISODIC_LAMBDA_RETURN, config_TDupdateType, Player_AI_RL::ELIGIBILITY_TRACES::REPLACING, Player_AI_RL::UPDATESTEP_ALPHA::CONSTANT, config_transpositions, config_rollout_assumption, config_num_new_nodes_per_episode, game, player, procedureName, xAxisLabel, show_per_repeat_output, config_confidenceInterval, config_show_individual_final_output, gatheredResults, resultsFilePrinter, printLinePrefix, config_IndexStart, config_IndexEnd);
-						Experiment_RandomWalk_perEpisode_Batch_RunConfiguration(&sInd, 3, config_walk_length, maximum_plys, par_num_episodes, num_repeats, par_td_initVal, 0.01, 0.50, Player_AI_RL::PRESET_ALGORITHMS::EPISODIC_LAMBDA_RETURN, config_TDupdateType, Player_AI_RL::ELIGIBILITY_TRACES::REPLACING, Player_AI_RL::UPDATESTEP_ALPHA::CONSTANT, config_transpositions, config_rollout_assumption, config_num_new_nodes_per_episode, game, player, procedureName, xAxisLabel, show_per_repeat_output, config_confidenceInterval, config_show_individual_final_output, gatheredResults, resultsFilePrinter, printLinePrefix, config_IndexStart, config_IndexEnd);
+							config_TDupdateType = Player_AI_RL::TD_UPDATES::BATCH_EPISODIC;
 
-						//TD labmda, episodic update
-						config_TDupdateType = Player_AI_RL::TD_UPDATES::BATCH_EPISODIC;
+							//Episodic MC
+							Experiment_RandomWalk_perEpisode_Batch_RunConfiguration(&sInd, 0, num_repeats, config_walk_length, maximum_plys, par_num_episodes, par_td_initVal, 0.00, 1.00, Player_AI_RL::PRESET_ALGORITHMS::FIRSTVISIT_MC_ONPOLICY, config_TDupdateType, Player_AI_RL::ELIGIBILITY_TRACES::REPLACING, Player_AI_RL::UPDATESTEP_ALPHA::MONTE_CARLO, config_transpositions, config_rollout_assumption, config_num_new_nodes_per_episode, game, player, procedureName, xAxisLabel, show_per_repeat_output, config_confidenceInterval, config_show_individual_final_output, gatheredResults, resultsFilePrinter, printLinePrefix, config_IndexStart, config_IndexEnd);
 
-						Experiment_RandomWalk_perEpisode_Batch_RunConfiguration(&sInd, 4, config_walk_length, maximum_plys, par_num_episodes, num_repeats, par_td_initVal, 0.00, 0.00, Player_AI_RL::PRESET_ALGORITHMS::TD_LAMBDA, config_TDupdateType, Player_AI_RL::ELIGIBILITY_TRACES::REPLACING, Player_AI_RL::UPDATESTEP_ALPHA::MONTE_CARLO, config_transpositions, config_rollout_assumption, config_num_new_nodes_per_episode, game, player, procedureName, xAxisLabel, show_per_repeat_output, config_confidenceInterval, config_show_individual_final_output, gatheredResults, resultsFilePrinter, printLinePrefix, config_IndexStart, config_IndexEnd);
-							
-						Experiment_RandomWalk_perEpisode_Batch_RunConfiguration(&sInd, 5, config_walk_length, maximum_plys, par_num_episodes, num_repeats, par_td_initVal, 0.10, 0.00, Player_AI_RL::PRESET_ALGORITHMS::TD_LAMBDA, config_TDupdateType, Player_AI_RL::ELIGIBILITY_TRACES::REPLACING, Player_AI_RL::UPDATESTEP_ALPHA::CONSTANT, config_transpositions, config_rollout_assumption, config_num_new_nodes_per_episode, game, player, procedureName, xAxisLabel, show_per_repeat_output, config_confidenceInterval, config_show_individual_final_output, gatheredResults, resultsFilePrinter, printLinePrefix, config_IndexStart, config_IndexEnd);
-						Experiment_RandomWalk_perEpisode_Batch_RunConfiguration(&sInd, 5, config_walk_length, maximum_plys, par_num_episodes, num_repeats, par_td_initVal, 0.05, 0.00, Player_AI_RL::PRESET_ALGORITHMS::TD_LAMBDA, config_TDupdateType, Player_AI_RL::ELIGIBILITY_TRACES::REPLACING, Player_AI_RL::UPDATESTEP_ALPHA::CONSTANT, config_transpositions, config_rollout_assumption, config_num_new_nodes_per_episode, game, player, procedureName, xAxisLabel, show_per_repeat_output, config_confidenceInterval, config_show_individual_final_output, gatheredResults, resultsFilePrinter, printLinePrefix, config_IndexStart, config_IndexEnd);
-						Experiment_RandomWalk_perEpisode_Batch_RunConfiguration(&sInd, 5, config_walk_length, maximum_plys, par_num_episodes, num_repeats, par_td_initVal, 0.01, 0.00, Player_AI_RL::PRESET_ALGORITHMS::TD_LAMBDA, config_TDupdateType, Player_AI_RL::ELIGIBILITY_TRACES::REPLACING, Player_AI_RL::UPDATESTEP_ALPHA::CONSTANT, config_transpositions, config_rollout_assumption, config_num_new_nodes_per_episode, game, player, procedureName, xAxisLabel, show_per_repeat_output, config_confidenceInterval, config_show_individual_final_output, gatheredResults, resultsFilePrinter, printLinePrefix, config_IndexStart, config_IndexEnd);
-							
-						Experiment_RandomWalk_perEpisode_Batch_RunConfiguration(&sInd, 6, config_walk_length, maximum_plys, par_num_episodes, num_repeats, par_td_initVal, 0.00, 0.99, Player_AI_RL::PRESET_ALGORITHMS::TD_LAMBDA, config_TDupdateType, Player_AI_RL::ELIGIBILITY_TRACES::REPLACING, Player_AI_RL::UPDATESTEP_ALPHA::MONTE_CARLO, config_transpositions, config_rollout_assumption, config_num_new_nodes_per_episode, game, player, procedureName, xAxisLabel, show_per_repeat_output, config_confidenceInterval, config_show_individual_final_output, gatheredResults, resultsFilePrinter, printLinePrefix, config_IndexStart, config_IndexEnd);
-						Experiment_RandomWalk_perEpisode_Batch_RunConfiguration(&sInd, 6, config_walk_length, maximum_plys, par_num_episodes, num_repeats, par_td_initVal, 0.00, 0.90, Player_AI_RL::PRESET_ALGORITHMS::TD_LAMBDA, config_TDupdateType, Player_AI_RL::ELIGIBILITY_TRACES::REPLACING, Player_AI_RL::UPDATESTEP_ALPHA::MONTE_CARLO, config_transpositions, config_rollout_assumption, config_num_new_nodes_per_episode, game, player, procedureName, xAxisLabel, show_per_repeat_output, config_confidenceInterval, config_show_individual_final_output, gatheredResults, resultsFilePrinter, printLinePrefix, config_IndexStart, config_IndexEnd);
-						Experiment_RandomWalk_perEpisode_Batch_RunConfiguration(&sInd, 6, config_walk_length, maximum_plys, par_num_episodes, num_repeats, par_td_initVal, 0.00, 0.50, Player_AI_RL::PRESET_ALGORITHMS::TD_LAMBDA, config_TDupdateType, Player_AI_RL::ELIGIBILITY_TRACES::REPLACING, Player_AI_RL::UPDATESTEP_ALPHA::MONTE_CARLO, config_transpositions, config_rollout_assumption, config_num_new_nodes_per_episode, game, player, procedureName, xAxisLabel, show_per_repeat_output, config_confidenceInterval, config_show_individual_final_output, gatheredResults, resultsFilePrinter, printLinePrefix, config_IndexStart, config_IndexEnd);
-							
-						Experiment_RandomWalk_perEpisode_Batch_RunConfiguration(&sInd, 7, config_walk_length, maximum_plys, par_num_episodes, num_repeats, par_td_initVal, 0.10, 0.99, Player_AI_RL::PRESET_ALGORITHMS::TD_LAMBDA, config_TDupdateType, Player_AI_RL::ELIGIBILITY_TRACES::REPLACING, Player_AI_RL::UPDATESTEP_ALPHA::CONSTANT, config_transpositions, config_rollout_assumption, config_num_new_nodes_per_episode, game, player, procedureName, xAxisLabel, show_per_repeat_output, config_confidenceInterval, config_show_individual_final_output, gatheredResults, resultsFilePrinter, printLinePrefix, config_IndexStart, config_IndexEnd);
-						Experiment_RandomWalk_perEpisode_Batch_RunConfiguration(&sInd, 7, config_walk_length, maximum_plys, par_num_episodes, num_repeats, par_td_initVal, 0.05, 0.99, Player_AI_RL::PRESET_ALGORITHMS::TD_LAMBDA, config_TDupdateType, Player_AI_RL::ELIGIBILITY_TRACES::REPLACING, Player_AI_RL::UPDATESTEP_ALPHA::CONSTANT, config_transpositions, config_rollout_assumption, config_num_new_nodes_per_episode, game, player, procedureName, xAxisLabel, show_per_repeat_output, config_confidenceInterval, config_show_individual_final_output, gatheredResults, resultsFilePrinter, printLinePrefix, config_IndexStart, config_IndexEnd);
-						Experiment_RandomWalk_perEpisode_Batch_RunConfiguration(&sInd, 7, config_walk_length, maximum_plys, par_num_episodes, num_repeats, par_td_initVal, 0.01, 0.99, Player_AI_RL::PRESET_ALGORITHMS::TD_LAMBDA, config_TDupdateType, Player_AI_RL::ELIGIBILITY_TRACES::REPLACING, Player_AI_RL::UPDATESTEP_ALPHA::CONSTANT, config_transpositions, config_rollout_assumption, config_num_new_nodes_per_episode, game, player, procedureName, xAxisLabel, show_per_repeat_output, config_confidenceInterval, config_show_individual_final_output, gatheredResults, resultsFilePrinter, printLinePrefix, config_IndexStart, config_IndexEnd);
-						Experiment_RandomWalk_perEpisode_Batch_RunConfiguration(&sInd, 7, config_walk_length, maximum_plys, par_num_episodes, num_repeats, par_td_initVal, 0.10, 0.90, Player_AI_RL::PRESET_ALGORITHMS::TD_LAMBDA, config_TDupdateType, Player_AI_RL::ELIGIBILITY_TRACES::REPLACING, Player_AI_RL::UPDATESTEP_ALPHA::CONSTANT, config_transpositions, config_rollout_assumption, config_num_new_nodes_per_episode, game, player, procedureName, xAxisLabel, show_per_repeat_output, config_confidenceInterval, config_show_individual_final_output, gatheredResults, resultsFilePrinter, printLinePrefix, config_IndexStart, config_IndexEnd);
-						Experiment_RandomWalk_perEpisode_Batch_RunConfiguration(&sInd, 7, config_walk_length, maximum_plys, par_num_episodes, num_repeats, par_td_initVal, 0.05, 0.90, Player_AI_RL::PRESET_ALGORITHMS::TD_LAMBDA, config_TDupdateType, Player_AI_RL::ELIGIBILITY_TRACES::REPLACING, Player_AI_RL::UPDATESTEP_ALPHA::CONSTANT, config_transpositions, config_rollout_assumption, config_num_new_nodes_per_episode, game, player, procedureName, xAxisLabel, show_per_repeat_output, config_confidenceInterval, config_show_individual_final_output, gatheredResults, resultsFilePrinter, printLinePrefix, config_IndexStart, config_IndexEnd);
-						Experiment_RandomWalk_perEpisode_Batch_RunConfiguration(&sInd, 7, config_walk_length, maximum_plys, par_num_episodes, num_repeats, par_td_initVal, 0.01, 0.90, Player_AI_RL::PRESET_ALGORITHMS::TD_LAMBDA, config_TDupdateType, Player_AI_RL::ELIGIBILITY_TRACES::REPLACING, Player_AI_RL::UPDATESTEP_ALPHA::CONSTANT, config_transpositions, config_rollout_assumption, config_num_new_nodes_per_episode, game, player, procedureName, xAxisLabel, show_per_repeat_output, config_confidenceInterval, config_show_individual_final_output, gatheredResults, resultsFilePrinter, printLinePrefix, config_IndexStart, config_IndexEnd);
-						Experiment_RandomWalk_perEpisode_Batch_RunConfiguration(&sInd, 7, config_walk_length, maximum_plys, par_num_episodes, num_repeats, par_td_initVal, 0.10, 0.50, Player_AI_RL::PRESET_ALGORITHMS::TD_LAMBDA, config_TDupdateType, Player_AI_RL::ELIGIBILITY_TRACES::REPLACING, Player_AI_RL::UPDATESTEP_ALPHA::CONSTANT, config_transpositions, config_rollout_assumption, config_num_new_nodes_per_episode, game, player, procedureName, xAxisLabel, show_per_repeat_output, config_confidenceInterval, config_show_individual_final_output, gatheredResults, resultsFilePrinter, printLinePrefix, config_IndexStart, config_IndexEnd);
-						Experiment_RandomWalk_perEpisode_Batch_RunConfiguration(&sInd, 7, config_walk_length, maximum_plys, par_num_episodes, num_repeats, par_td_initVal, 0.05, 0.50, Player_AI_RL::PRESET_ALGORITHMS::TD_LAMBDA, config_TDupdateType, Player_AI_RL::ELIGIBILITY_TRACES::REPLACING, Player_AI_RL::UPDATESTEP_ALPHA::CONSTANT, config_transpositions, config_rollout_assumption, config_num_new_nodes_per_episode, game, player, procedureName, xAxisLabel, show_per_repeat_output, config_confidenceInterval, config_show_individual_final_output, gatheredResults, resultsFilePrinter, printLinePrefix, config_IndexStart, config_IndexEnd);
-						Experiment_RandomWalk_perEpisode_Batch_RunConfiguration(&sInd, 7, config_walk_length, maximum_plys, par_num_episodes, num_repeats, par_td_initVal, 0.01, 0.50, Player_AI_RL::PRESET_ALGORITHMS::TD_LAMBDA, config_TDupdateType, Player_AI_RL::ELIGIBILITY_TRACES::REPLACING, Player_AI_RL::UPDATESTEP_ALPHA::CONSTANT, config_transpositions, config_rollout_assumption, config_num_new_nodes_per_episode, game, player, procedureName, xAxisLabel, show_per_repeat_output, config_confidenceInterval, config_show_individual_final_output, gatheredResults, resultsFilePrinter, printLinePrefix, config_IndexStart, config_IndexEnd);
+							Experiment_RandomWalk_perEpisode_Batch_RunConfiguration(&sInd, 1, num_repeats, config_walk_length, maximum_plys, par_num_episodes, par_td_initVal, 0.20, 1.00, Player_AI_RL::PRESET_ALGORITHMS::FIRSTVISIT_EPISODIC_ALPHA_MC, config_TDupdateType, Player_AI_RL::ELIGIBILITY_TRACES::REPLACING, Player_AI_RL::UPDATESTEP_ALPHA::CONSTANT, config_transpositions, config_rollout_assumption, config_num_new_nodes_per_episode, game, player, procedureName, xAxisLabel, show_per_repeat_output, config_confidenceInterval, config_show_individual_final_output, gatheredResults, resultsFilePrinter, printLinePrefix, config_IndexStart, config_IndexEnd);
+							Experiment_RandomWalk_perEpisode_Batch_RunConfiguration(&sInd, 1, num_repeats, config_walk_length, maximum_plys, par_num_episodes, par_td_initVal, 0.10, 1.00, Player_AI_RL::PRESET_ALGORITHMS::FIRSTVISIT_EPISODIC_ALPHA_MC, config_TDupdateType, Player_AI_RL::ELIGIBILITY_TRACES::REPLACING, Player_AI_RL::UPDATESTEP_ALPHA::CONSTANT, config_transpositions, config_rollout_assumption, config_num_new_nodes_per_episode, game, player, procedureName, xAxisLabel, show_per_repeat_output, config_confidenceInterval, config_show_individual_final_output, gatheredResults, resultsFilePrinter, printLinePrefix, config_IndexStart, config_IndexEnd);
+							Experiment_RandomWalk_perEpisode_Batch_RunConfiguration(&sInd, 1, num_repeats, config_walk_length, maximum_plys, par_num_episodes, par_td_initVal, 0.05, 1.00, Player_AI_RL::PRESET_ALGORITHMS::FIRSTVISIT_EPISODIC_ALPHA_MC, config_TDupdateType, Player_AI_RL::ELIGIBILITY_TRACES::REPLACING, Player_AI_RL::UPDATESTEP_ALPHA::CONSTANT, config_transpositions, config_rollout_assumption, config_num_new_nodes_per_episode, game, player, procedureName, xAxisLabel, show_per_repeat_output, config_confidenceInterval, config_show_individual_final_output, gatheredResults, resultsFilePrinter, printLinePrefix, config_IndexStart, config_IndexEnd);
+							Experiment_RandomWalk_perEpisode_Batch_RunConfiguration(&sInd, 1, num_repeats, config_walk_length, maximum_plys, par_num_episodes, par_td_initVal, 0.01, 1.00, Player_AI_RL::PRESET_ALGORITHMS::FIRSTVISIT_EPISODIC_ALPHA_MC, config_TDupdateType, Player_AI_RL::ELIGIBILITY_TRACES::REPLACING, Player_AI_RL::UPDATESTEP_ALPHA::CONSTANT, config_transpositions, config_rollout_assumption, config_num_new_nodes_per_episode, game, player, procedureName, xAxisLabel, show_per_repeat_output, config_confidenceInterval, config_show_individual_final_output, gatheredResults, resultsFilePrinter, printLinePrefix, config_IndexStart, config_IndexEnd);
 
-						//TD labmda, online update
-						config_TDupdateType = Player_AI_RL::TD_UPDATES::ONLINE;
+							//Episodic TD(0)
+							Experiment_RandomWalk_perEpisode_Batch_RunConfiguration(&sInd, 2, num_repeats, config_walk_length, maximum_plys, par_num_episodes, par_td_initVal, 0.00, 0.00, Player_AI_RL::PRESET_ALGORITHMS::TD_LAMBDA, config_TDupdateType, Player_AI_RL::ELIGIBILITY_TRACES::REPLACING, Player_AI_RL::UPDATESTEP_ALPHA::MONTE_CARLO, config_transpositions, config_rollout_assumption, config_num_new_nodes_per_episode, game, player, procedureName, xAxisLabel, show_per_repeat_output, config_confidenceInterval, config_show_individual_final_output, gatheredResults, resultsFilePrinter, printLinePrefix, config_IndexStart, config_IndexEnd);
 
-						Experiment_RandomWalk_perEpisode_Batch_RunConfiguration(&sInd, 8, config_walk_length, maximum_plys, par_num_episodes, num_repeats, par_td_initVal, 0.00, 0.00, Player_AI_RL::PRESET_ALGORITHMS::TD_LAMBDA, config_TDupdateType, Player_AI_RL::ELIGIBILITY_TRACES::REPLACING, Player_AI_RL::UPDATESTEP_ALPHA::MONTE_CARLO, config_transpositions, config_rollout_assumption, config_num_new_nodes_per_episode, game, player, procedureName, xAxisLabel, show_per_repeat_output, config_confidenceInterval, config_show_individual_final_output, gatheredResults, resultsFilePrinter, printLinePrefix, config_IndexStart, config_IndexEnd);
+							Experiment_RandomWalk_perEpisode_Batch_RunConfiguration(&sInd, 3, num_repeats, config_walk_length, maximum_plys, par_num_episodes, par_td_initVal, 0.20, 0.00, Player_AI_RL::PRESET_ALGORITHMS::TD_LAMBDA, config_TDupdateType, Player_AI_RL::ELIGIBILITY_TRACES::REPLACING, Player_AI_RL::UPDATESTEP_ALPHA::CONSTANT, config_transpositions, config_rollout_assumption, config_num_new_nodes_per_episode, game, player, procedureName, xAxisLabel, show_per_repeat_output, config_confidenceInterval, config_show_individual_final_output, gatheredResults, resultsFilePrinter, printLinePrefix, config_IndexStart, config_IndexEnd);
+							Experiment_RandomWalk_perEpisode_Batch_RunConfiguration(&sInd, 3, num_repeats, config_walk_length, maximum_plys, par_num_episodes, par_td_initVal, 0.10, 0.00, Player_AI_RL::PRESET_ALGORITHMS::TD_LAMBDA, config_TDupdateType, Player_AI_RL::ELIGIBILITY_TRACES::REPLACING, Player_AI_RL::UPDATESTEP_ALPHA::CONSTANT, config_transpositions, config_rollout_assumption, config_num_new_nodes_per_episode, game, player, procedureName, xAxisLabel, show_per_repeat_output, config_confidenceInterval, config_show_individual_final_output, gatheredResults, resultsFilePrinter, printLinePrefix, config_IndexStart, config_IndexEnd);
+							Experiment_RandomWalk_perEpisode_Batch_RunConfiguration(&sInd, 3, num_repeats, config_walk_length, maximum_plys, par_num_episodes, par_td_initVal, 0.05, 0.00, Player_AI_RL::PRESET_ALGORITHMS::TD_LAMBDA, config_TDupdateType, Player_AI_RL::ELIGIBILITY_TRACES::REPLACING, Player_AI_RL::UPDATESTEP_ALPHA::CONSTANT, config_transpositions, config_rollout_assumption, config_num_new_nodes_per_episode, game, player, procedureName, xAxisLabel, show_per_repeat_output, config_confidenceInterval, config_show_individual_final_output, gatheredResults, resultsFilePrinter, printLinePrefix, config_IndexStart, config_IndexEnd);
+							Experiment_RandomWalk_perEpisode_Batch_RunConfiguration(&sInd, 3, num_repeats, config_walk_length, maximum_plys, par_num_episodes, par_td_initVal, 0.01, 0.00, Player_AI_RL::PRESET_ALGORITHMS::TD_LAMBDA, config_TDupdateType, Player_AI_RL::ELIGIBILITY_TRACES::REPLACING, Player_AI_RL::UPDATESTEP_ALPHA::CONSTANT, config_transpositions, config_rollout_assumption, config_num_new_nodes_per_episode, game, player, procedureName, xAxisLabel, show_per_repeat_output, config_confidenceInterval, config_show_individual_final_output, gatheredResults, resultsFilePrinter, printLinePrefix, config_IndexStart, config_IndexEnd);
 
-						Experiment_RandomWalk_perEpisode_Batch_RunConfiguration(&sInd, 9, config_walk_length, maximum_plys, par_num_episodes, num_repeats, par_td_initVal, 0.10, 0.00, Player_AI_RL::PRESET_ALGORITHMS::TD_LAMBDA, config_TDupdateType, Player_AI_RL::ELIGIBILITY_TRACES::REPLACING, Player_AI_RL::UPDATESTEP_ALPHA::CONSTANT, config_transpositions, config_rollout_assumption, config_num_new_nodes_per_episode, game, player, procedureName, xAxisLabel, show_per_repeat_output, config_confidenceInterval, config_show_individual_final_output, gatheredResults, resultsFilePrinter, printLinePrefix, config_IndexStart, config_IndexEnd);
-						Experiment_RandomWalk_perEpisode_Batch_RunConfiguration(&sInd, 9, config_walk_length, maximum_plys, par_num_episodes, num_repeats, par_td_initVal, 0.05, 0.00, Player_AI_RL::PRESET_ALGORITHMS::TD_LAMBDA, config_TDupdateType, Player_AI_RL::ELIGIBILITY_TRACES::REPLACING, Player_AI_RL::UPDATESTEP_ALPHA::CONSTANT, config_transpositions, config_rollout_assumption, config_num_new_nodes_per_episode, game, player, procedureName, xAxisLabel, show_per_repeat_output, config_confidenceInterval, config_show_individual_final_output, gatheredResults, resultsFilePrinter, printLinePrefix, config_IndexStart, config_IndexEnd);
-						Experiment_RandomWalk_perEpisode_Batch_RunConfiguration(&sInd, 9, config_walk_length, maximum_plys, par_num_episodes, num_repeats, par_td_initVal, 0.01, 0.00, Player_AI_RL::PRESET_ALGORITHMS::TD_LAMBDA, config_TDupdateType, Player_AI_RL::ELIGIBILITY_TRACES::REPLACING, Player_AI_RL::UPDATESTEP_ALPHA::CONSTANT, config_transpositions, config_rollout_assumption, config_num_new_nodes_per_episode, game, player, procedureName, xAxisLabel, show_per_repeat_output, config_confidenceInterval, config_show_individual_final_output, gatheredResults, resultsFilePrinter, printLinePrefix, config_IndexStart, config_IndexEnd);
+							//Episodic TD(lambda)
+							Experiment_RandomWalk_perEpisode_Batch_RunConfiguration(&sInd, 4, num_repeats, config_walk_length, maximum_plys, par_num_episodes, par_td_initVal, 0.00, 0.99, Player_AI_RL::PRESET_ALGORITHMS::TD_LAMBDA, config_TDupdateType, Player_AI_RL::ELIGIBILITY_TRACES::REPLACING, Player_AI_RL::UPDATESTEP_ALPHA::MONTE_CARLO, config_transpositions, config_rollout_assumption, config_num_new_nodes_per_episode, game, player, procedureName, xAxisLabel, show_per_repeat_output, config_confidenceInterval, config_show_individual_final_output, gatheredResults, resultsFilePrinter, printLinePrefix, config_IndexStart, config_IndexEnd);
+							Experiment_RandomWalk_perEpisode_Batch_RunConfiguration(&sInd, 4, num_repeats, config_walk_length, maximum_plys, par_num_episodes, par_td_initVal, 0.00, 0.90, Player_AI_RL::PRESET_ALGORITHMS::TD_LAMBDA, config_TDupdateType, Player_AI_RL::ELIGIBILITY_TRACES::REPLACING, Player_AI_RL::UPDATESTEP_ALPHA::MONTE_CARLO, config_transpositions, config_rollout_assumption, config_num_new_nodes_per_episode, game, player, procedureName, xAxisLabel, show_per_repeat_output, config_confidenceInterval, config_show_individual_final_output, gatheredResults, resultsFilePrinter, printLinePrefix, config_IndexStart, config_IndexEnd);
+							Experiment_RandomWalk_perEpisode_Batch_RunConfiguration(&sInd, 4, num_repeats, config_walk_length, maximum_plys, par_num_episodes, par_td_initVal, 0.00, 0.50, Player_AI_RL::PRESET_ALGORITHMS::TD_LAMBDA, config_TDupdateType, Player_AI_RL::ELIGIBILITY_TRACES::REPLACING, Player_AI_RL::UPDATESTEP_ALPHA::MONTE_CARLO, config_transpositions, config_rollout_assumption, config_num_new_nodes_per_episode, game, player, procedureName, xAxisLabel, show_per_repeat_output, config_confidenceInterval, config_show_individual_final_output, gatheredResults, resultsFilePrinter, printLinePrefix, config_IndexStart, config_IndexEnd);
+							Experiment_RandomWalk_perEpisode_Batch_RunConfiguration(&sInd, 4, num_repeats, config_walk_length, maximum_plys, par_num_episodes, par_td_initVal, 0.00, 0.10, Player_AI_RL::PRESET_ALGORITHMS::TD_LAMBDA, config_TDupdateType, Player_AI_RL::ELIGIBILITY_TRACES::REPLACING, Player_AI_RL::UPDATESTEP_ALPHA::MONTE_CARLO, config_transpositions, config_rollout_assumption, config_num_new_nodes_per_episode, game, player, procedureName, xAxisLabel, show_per_repeat_output, config_confidenceInterval, config_show_individual_final_output, gatheredResults, resultsFilePrinter, printLinePrefix, config_IndexStart, config_IndexEnd);
 
-						Experiment_RandomWalk_perEpisode_Batch_RunConfiguration(&sInd, 10, config_walk_length, maximum_plys, par_num_episodes, num_repeats, par_td_initVal, 0.00, 0.99, Player_AI_RL::PRESET_ALGORITHMS::TD_LAMBDA, config_TDupdateType, Player_AI_RL::ELIGIBILITY_TRACES::REPLACING, Player_AI_RL::UPDATESTEP_ALPHA::MONTE_CARLO, config_transpositions, config_rollout_assumption, config_num_new_nodes_per_episode, game, player, procedureName, xAxisLabel, show_per_repeat_output, config_confidenceInterval, config_show_individual_final_output, gatheredResults, resultsFilePrinter, printLinePrefix, config_IndexStart, config_IndexEnd);
-						Experiment_RandomWalk_perEpisode_Batch_RunConfiguration(&sInd, 10, config_walk_length, maximum_plys, par_num_episodes, num_repeats, par_td_initVal, 0.00, 0.90, Player_AI_RL::PRESET_ALGORITHMS::TD_LAMBDA, config_TDupdateType, Player_AI_RL::ELIGIBILITY_TRACES::REPLACING, Player_AI_RL::UPDATESTEP_ALPHA::MONTE_CARLO, config_transpositions, config_rollout_assumption, config_num_new_nodes_per_episode, game, player, procedureName, xAxisLabel, show_per_repeat_output, config_confidenceInterval, config_show_individual_final_output, gatheredResults, resultsFilePrinter, printLinePrefix, config_IndexStart, config_IndexEnd);
-						Experiment_RandomWalk_perEpisode_Batch_RunConfiguration(&sInd, 10, config_walk_length, maximum_plys, par_num_episodes, num_repeats, par_td_initVal, 0.00, 0.50, Player_AI_RL::PRESET_ALGORITHMS::TD_LAMBDA, config_TDupdateType, Player_AI_RL::ELIGIBILITY_TRACES::REPLACING, Player_AI_RL::UPDATESTEP_ALPHA::MONTE_CARLO, config_transpositions, config_rollout_assumption, config_num_new_nodes_per_episode, game, player, procedureName, xAxisLabel, show_per_repeat_output, config_confidenceInterval, config_show_individual_final_output, gatheredResults, resultsFilePrinter, printLinePrefix, config_IndexStart, config_IndexEnd);
+							Experiment_RandomWalk_perEpisode_Batch_RunConfiguration(&sInd, 5, num_repeats, config_walk_length, maximum_plys, par_num_episodes, par_td_initVal, 0.20, 0.99, Player_AI_RL::PRESET_ALGORITHMS::TD_LAMBDA, config_TDupdateType, Player_AI_RL::ELIGIBILITY_TRACES::REPLACING, Player_AI_RL::UPDATESTEP_ALPHA::CONSTANT, config_transpositions, config_rollout_assumption, config_num_new_nodes_per_episode, game, player, procedureName, xAxisLabel, show_per_repeat_output, config_confidenceInterval, config_show_individual_final_output, gatheredResults, resultsFilePrinter, printLinePrefix, config_IndexStart, config_IndexEnd);
+							Experiment_RandomWalk_perEpisode_Batch_RunConfiguration(&sInd, 5, num_repeats, config_walk_length, maximum_plys, par_num_episodes, par_td_initVal, 0.10, 0.99, Player_AI_RL::PRESET_ALGORITHMS::TD_LAMBDA, config_TDupdateType, Player_AI_RL::ELIGIBILITY_TRACES::REPLACING, Player_AI_RL::UPDATESTEP_ALPHA::CONSTANT, config_transpositions, config_rollout_assumption, config_num_new_nodes_per_episode, game, player, procedureName, xAxisLabel, show_per_repeat_output, config_confidenceInterval, config_show_individual_final_output, gatheredResults, resultsFilePrinter, printLinePrefix, config_IndexStart, config_IndexEnd);
+							Experiment_RandomWalk_perEpisode_Batch_RunConfiguration(&sInd, 5, num_repeats, config_walk_length, maximum_plys, par_num_episodes, par_td_initVal, 0.05, 0.99, Player_AI_RL::PRESET_ALGORITHMS::TD_LAMBDA, config_TDupdateType, Player_AI_RL::ELIGIBILITY_TRACES::REPLACING, Player_AI_RL::UPDATESTEP_ALPHA::CONSTANT, config_transpositions, config_rollout_assumption, config_num_new_nodes_per_episode, game, player, procedureName, xAxisLabel, show_per_repeat_output, config_confidenceInterval, config_show_individual_final_output, gatheredResults, resultsFilePrinter, printLinePrefix, config_IndexStart, config_IndexEnd);
+							Experiment_RandomWalk_perEpisode_Batch_RunConfiguration(&sInd, 5, num_repeats, config_walk_length, maximum_plys, par_num_episodes, par_td_initVal, 0.01, 0.99, Player_AI_RL::PRESET_ALGORITHMS::TD_LAMBDA, config_TDupdateType, Player_AI_RL::ELIGIBILITY_TRACES::REPLACING, Player_AI_RL::UPDATESTEP_ALPHA::CONSTANT, config_transpositions, config_rollout_assumption, config_num_new_nodes_per_episode, game, player, procedureName, xAxisLabel, show_per_repeat_output, config_confidenceInterval, config_show_individual_final_output, gatheredResults, resultsFilePrinter, printLinePrefix, config_IndexStart, config_IndexEnd);
+							Experiment_RandomWalk_perEpisode_Batch_RunConfiguration(&sInd, 5, num_repeats, config_walk_length, maximum_plys, par_num_episodes, par_td_initVal, 0.20, 0.90, Player_AI_RL::PRESET_ALGORITHMS::TD_LAMBDA, config_TDupdateType, Player_AI_RL::ELIGIBILITY_TRACES::REPLACING, Player_AI_RL::UPDATESTEP_ALPHA::CONSTANT, config_transpositions, config_rollout_assumption, config_num_new_nodes_per_episode, game, player, procedureName, xAxisLabel, show_per_repeat_output, config_confidenceInterval, config_show_individual_final_output, gatheredResults, resultsFilePrinter, printLinePrefix, config_IndexStart, config_IndexEnd);
+							Experiment_RandomWalk_perEpisode_Batch_RunConfiguration(&sInd, 5, num_repeats, config_walk_length, maximum_plys, par_num_episodes, par_td_initVal, 0.10, 0.90, Player_AI_RL::PRESET_ALGORITHMS::TD_LAMBDA, config_TDupdateType, Player_AI_RL::ELIGIBILITY_TRACES::REPLACING, Player_AI_RL::UPDATESTEP_ALPHA::CONSTANT, config_transpositions, config_rollout_assumption, config_num_new_nodes_per_episode, game, player, procedureName, xAxisLabel, show_per_repeat_output, config_confidenceInterval, config_show_individual_final_output, gatheredResults, resultsFilePrinter, printLinePrefix, config_IndexStart, config_IndexEnd);
+							Experiment_RandomWalk_perEpisode_Batch_RunConfiguration(&sInd, 5, num_repeats, config_walk_length, maximum_plys, par_num_episodes, par_td_initVal, 0.05, 0.90, Player_AI_RL::PRESET_ALGORITHMS::TD_LAMBDA, config_TDupdateType, Player_AI_RL::ELIGIBILITY_TRACES::REPLACING, Player_AI_RL::UPDATESTEP_ALPHA::CONSTANT, config_transpositions, config_rollout_assumption, config_num_new_nodes_per_episode, game, player, procedureName, xAxisLabel, show_per_repeat_output, config_confidenceInterval, config_show_individual_final_output, gatheredResults, resultsFilePrinter, printLinePrefix, config_IndexStart, config_IndexEnd);
+							Experiment_RandomWalk_perEpisode_Batch_RunConfiguration(&sInd, 5, num_repeats, config_walk_length, maximum_plys, par_num_episodes, par_td_initVal, 0.01, 0.90, Player_AI_RL::PRESET_ALGORITHMS::TD_LAMBDA, config_TDupdateType, Player_AI_RL::ELIGIBILITY_TRACES::REPLACING, Player_AI_RL::UPDATESTEP_ALPHA::CONSTANT, config_transpositions, config_rollout_assumption, config_num_new_nodes_per_episode, game, player, procedureName, xAxisLabel, show_per_repeat_output, config_confidenceInterval, config_show_individual_final_output, gatheredResults, resultsFilePrinter, printLinePrefix, config_IndexStart, config_IndexEnd);
+							Experiment_RandomWalk_perEpisode_Batch_RunConfiguration(&sInd, 5, num_repeats, config_walk_length, maximum_plys, par_num_episodes, par_td_initVal, 0.20, 0.50, Player_AI_RL::PRESET_ALGORITHMS::TD_LAMBDA, config_TDupdateType, Player_AI_RL::ELIGIBILITY_TRACES::REPLACING, Player_AI_RL::UPDATESTEP_ALPHA::CONSTANT, config_transpositions, config_rollout_assumption, config_num_new_nodes_per_episode, game, player, procedureName, xAxisLabel, show_per_repeat_output, config_confidenceInterval, config_show_individual_final_output, gatheredResults, resultsFilePrinter, printLinePrefix, config_IndexStart, config_IndexEnd);
+							Experiment_RandomWalk_perEpisode_Batch_RunConfiguration(&sInd, 5, num_repeats, config_walk_length, maximum_plys, par_num_episodes, par_td_initVal, 0.10, 0.50, Player_AI_RL::PRESET_ALGORITHMS::TD_LAMBDA, config_TDupdateType, Player_AI_RL::ELIGIBILITY_TRACES::REPLACING, Player_AI_RL::UPDATESTEP_ALPHA::CONSTANT, config_transpositions, config_rollout_assumption, config_num_new_nodes_per_episode, game, player, procedureName, xAxisLabel, show_per_repeat_output, config_confidenceInterval, config_show_individual_final_output, gatheredResults, resultsFilePrinter, printLinePrefix, config_IndexStart, config_IndexEnd);
+							Experiment_RandomWalk_perEpisode_Batch_RunConfiguration(&sInd, 5, num_repeats, config_walk_length, maximum_plys, par_num_episodes, par_td_initVal, 0.05, 0.50, Player_AI_RL::PRESET_ALGORITHMS::TD_LAMBDA, config_TDupdateType, Player_AI_RL::ELIGIBILITY_TRACES::REPLACING, Player_AI_RL::UPDATESTEP_ALPHA::CONSTANT, config_transpositions, config_rollout_assumption, config_num_new_nodes_per_episode, game, player, procedureName, xAxisLabel, show_per_repeat_output, config_confidenceInterval, config_show_individual_final_output, gatheredResults, resultsFilePrinter, printLinePrefix, config_IndexStart, config_IndexEnd);
+							Experiment_RandomWalk_perEpisode_Batch_RunConfiguration(&sInd, 5, num_repeats, config_walk_length, maximum_plys, par_num_episodes, par_td_initVal, 0.01, 0.50, Player_AI_RL::PRESET_ALGORITHMS::TD_LAMBDA, config_TDupdateType, Player_AI_RL::ELIGIBILITY_TRACES::REPLACING, Player_AI_RL::UPDATESTEP_ALPHA::CONSTANT, config_transpositions, config_rollout_assumption, config_num_new_nodes_per_episode, game, player, procedureName, xAxisLabel, show_per_repeat_output, config_confidenceInterval, config_show_individual_final_output, gatheredResults, resultsFilePrinter, printLinePrefix, config_IndexStart, config_IndexEnd);
+							Experiment_RandomWalk_perEpisode_Batch_RunConfiguration(&sInd, 5, num_repeats, config_walk_length, maximum_plys, par_num_episodes, par_td_initVal, 0.20, 0.10, Player_AI_RL::PRESET_ALGORITHMS::TD_LAMBDA, config_TDupdateType, Player_AI_RL::ELIGIBILITY_TRACES::REPLACING, Player_AI_RL::UPDATESTEP_ALPHA::CONSTANT, config_transpositions, config_rollout_assumption, config_num_new_nodes_per_episode, game, player, procedureName, xAxisLabel, show_per_repeat_output, config_confidenceInterval, config_show_individual_final_output, gatheredResults, resultsFilePrinter, printLinePrefix, config_IndexStart, config_IndexEnd);
+							Experiment_RandomWalk_perEpisode_Batch_RunConfiguration(&sInd, 5, num_repeats, config_walk_length, maximum_plys, par_num_episodes, par_td_initVal, 0.10, 0.10, Player_AI_RL::PRESET_ALGORITHMS::TD_LAMBDA, config_TDupdateType, Player_AI_RL::ELIGIBILITY_TRACES::REPLACING, Player_AI_RL::UPDATESTEP_ALPHA::CONSTANT, config_transpositions, config_rollout_assumption, config_num_new_nodes_per_episode, game, player, procedureName, xAxisLabel, show_per_repeat_output, config_confidenceInterval, config_show_individual_final_output, gatheredResults, resultsFilePrinter, printLinePrefix, config_IndexStart, config_IndexEnd);
+							Experiment_RandomWalk_perEpisode_Batch_RunConfiguration(&sInd, 5, num_repeats, config_walk_length, maximum_plys, par_num_episodes, par_td_initVal, 0.05, 0.10, Player_AI_RL::PRESET_ALGORITHMS::TD_LAMBDA, config_TDupdateType, Player_AI_RL::ELIGIBILITY_TRACES::REPLACING, Player_AI_RL::UPDATESTEP_ALPHA::CONSTANT, config_transpositions, config_rollout_assumption, config_num_new_nodes_per_episode, game, player, procedureName, xAxisLabel, show_per_repeat_output, config_confidenceInterval, config_show_individual_final_output, gatheredResults, resultsFilePrinter, printLinePrefix, config_IndexStart, config_IndexEnd);
+							Experiment_RandomWalk_perEpisode_Batch_RunConfiguration(&sInd, 5, num_repeats, config_walk_length, maximum_plys, par_num_episodes, par_td_initVal, 0.01, 0.10, Player_AI_RL::PRESET_ALGORITHMS::TD_LAMBDA, config_TDupdateType, Player_AI_RL::ELIGIBILITY_TRACES::REPLACING, Player_AI_RL::UPDATESTEP_ALPHA::CONSTANT, config_transpositions, config_rollout_assumption, config_num_new_nodes_per_episode, game, player, procedureName, xAxisLabel, show_per_repeat_output, config_confidenceInterval, config_show_individual_final_output, gatheredResults, resultsFilePrinter, printLinePrefix, config_IndexStart, config_IndexEnd);
 
-						Experiment_RandomWalk_perEpisode_Batch_RunConfiguration(&sInd, 11, config_walk_length, maximum_plys, par_num_episodes, num_repeats, par_td_initVal, 0.10, 0.99, Player_AI_RL::PRESET_ALGORITHMS::TD_LAMBDA, config_TDupdateType, Player_AI_RL::ELIGIBILITY_TRACES::REPLACING, Player_AI_RL::UPDATESTEP_ALPHA::CONSTANT, config_transpositions, config_rollout_assumption, config_num_new_nodes_per_episode, game, player, procedureName, xAxisLabel, show_per_repeat_output, config_confidenceInterval, config_show_individual_final_output, gatheredResults, resultsFilePrinter, printLinePrefix, config_IndexStart, config_IndexEnd);
-						Experiment_RandomWalk_perEpisode_Batch_RunConfiguration(&sInd, 11, config_walk_length, maximum_plys, par_num_episodes, num_repeats, par_td_initVal, 0.05, 0.99, Player_AI_RL::PRESET_ALGORITHMS::TD_LAMBDA, config_TDupdateType, Player_AI_RL::ELIGIBILITY_TRACES::REPLACING, Player_AI_RL::UPDATESTEP_ALPHA::CONSTANT, config_transpositions, config_rollout_assumption, config_num_new_nodes_per_episode, game, player, procedureName, xAxisLabel, show_per_repeat_output, config_confidenceInterval, config_show_individual_final_output, gatheredResults, resultsFilePrinter, printLinePrefix, config_IndexStart, config_IndexEnd);
-						Experiment_RandomWalk_perEpisode_Batch_RunConfiguration(&sInd, 11, config_walk_length, maximum_plys, par_num_episodes, num_repeats, par_td_initVal, 0.01, 0.99, Player_AI_RL::PRESET_ALGORITHMS::TD_LAMBDA, config_TDupdateType, Player_AI_RL::ELIGIBILITY_TRACES::REPLACING, Player_AI_RL::UPDATESTEP_ALPHA::CONSTANT, config_transpositions, config_rollout_assumption, config_num_new_nodes_per_episode, game, player, procedureName, xAxisLabel, show_per_repeat_output, config_confidenceInterval, config_show_individual_final_output, gatheredResults, resultsFilePrinter, printLinePrefix, config_IndexStart, config_IndexEnd);
-						Experiment_RandomWalk_perEpisode_Batch_RunConfiguration(&sInd, 11, config_walk_length, maximum_plys, par_num_episodes, num_repeats, par_td_initVal, 0.10, 0.90, Player_AI_RL::PRESET_ALGORITHMS::TD_LAMBDA, config_TDupdateType, Player_AI_RL::ELIGIBILITY_TRACES::REPLACING, Player_AI_RL::UPDATESTEP_ALPHA::CONSTANT, config_transpositions, config_rollout_assumption, config_num_new_nodes_per_episode, game, player, procedureName, xAxisLabel, show_per_repeat_output, config_confidenceInterval, config_show_individual_final_output, gatheredResults, resultsFilePrinter, printLinePrefix, config_IndexStart, config_IndexEnd);
-						Experiment_RandomWalk_perEpisode_Batch_RunConfiguration(&sInd, 11, config_walk_length, maximum_plys, par_num_episodes, num_repeats, par_td_initVal, 0.05, 0.90, Player_AI_RL::PRESET_ALGORITHMS::TD_LAMBDA, config_TDupdateType, Player_AI_RL::ELIGIBILITY_TRACES::REPLACING, Player_AI_RL::UPDATESTEP_ALPHA::CONSTANT, config_transpositions, config_rollout_assumption, config_num_new_nodes_per_episode, game, player, procedureName, xAxisLabel, show_per_repeat_output, config_confidenceInterval, config_show_individual_final_output, gatheredResults, resultsFilePrinter, printLinePrefix, config_IndexStart, config_IndexEnd);
-						Experiment_RandomWalk_perEpisode_Batch_RunConfiguration(&sInd, 11, config_walk_length, maximum_plys, par_num_episodes, num_repeats, par_td_initVal, 0.01, 0.90, Player_AI_RL::PRESET_ALGORITHMS::TD_LAMBDA, config_TDupdateType, Player_AI_RL::ELIGIBILITY_TRACES::REPLACING, Player_AI_RL::UPDATESTEP_ALPHA::CONSTANT, config_transpositions, config_rollout_assumption, config_num_new_nodes_per_episode, game, player, procedureName, xAxisLabel, show_per_repeat_output, config_confidenceInterval, config_show_individual_final_output, gatheredResults, resultsFilePrinter, printLinePrefix, config_IndexStart, config_IndexEnd);
-						Experiment_RandomWalk_perEpisode_Batch_RunConfiguration(&sInd, 11, config_walk_length, maximum_plys, par_num_episodes, num_repeats, par_td_initVal, 0.10, 0.50, Player_AI_RL::PRESET_ALGORITHMS::TD_LAMBDA, config_TDupdateType, Player_AI_RL::ELIGIBILITY_TRACES::REPLACING, Player_AI_RL::UPDATESTEP_ALPHA::CONSTANT, config_transpositions, config_rollout_assumption, config_num_new_nodes_per_episode, game, player, procedureName, xAxisLabel, show_per_repeat_output, config_confidenceInterval, config_show_individual_final_output, gatheredResults, resultsFilePrinter, printLinePrefix, config_IndexStart, config_IndexEnd);
-						Experiment_RandomWalk_perEpisode_Batch_RunConfiguration(&sInd, 11, config_walk_length, maximum_plys, par_num_episodes, num_repeats, par_td_initVal, 0.05, 0.50, Player_AI_RL::PRESET_ALGORITHMS::TD_LAMBDA, config_TDupdateType, Player_AI_RL::ELIGIBILITY_TRACES::REPLACING, Player_AI_RL::UPDATESTEP_ALPHA::CONSTANT, config_transpositions, config_rollout_assumption, config_num_new_nodes_per_episode, game, player, procedureName, xAxisLabel, show_per_repeat_output, config_confidenceInterval, config_show_individual_final_output, gatheredResults, resultsFilePrinter, printLinePrefix, config_IndexStart, config_IndexEnd);
-						Experiment_RandomWalk_perEpisode_Batch_RunConfiguration(&sInd, 11, config_walk_length, maximum_plys, par_num_episodes, num_repeats, par_td_initVal, 0.01, 0.50, Player_AI_RL::PRESET_ALGORITHMS::TD_LAMBDA, config_TDupdateType, Player_AI_RL::ELIGIBILITY_TRACES::REPLACING, Player_AI_RL::UPDATESTEP_ALPHA::CONSTANT, config_transpositions, config_rollout_assumption, config_num_new_nodes_per_episode, game, player, procedureName, xAxisLabel, show_per_repeat_output, config_confidenceInterval, config_show_individual_final_output, gatheredResults, resultsFilePrinter, printLinePrefix, config_IndexStart, config_IndexEnd);
-						
-						//-//-//
+							//-//-//
+						}
 					}
 				}
 			}
@@ -345,14 +329,13 @@ namespace Tests_TDMCTS
 
 	}
 
-
 	void Experiment_RandomWalk_perEpisode_Batch_RunConfiguration(
 		int* address_configurationSerialID,
 		int algorithmSerialID,
+		int num_repeats,
 		int config_walk_length,
 		int maximum_plys,
 		int par_num_episodes,
-		int num_repeats,
 		double par_td_initVal,
 		double par_td_alpha,
 		double par_td_lambda,
@@ -446,7 +429,7 @@ namespace Tests_TDMCTS
 		Player_Engine* players[] = { player };
 		game->players = players;
 		player->player_number = 0;
-		player->config_experiment = Player_AI_RL::EXPERIMENTAL_SETTINGS::METRICS_PER_EPISODES;
+		player->config_experiment = Player_AI_RL::EXPERIMENTAL_SETTINGS::RW_RIGHTWIN_METRICS_PER_EPISODES;
 		char* procedureName = "Experiment_RandomWalk_perEpisode()";
 		char* xAxisLabel = " episode";
 
@@ -456,28 +439,28 @@ namespace Tests_TDMCTS
 		Experiment_RandomWalk_perEpisode_CommonSettings(game, player);
 
 		// experiment runtime settings
-		int num_repeats = 1000;			// define the number of repeats of the experiments -> only for statistical accuracy
+		int num_repeats = 10;			// define the number of repeats of the experiments -> only for statistical accuracy
 		int show_per_repeat_output = -1;	// which metric should be printed out after each repeat (-1 disabled)
 
 		//// preset algorithm (for details see procedure "Apply_Preset_Config()" in "Player_AI_RL.cpp")
-		//player->config_preset_algorithm = Player_AI_RL::PRESET_ALGORITHMS::EPISODIC_CONSTANT_MC;
+		//player->config_preset_algorithm = Player_AI_RL::PRESET_ALGORITHMS::FIRSTVISIT_EPISODIC_MC;
 		//player->config_preset_algorithm = Player_AI_RL::PRESET_ALGORITHMS::ONLINE_TD_ZERO_ONPOLICY;
 		//player->config_preset_algorithm = Player_AI_RL::PRESET_ALGORITHMS::EPISODIC_TD_ZERO_ONPOLICY;
-		//player->config_preset_algorithm = Player_AI_RL::PRESET_ALGORITHMS::EPISODIC_LAMBDA_RETURN;
-		player->config_preset_algorithm = Player_AI_RL::PRESET_ALGORITHMS::FIRSTVISIT_MC_ONPOLICY;
+		//player->config_preset_algorithm = Player_AI_RL::PRESET_ALGORITHMS::FIRSTVISIT_MC_ONPOLICY;
 		//player->config_preset_algorithm = Player_AI_RL::PRESET_ALGORITHMS::EVERYVISIT_MC_ONPOLICY;
-		//player->config_preset_algorithm = Player_AI_RL::PRESET_ALGORITHMS::TD_LAMBDA;
+		//player->config_preset_algorithm = Player_AI_RL::PRESET_ALGORITHMS::FIRSTVISIT_EPISODIC_ALPHA_MC;
+		player->config_preset_algorithm = Player_AI_RL::PRESET_ALGORITHMS::TD_LAMBDA;
 
 		//// other TD update settings (if not already defined by the selected preset algorithm)
-		player->config_TDupdateType = Player_AI_RL::TD_UPDATES::BATCH_EPISODIC;
-		player->config_trace_type = Player_AI_RL::ELIGIBILITY_TRACES::REPLACING;
+		player->config_TDupdateType = Player_AI_RL::TD_UPDATES::ONLINE;
+		player->config_trace_type = Player_AI_RL::ELIGIBILITY_TRACES::ACCUMULATING;
 		player->config_alpha_type = Player_AI_RL::UPDATESTEP_ALPHA::MONTE_CARLO;
 
 		//// parameter values (if not already defined by the selected preset algorithm)
 		player->par_td_lambda = 1.0;
-		player->par_td_alpha = 0.1;
-		player->par_td_initVal = 1.0;
-		player->par_num_episodes = 100;
+		player->par_td_alpha = 0.5;
+		player->par_td_initVal = 0.5;
+		player->par_num_episodes = 25;
 
 		//-- end of user-defined experimental settings (do not change code below this line unless you know what you are doing)
 
@@ -497,10 +480,10 @@ namespace Tests_TDMCTS
 		//-- game configuration
 		game->config_walk_length = 19;
 		game->maximum_plys = 10000;
-		game->param_score_win = 1.0;
-		game->param_score_lose = 0.0;
+		game->param_score_win = 0.0;
+		game->param_score_lose = -1.0;
+		game->param_score_step = -1.0;
 		game->param_score_draw = 0.0;
-		game->param_score_step = 0.0;
 		game->maxScore = 1.0;
 		game->minScore = 0.0;
 
@@ -513,10 +496,10 @@ namespace Tests_TDMCTS
 
 		//// other TD update settings (if not already defined by the selected preset algorithm)
 		player->config_trace_exploratory_reset = Player_AI_RL::ELIGIBILITY_EXPLORATORY_RESET::DISABLED;
-		player->config_rollout_assumption = Player_AI_RL::ROLLOUT_VALUE_ASSUMPTIONS::INITIAL;
+		player->config_rollout_assumption = Player_AI_RL::ROLLOUT_VALUE_ASSUMPTIONS::EQUAL_INITIAL;
 
 		//// settings not defined by presets
-		player->config_transpositions = Game_Engine::TRANSPOSITIONS::STATES;
+		player->config_transpositions = Game_Engine::TRANSPOSITIONS::DISABLED;
 		player->config_num_new_nodes_per_episode = -1;
 		player->config_offpolicy_backup_recheck_best = 0;
 
@@ -545,7 +528,7 @@ namespace Tests_TDMCTS
 		Player_Engine* players[] = { player };
 		game->players = players;
 		player->player_number = 0;
-		player->config_experiment = Player_AI_RL::EXPERIMENTAL_SETTINGS::METRICS_PER_TIMESTEPS;
+		player->config_experiment = Player_AI_RL::EXPERIMENTAL_SETTINGS::RW_RIGHTWIN_METRICS_PER_TIMESTEPS;
 		char* procedureName = "Experiment_RandomWalk_perTimeStep()";
 		char* xAxisLabel = "timeStep";
 
@@ -559,10 +542,9 @@ namespace Tests_TDMCTS
 		int show_per_repeat_output = -1;	// which metric should be printed out after each repeat (-1 disabled)
 
 		//// preset algorithm (for details see procedure "Apply_Preset_Config()" in "Player_AI_RL.cpp")
-		//player->config_preset_algorithm = Player_AI_RL::PRESET_ALGORITHMS::EPISODIC_CONSTANT_MC;
+		//player->config_preset_algorithm = Player_AI_RL::PRESET_ALGORITHMS::EPISODIC_MC;
 		//player->config_preset_algorithm = Player_AI_RL::PRESET_ALGORITHMS::ONLINE_TD_ZERO_ONPOLICY;
 		//player->config_preset_algorithm = Player_AI_RL::PRESET_ALGORITHMS::EPISODIC_TD_ZERO_ONPOLICY;
-		//player->config_preset_algorithm = Player_AI_RL::PRESET_ALGORITHMS::EPISODIC_LAMBDA_RETURN;
 		//player->config_preset_algorithm = Player_AI_RL::PRESET_ALGORITHMS::FIRSTVISIT_MC_ONPOLICY;
 		//player->config_preset_algorithm = Player_AI_RL::PRESET_ALGORITHMS::EVERYVISIT_MC_ONPOLICY;
 		player->config_preset_algorithm = Player_AI_RL::PRESET_ALGORITHMS::TD_LAMBDA;
@@ -572,7 +554,7 @@ namespace Tests_TDMCTS
 
 		//// other TD update settings (if not already defined by the selected preset algorithm)
 		player->config_trace_exploratory_reset = Player_AI_RL::ELIGIBILITY_EXPLORATORY_RESET::DISABLED;
-		player->config_rollout_assumption = Player_AI_RL::ROLLOUT_VALUE_ASSUMPTIONS::INITIAL;
+		player->config_rollout_assumption = Player_AI_RL::ROLLOUT_VALUE_ASSUMPTIONS::EQUAL_INITIAL;
 		player->config_TDupdateType = Player_AI_RL::TD_UPDATES::BATCH_EPISODIC;
 		player->config_trace_type = Player_AI_RL::ELIGIBILITY_TRACES::REPLACING;
 		player->config_alpha_type = Player_AI_RL::UPDATESTEP_ALPHA::MONTE_CARLO;
@@ -608,8 +590,8 @@ namespace Tests_TDMCTS
 		game->maximum_plys = 10000;
 		game->param_score_win = 1.0;
 		game->param_score_lose = 0.0;
-		game->param_score_draw = 0.0;
 		game->param_score_step = 0.0;
+		game->param_score_draw = 0.0;
 		game->maxScore = 1.0;
 		game->minScore = 0.0;
 
@@ -647,6 +629,8 @@ namespace Tests_TDMCTS
 		//// apply settings
 		game->Settings_Apply_Changes();
 		player->Apply_Settings();
+		if (player->config_experiment == Player_AI_RL::EXPERIMENTAL_SETTINGS::RW_RIGHTWIN_METRICS_PER_EPISODES)
+			game->Compute_OptimalStateValues();
 
 		//initial output
 		gmp->Print("\n%s\n", experimentName);

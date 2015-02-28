@@ -45,10 +45,10 @@ namespace Tests_TDMCTS
 	void Experiment_RandomWalk_perEpisode_Batch_RunConfiguration(
 		int* address_configurationSerialID,
 		int algorithmSerialID,
+		int num_repeats,
 		int config_walk_length,
 		int maximum_plys,
 		int par_num_episodes,
-		int num_repeats,
 		double par_td_initVal,
 		double par_td_alpha,
 		double par_td_lambda,

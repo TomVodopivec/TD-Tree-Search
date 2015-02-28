@@ -32,18 +32,17 @@ public:
 // WARNING: presets override some other configuration settings
 	struct PRESET_ALGORITHMS{
 		enum TYPE {
-			NONE,						// No preset used: all configuration options apply (none is overriden)
-			FIRSTVISIT_MC_ONPOLICY,		// First-visit on-policy Monte Carlo control: equals to offline replacing-traces TD(1) with alpha = (1/visits), and equals to MCTS
-			EVERYVISIT_MC_ONPOLICY,		// Every-visit on-policy Monte Carlo control
-			EPISODIC_CONSTANT_MC,		// Batch (by episodes) constant-alpha Monte Carlo control (on-policy)
-			EPISODIC_LAMBDA_RETURN,		// Batch (by episodes) lambda-return (on-policy)
-			ONLINE_TD_ZERO_ONPOLICY,	// Online on-policy TD(0), SARSA(0)	
-			EPISODIC_TD_ZERO_ONPOLICY,	// Batch (by episodes) on-policy TD(0), SARSA(0)	
-			TD_LAMBDA,					// General TD(lambda), SARSA(lambda)
-			ONLINE_WATKINS_Q,			// Watkin's Q(lambda), with online updates
-			ONLINE_NAIVE_Q,				// Naive Q(lambda), a Watkin's Q-learning variant that does not zero eligibility traces for exploratory actions, with online updates
-			PENGS_Q,					// -- NOT IMPLEMENTED YET -- Peng's Q(lambda), a Q-learning variant that does not zero traces for all exploratory actions -> a merge between Watkin's Q(lambda) and SARSA(lambda)
-			MCTS_UCT,					// Upper Confidence Bounds applied to Trees, the most popular Monte Carlo Tree Search algorithm
+			NONE,							// No preset used: all configuration options apply (none is overriden)
+			FIRSTVISIT_MC_ONPOLICY,			// First-visit on-policy Monte Carlo control: equals to offline replacing-traces TD(1) with alpha = (1/visits), and equals to MCTS
+			EVERYVISIT_MC_ONPOLICY,			// Every-visit on-policy Monte Carlo control
+			FIRSTVISIT_EPISODIC_ALPHA_MC,	// Batch (by episodes) first-visit arbitrary-step-rate-alpha Monte Carlo
+			ONLINE_TD_ZERO_ONPOLICY,		// Online on-policy TD(0), SARSA(0)	
+			EPISODIC_TD_ZERO_ONPOLICY,		// Batch (by episodes) on-policy TD(0), SARSA(0)	
+			TD_LAMBDA,						// General TD(lambda), SARSA(lambda)
+			ONLINE_WATKINS_Q,				// Watkin's Q(lambda), with online updates
+			ONLINE_NAIVE_Q,					// Naive Q(lambda), a Watkin's Q-learning variant that does not zero eligibility traces for exploratory actions, with online updates
+			PENGS_Q,						// -- NOT IMPLEMENTED YET -- Peng's Q(lambda), a Q-learning variant that does not zero traces for all exploratory actions -> a merge between Watkin's Q(lambda) and SARSA(lambda)
+			MCTS_UCT,						// Upper Confidence Bounds applied to Trees, the most popular Monte Carlo Tree Search algorithm
 			ENUM_COUNT_ELEMENTS	// must be last element in enum, do not remove: used to return the number of elements in enumerator
 		};
 		static const char * stringLabels[ENUM_COUNT_ELEMENTS];
@@ -62,7 +61,7 @@ public:
 
 	struct POLICY_EVALUATIONS{
 		enum TYPE {
-			CONSTANT_MC,					// the constant-alpha Monte Carlo update rule
+			EPISODIC_MC,					// the constant-alpha Monte Carlo update rule
 			TDLAMBDA_ONPOLICY,				// the general onpolicy TD(lambda) evaluation policy -> produces the SARSA(lambda) algorithm
 			TDLAMBDA_OFFPOLICY_Q_LEARNING,	// Watkin's or Naive Q(lambda) algorithm
 			//TDLAMBDA_OFFPOLICY_PENGS_Q,	// -- NOT IMPLEMENTED YET -- 
@@ -123,15 +122,16 @@ public:
 
 	struct ROLLOUT_VALUE_ASSUMPTIONS{	// what is the assumed value of non-memorized nodes (as MCTS is using in the rollout phase)
 		enum TYPE {
-			INITIAL,				// the default initial value (par_td_initVal)
-			ZERO,					// a value of 0.0
-			LAST_MEMORIZED,			// the value of the last memorized node (leaf in the tree)
-			CONVERGED_TO_REWARD,	// values optimally converged considering the rewards received to the end of the episode or, if transpositions are used, until a memorized state is met
+			EQUAL_INITIAL,					// the default initial value (par_td_initVal)
+			EQUAL_ZERO,						// a value of 0.0 (no TDerrors due to bootstrapping in the playout phase)
+			EQUAL_LAST_MEMORIZED,			// the value of the last memorized node (leaf in the tree)
+			CONVERGED_TO_NEXT_MEMORIZED,	// values optimally converged to first next encountered memorized value or to the terminal state (episode end), also considering the received reward (no TDerrors due to bootstrapping in the playout phase)
+			CONVERGED_TO_LAST_MEMORIZED,	// values optimally converged to last memorized value (no TDerrors due to bootstrapping in the playout phase)
 			ENUM_COUNT_ELEMENTS	// must be last element in enum, do not remove: used to return the number of elements in enumerator
 		};
 		static const char * stringLabels[ENUM_COUNT_ELEMENTS];
 	};
-	static const ROLLOUT_VALUE_ASSUMPTIONS::TYPE DEFAULT_ROLLOUT_VALUE_ASSUMPTION = ROLLOUT_VALUE_ASSUMPTIONS::INITIAL;
+	static const ROLLOUT_VALUE_ASSUMPTIONS::TYPE DEFAULT_ROLLOUT_VALUE_ASSUMPTION = ROLLOUT_VALUE_ASSUMPTIONS::EQUAL_INITIAL;
 	
 	struct UPDATESTEP_ALPHA{
 		enum TYPE {
@@ -272,11 +272,12 @@ public:
 	static const int DEFAULT_OUTPUT_MEMORY_TREEDEPTH = 3;	// print depth of the memorzied tree (-1 - entire tree, 0 - root, 1 - root's children, ... )
 
 	// EXPERIMENTAL SETTINGS
-	struct EXPERIMENTAL_SETTINGS{	// do not change the ordering
+	struct EXPERIMENTAL_SETTINGS{	// IF YOU ADD NEW ENTRIES, BE SURE TO ADD NEW ENTRIES ALSO FOR experimentNumMetrics[]
+		// do not change the order
 		enum TYPE {
 			NONE,
-			METRICS_PER_EPISODES,
-			METRICS_PER_TIMESTEPS,
+			RW_RIGHTWIN_METRICS_PER_EPISODES,
+			RW_RIGHTWIN_METRICS_PER_TIMESTEPS,
 			ENUM_COUNT_ELEMENTS	// must be last element in enum, do not remove: used to return the number of elements in enumerator
 		};
 		static const char * stringLabels[ENUM_COUNT_ELEMENTS];
@@ -366,8 +367,9 @@ public:
 	int trajectory_maxLength;	//maximum length of a trajectory (usually defined by the maximum length of an episodic task/game)
 	
 	int exploratory_move_trace_cutOff, exploratory_move_trace_cutOff_new;		//needed for backups when using offpolicy learning with eligibility traces
-	int lastMetMemorizedState_trajIndex;	//needed for backup value assumptions of non-memorized nodes
-	int nextPendingBackup_trajIndex;		//needed for backup value assumptions of non-memorized nodes
+	int lastMetMemorizedState_trajIndex;	//needed for ROLLOUT_VALUE_ASSUMPTIONS::LAST_MEMORIZED
+	int nextPendingBackup_trajIndex;		//needed for ROLLOUT_VALUE_ASSUMPTIONS::CONVERGED_TO_REWA
+	double lastAssumedValue;				//needed for ROLLOUT_VALUE_ASSUMPTIONS::CONVERGED_TO_LEAF
 
 	//HashTree::TreeNode* lastMetMemorizedState;	
 
@@ -393,20 +395,11 @@ public:
 	//public variables - runtime and optimization settings
 	bool	internal_game_force_copy;
 
-	////public variables - UCT learning parameters
-	//int		UCT_param_SimPerIter;				//number of simulations per iteration
-
 	////public variables - function approximation parameters
 	//Tom_Function_Approximator* Func_App_UCT_Params;
 	//int Func_App_UCT_num_params;
 
-	////public variables - current state
-	//int UCT_num_plys;
-	//int MCTS_current_simuNum;
-	//int MCTS_num_all_simulations;
-
 	//public vairables - debug and visualization settings
-
 	int config_output_depth;
 
 	int	config_output_simGameState;
@@ -427,10 +420,6 @@ public:
 	EXPERIMENTAL_SETTINGS::TYPE config_experiment;	// externally selected experimental setting
 	Tool_Sample_Storage*** experiment_results;	// externally allocated 2d array of pointers to objects Tool_Sample_Storage to store results
 	double* experiment_timers;					// array of times (usually contains externally defined starting times)
-
-	//int  output_type;
-	//double	debug_dbl_cnt1, debug_dbl_cnt2;
-	//int	 output_level_headers_created;
 
 	//statics
 	static const char * settingsLabels[];
@@ -482,7 +471,7 @@ protected:
 	virtual double		GetTDerror(int trajectory_index, char* printLinePrefix = NULL);
 	virtual void		BackupTDerror(double TDerror, int trajectory_index, char* printLinePrefix = NULL);
 
-	virtual void		ConstantMCsingleBackup(int trajectory_index, char* printLinePrefix = NULL);
+	virtual void		EpisodicMCsingleBackup(int trajectory_index, char* printLinePrefix = NULL);
 
 	virtual double		GetRolloutAssumedValue(int trajectory_index);
 	virtual double		GetStateBestActionValue(HashTree::TreeNode* node, REWARD_GOALS::TYPE goal);

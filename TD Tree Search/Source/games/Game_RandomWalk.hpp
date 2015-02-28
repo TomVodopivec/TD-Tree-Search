@@ -13,13 +13,13 @@ class Game_RandomWalk : public Game_Engine
 
 public:
 
-	//default values
-#define DEFAULT_WALK_LENGTH			5		//currently maximum 255 (or 127, not sure, due to 'char' type implementation of Game_Engine)
-#define DEFAULT_MAXPLIES			10000
-#define DEFAULT_REWARD_WIN			1.0
-#define DEFAULT_REWARD_LOSE			0.0
-#define DEFAULT_REWARD_STEP			0.0
-#define DEFAULT_REWARD_MAXPLIES		0.0
+	//consts - default values
+	static const int	DEFAULT_WALK_LENGTH;
+	static const int	DEFAULT_MAXPLIES;		
+	static const double	DEFAULT_REWARD_WIN;		
+	static const double	DEFAULT_REWARD_LOSE;	
+	static const double	DEFAULT_REWARD_STEP;	
+	static const double DEFAULT_REWARD_MAXPLIES;
 
 	//public procedures - engine
 	Game_RandomWalk(Game_Engine* source_game = TOMGAME_ENGINE_CONSTRUCTOR_NO_COPY);	//Constructor
@@ -48,7 +48,8 @@ public:
 
 	//public variables - game history
 
-	//public variables - debug
+	//public variables - experiments, visualization and debug
+	void Compute_OptimalStateValues();
 
 	//statics
 	static const char * settingsLabels[];

@@ -73,6 +73,16 @@ namespace Tests_TDMCTS
 		int config_IndexEnd
 		);
 
+
+	void Experiment_RandomWalk_perEpisode_Batch_DEBUG_RW21_negativeStep_episodes10k(int startIndex = -1, int endIndex = -1);
+	void Experiment_RandomWalk_perEpisode_Batch_DEBUG_rollout_assumptions_equality_RW21(int startIndex = -1, int endIndex = -1);
+	void Experiment_RandomWalk_perEpisode_Batch_DEBUG_RW21_initialValues(int startIndex = -1, int endIndex = -1);
+	void Experiment_RandomWalk_perEpisode_Batch_DEBUG_RW21_numNewNodes(int startIndex = -1, int endIndex = -1);
+	void Experiment_RandomWalk_perEpisode_Batch_DEBUG_RW_differentLengths(int startIndex = -1, int endIndex = -1);
+	
+	void Experiment_RandomWalk_perEpisode_Batch_stepNegativeReward(int startIndex = -1, int endIndex = -1);
+	void Experiment_RandomWalk_perEpisode_Batch_DifferentInitialValues(int startIndex = -1, int endIndex = -1);
+	void Experiment_RandomWalk_perEpisode_Batch_LambdaSensitivity100(int startIndex = -1, int endIndex = -1);
 }
 
 #endif

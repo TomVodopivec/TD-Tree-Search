@@ -44,6 +44,7 @@ public:
 			ENUM_COUNT_ELEMENTS	// must be last element in enum, do not remove: used to return the number of elements in enumerator
 		};
 		static const char * stringLabels[ENUM_COUNT_ELEMENTS];
+		static const char * stringLabels2char[ENUM_COUNT_ELEMENTS];
 	};
 
 	//constructor

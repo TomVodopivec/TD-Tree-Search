@@ -331,7 +331,7 @@ void Game_RandomWalk::Compute_OptimalStateValues()
 
 	//optimalne vrednosti za RW, ko za vsak premik dobiš - 1 reward in na levi in desni sta terminal state z reward 0:
 	//*optimalne vrednosti : terminal node ima reward 0, potem pa akumuliraš proti sredini tako da nastaviš X(zaèetna) = dolžina - 2 in potem vsakiè X zmanjšaš za 2 (do najmanj 3) in kumulativno odštevaš
-	//	->primer : pri RW dolžine 9 imajo stanja vrednosti : 0, -7, -7 - 5, -7 - 5 - 3, -7 - 5 - 3, -7 - 5 - 3, -7 - 5, -7, 0
+	//	->primer : pri RW dolžine 9 imajo stanja vrednosti : 0, -7, -7-5, -7-5- 3, -7-5-3, -7-5-3, -7-5, -7, 0
 	//	* èe je na levi terminal state z - 1 : potem se samo vsem stanjem odšteje naslednjo vrednost(od desne proti desni, i od 0 do dolžina) : (dolžina - 1)*i
 	//	->primer : PRI RW dolžine 5 imajo stanja vrednosti : -1, -3.75, -3.50, -3.25, 0
 

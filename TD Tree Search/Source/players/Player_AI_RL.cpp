@@ -550,6 +550,9 @@ int Player_AI_RL::SingleExternalMove()
 bool Player_AI_RL::SingleEpisode()
 {
 
+	//if ((this->config_output_depth == -2) && (this->numEpisodes_lastMove == 0))
+	//	this->config_output_depth = 1;
+
 	//if (this->numEpisodes_lastMove >= 14)
 	//	printf("stop");
 
@@ -704,6 +707,12 @@ bool Player_AI_RL::SingleEpisode()
 	// visualization, experimental output, and debug: after a single episode
 	Output_Episode_End();
 		
+	//if ((this->config_output_depth == -2))
+	//	Output_Memory();
+
+	/*if ((this->config_output_depth == 1) && (this->numEpisodes_lastMove == 1))
+		this->config_output_depth = -2;
+*/
 	// return bool whether to simulate another episode (if budget is available)
 	return computeNextEpisode;
 }
@@ -2318,6 +2327,14 @@ const char * Player_AI_RL::ROLLOUT_VALUE_ASSUMPTIONS::stringLabels[ENUM_COUNT_EL
 	"CONVERGED_TO_NEXT_MEMORIZED",
 	"CONVERGED_TO_LAST_MEMORIZED",
 };
+const char * Player_AI_RL::ROLLOUT_VALUE_ASSUMPTIONS::stringLabels2char[ENUM_COUNT_ELEMENTS] =
+{
+	"EI",
+	"EZ",
+	"EL",
+	"CN",
+	"CL",
+};
 const char * Player_AI_RL::UPDATESTEP_ALPHA::stringLabels[ENUM_COUNT_ELEMENTS] =
 {
 	"CONSTANT",	
@@ -2385,7 +2402,7 @@ void Player_AI_RL::Experiment_EpisodeMetrics(int depth)
 
 	double trueValue, predictedValue;
 	double e, mse, rmse;
-	double bestVal, bestInd;
+	double bestVal, bestInd, bestNumEqual;
 
 	//per episode level
 	if (depth == 2){
@@ -2396,9 +2413,6 @@ void Player_AI_RL::Experiment_EpisodeMetrics(int depth)
 			gmp->Print("ERROR: Player_AI_RL::Experiment_valueError_per_episodes(): game has less than 3 states (%d)\n", num_samples);
 			return;
 		}
-
-		//if (this->par_task_gamma != 1.0)
-		//	gmp->Print("WARNING: Player_AI_RL::Experiment_valueError_per_episodes(): gamma not equal 1.0, errors will be incorrect!\n");
 
 		//[0] get the RMSE across all states (ONLY if STATES transpositions are in use)
 		rmse = 0.0;	
@@ -2442,8 +2456,9 @@ void Player_AI_RL::Experiment_EpisodeMetrics(int depth)
 		//[3] is the optimal action evaluated better than the others?
 		rmse = 0.0;
 		mse = 0.0;
-		bestInd = 0;
 		bestVal = -DBL_MAX;
+		bestInd = 0;
+		bestNumEqual = 0;
 		if (this->internalGameActiveNode != NULL){
 			for (int i = 0; i < this->internalGameActiveNode->num_children; i++){
 				if (i == 0)
@@ -2461,6 +2476,10 @@ void Player_AI_RL::Experiment_EpisodeMetrics(int depth)
 				if (predictedValue > bestVal){
 					bestVal = predictedValue;
 					bestInd = i;
+					bestNumEqual = 1;
+				}
+				else if (predictedValue == bestVal){
+					bestNumEqual++;
 				}
 			}
 			rmse = sqrt(mse / (double)(this->internalGameActiveNode->num_children));
@@ -2470,9 +2489,14 @@ void Player_AI_RL::Experiment_EpisodeMetrics(int depth)
 		else
 			(this->experiment_results[2][this->numEpisodes_lastMove])->Add_Sample(NAN, true, true);
 
-		double rootActionOptimal = 0.0;
-		if (bestInd == 1)
+		double rootActionOptimal;
+		if (bestNumEqual > 1)
+			rootActionOptimal = 0.5;
+		else if (bestInd == 1)
 			rootActionOptimal = 1.0;
+		else
+			rootActionOptimal = 0.0;
+
 		(this->experiment_results[3][this->numEpisodes_lastMove])->Add_Sample(rootActionOptimal, true, true);
 
 		//[4] is the whole policy optimal? (e.g., in randomWalk all actions lead to right by following a greedy policy)
@@ -2513,7 +2537,7 @@ void Player_AI_RL::Experiment_TimeStepMetrics(int depth)
 {
 	double trueValue, predictedValue;
 	double e, mse, rmse;
-	double bestVal, bestInd;
+	double bestVal, bestInd, bestNumEqual;
 
 	//per time step (action) level
 	if (depth == 3){
@@ -2545,8 +2569,9 @@ void Player_AI_RL::Experiment_TimeStepMetrics(int depth)
 		//[3] is the optimal action evaluated better than the others?
 		rmse = 0.0;
 		mse = 0.0;
-		bestInd = 0;
 		bestVal = -DBL_MAX;
+		bestInd = 0;
+		bestNumEqual = 0;
 		if (this->internalGameActiveNode != NULL){
 			for (int i = 0; i < this->internalGameActiveNode->num_children; i++){
 				if (i == 0)
@@ -2564,6 +2589,9 @@ void Player_AI_RL::Experiment_TimeStepMetrics(int depth)
 					bestVal = predictedValue;
 					bestInd = i;
 				}
+				else if (predictedValue == bestVal){
+					bestNumEqual++;
+				}
 			}
 			rmse = sqrt(mse / (double)(this->internalGameActiveNode->num_children));
 		}
@@ -2572,9 +2600,14 @@ void Player_AI_RL::Experiment_TimeStepMetrics(int depth)
 		else
 			(this->experiment_results[2][this->numSimulatedActions_lastMove])->Add_Sample(NAN, true, true);
 
-		double rootActionOptimal = 0.0;
-		if (bestInd == 1)
+		double rootActionOptimal;
+		if (bestNumEqual > 1)
+			rootActionOptimal = 0.5;
+		else if (bestInd == 1)
 			rootActionOptimal = 1.0;
+		else
+			rootActionOptimal = 0.0;
+
 		(this->experiment_results[3][this->numSimulatedActions_lastMove])->Add_Sample(rootActionOptimal, true, true);
 
 		//[4] average reward increase per timeStep (computed out of two successive samples), the inverse value (1/x) equals to the average episode duration

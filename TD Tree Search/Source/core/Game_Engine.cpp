@@ -1295,7 +1295,12 @@ const char * Game_Engine::TRANSPOSITIONS::stringLabels[ENUM_COUNT_ELEMENTS] =
 	"STATES",
 	"STATEACTIONS",
 };
-
+const char * Game_Engine::TRANSPOSITIONS::stringLabels2char[ENUM_COUNT_ELEMENTS] =
+{
+	" T",	//tree
+	" S",	//states
+	"SA",	//state-actions
+};
 
 //
 ///**

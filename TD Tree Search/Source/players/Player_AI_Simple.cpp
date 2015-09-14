@@ -22,7 +22,10 @@ Player_AI_Simple::Player_AI_Simple(Game_Engine* game, int new_player_number) : P
 //destructor
 Player_AI_Simple::~Player_AI_Simple(void)
 {
-	Clear_Memory();
+	if (is_initialized){
+		Clear_Memory();
+		is_initialized = false;
+	}
 }
 
 void Player_AI_Simple::Init_Settings()

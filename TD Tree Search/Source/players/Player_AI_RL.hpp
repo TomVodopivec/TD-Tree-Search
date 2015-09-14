@@ -56,6 +56,7 @@ public:
 			ENUM_COUNT_ELEMENTS	// must be last element in enum, do not remove: used to return the number of elements in enumerator
 		};
 		static const char * stringLabels[ENUM_COUNT_ELEMENTS];
+		static const char * stringLabels2char[ENUM_COUNT_ELEMENTS];
 	};
 	static const CONTROL_POLICIES::TYPE DEFAULT_CONTROL_POLICY = CONTROL_POLICIES::EGREEDY;
 
@@ -165,7 +166,7 @@ public:
 	const UCB_NORMALIZATION_LOCALITY::TYPE DEFAULT_UCB_NORMALIZATION_LOCALITY = UCB_NORMALIZATION_LOCALITY::GLOBAL;
 	struct UCB_GLOBAL_NORMALIZATIONS{
 		enum TYPE {
-			KNOWN_RETURN,		// use the known min/max return (sum of rewards) per episode
+			KNOWN_RETURN,		// use the known min/max return (sum of rewards) per episode (the bounds get initialized apriori if the problem/game definition reveals this information)
 			OBSERVED_RETURN,	// use the observed min/max return (sum of rewards) per episode
 			ENUM_COUNT_ELEMENTS	// must be last element in enum, do not remove: used to return the number of elements in enumerator
 		};
@@ -183,17 +184,24 @@ public:
 	};
 	static const UCB_LOCAL_NORMALIZATIONS::TYPE DEFAULT_UCB_LOCAL_NORMALIZATION = UCB_LOCAL_NORMALIZATIONS::BRANCH_CURRENT_QVAL;
 
-	static const int DEFAULT_NONEPISODICTASKS_UPDATEINTERVAL = 100;
 	// the number of steps between updates for non-episodic tasks (if updates are not online)
+	static const int DEFAULT_NONEPISODICTASKS_UPDATEINTERVAL = 100;
+
+	// number of steps for the exploratory-weight linear decrease to zero (by different levels)
+	static const int DEFAULT_EXPLORATION_LINEARZERO_EXTERNALMOVES = 0;
+	static const int DEFAULT_EXPLORATION_LINEARZERO_EPISODES = 0;
+	static const int DEFAULT_EXPLORATION_LINEARZERO_SIMULATEDMOVES = 0;
 
 	static const double DEFAULT_PAR_EPSILON;
 	static const double DEFAULT_PAR_UCB_C;
 
+	// reinforcement learning parameters
 	static const double DEFAULT_PAR_TASK_GAMMA;
 	static const double DEFAULT_PAR_TD_ALPHA;
 	static const double DEFAULT_PAR_TD_LAMBDA;
 	static const double DEFAULT_PAR_TD_INITVAL;
 
+	// MCTS (planning) parameters
 	static const int DEFAULT_NUM_EPISODES_PER_MOVE = 10000;		//computational resource limit: number of episodes per external move, set on -1 for no limit
 	static const int DEFAULT_SIMULATEDACTIONS_PER_MOVE = -1;		//computational resource limit: number of simulated actions per external move, set on -1 for no limit
 	static const int DEFAULT_SIMULATED_HORIZON_LENGTH = -1;		//horizon length for simulated episodes (number of actions per episode), set -1 for no limit
@@ -273,12 +281,13 @@ public:
 	static const int DEFAULT_OUTPUT_MEMORY_TREEDEPTH = 3;	// print depth of the memorzied tree (-1 - entire tree, 0 - root, 1 - root's children, ... )
 
 	// EXPERIMENTAL SETTINGS
-	struct EXPERIMENTAL_SETTINGS{	// IF YOU ADD NEW ENTRIES, BE SURE TO ADD NEW ENTRIES ALSO FOR experimentNumMetrics[]
+	struct EXPERIMENTAL_SETTINGS{	// IF YOU ADD NEW ENTRIES, BE SURE TO ADD NEW ENTRIES ALSO FOR experimentNumMetrics[] AND FOR experimentLabels[] AND FOR EXPERIMENTAL_SETTINGS::stringLabels[]
 		// do not change the order
 		enum TYPE {
 			NONE,
 			RW_RIGHTWIN_METRICS_PER_EPISODES,
 			RW_RIGHTWIN_METRICS_PER_TIMESTEPS,
+			TTT_METRICS_PER_TIMESTEPS,
 			ENUM_COUNT_ELEMENTS	// must be last element in enum, do not remove: used to return the number of elements in enumerator
 		};
 		static const char * stringLabels[ENUM_COUNT_ELEMENTS];
@@ -344,6 +353,10 @@ public:
 	OPPONENT_ALIGNMENTS::TYPE	config_opponent_alignment;
 	OPPONENT_POLICIES::TYPE		config_opponent_policy;
 
+	int		config_ExplorationLinear_maxExtMoves;
+	int		config_ExplorationLinear_maxEpisodes;
+	int		config_ExplorationLinear_maxActions;
+
 	double par_egreedy_e;
 	double par_ucb_c;
 
@@ -376,6 +389,8 @@ public:
 
 	//current state variables
 	HashTree::TreeNode* internalGameActiveNode;	//the active starting state (node) for each simulation - the root node for each episode
+	int		numExternalMoves_all;				//number of all external moves (including all agent's moves)
+	int		numExternalMoves_own;				//number of own external moves (how many times this agent effectuated an output move)
 	int		numEpisodes_lastMove;				//number of computed episodes in last external move (last batch)
 	int		numEpisodes_total;					//number of all computed episodes (also over all external game steps) (since reset())
 	int		numSimulatedActions_previousEpisode;//number of simulated actions in the previous episode (gets updated at each episode termination)
@@ -384,7 +399,7 @@ public:
 	int		numSimulatedActions_total;			//number of all simulated actions, number of calls to simulatedGame->Play_Move()
 	int		numNewStates_lastEpisode;			//number of memorized new states in last episode (needed to replicate MCTS behaviour)
 	int		numVisitedKnownStates_lastEpisode;	//number of visited nodes in the last episode that were already known from previous episodes
-	double	sumSimulatedRewards_lastEpisode;	//cumulative sum of rewards in last episode
+	double	sumSimulatedRewards_lastEpisode;	//cumulative sum of rewards (return) in last episode
 	double	sumSimulatedRewards_lastMove;		//cumulative sum of rewards in last external move
 	double	sumSimulatedRewards_total;			//cumulative sum of rewards in total (since reset())
 
@@ -393,6 +408,7 @@ public:
 	double	maximumObservedReturn;	//highest recorded (encountered) return so far, is not discounted with par_gamma
 	double	minimumObservedReturn;	// lowest recorded (encountered) return so far, is not discounted with par_gamma
 
+	double	computed_explorationWeight;		//last value used for exploration-weight
 	//public variables - runtime and optimization settings
 	bool	internal_game_force_copy;
 

@@ -16,11 +16,12 @@ class Game_TicTacToe : public Game_Gomoku
 public:
 
 	//default values
-#define TICTACTOE_BOARD_LENGTH	3
-#define TICTACTOE_WIN_CONNECTED_PIECES 3
-#define TICTACTOE_SCORE_WIN		1.0
-#define TICTACTOE_SCORE_LOSE	0.0
-#define TICTACTOE_SCORE_DRAW	0.5
+	static const int TICTACTOE_BOARD_LENGTH;
+	static const int TICTACTOE_WIN_CONNECTED_PIECES;
+	static const double TICTACTOE_SCORE_START;
+	static const double TICTACTOE_SCORE_WIN;
+	static const double TICTACTOE_SCORE_LOSE;
+	static const double TICTACTOE_SCORE_DRAW;
 
 	//public procedures - engine
 	Game_TicTacToe(Game_Engine* source_game = TOMGAME_ENGINE_CONSTRUCTOR_NO_COPY);	//Constructor

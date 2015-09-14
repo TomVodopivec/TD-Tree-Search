@@ -21,7 +21,10 @@ Player_AI_UCT::Player_AI_UCT(Game_Engine* game, int player_number) : Player_Engi
 //destructor
 Player_AI_UCT::~Player_AI_UCT(void)
 {
-	Clear_Memory();
+	if (is_initialized){
+		Clear_Memory();
+		is_initialized = false;
+	}
 }
 
 //allocate memory and initialize variables
@@ -56,6 +59,7 @@ void Player_AI_UCT::Init_Settings()
 	UCT_param_IterNum = TOMPLAYER_AI_UCT_PARAM_NUMBER_ITERATIONS;
 	UCT_param_defaultPolicy_maxPlys = TOMPLAYER_AI_UCT_PARAM_DEFAULT_MAX_PLAYS;
 	UCTtree_preserve = TOMPLAYER_AI_UCT_PARAM_PRESERVE_TREE;
+	UCT_param_SimMoveNum = -1;
 	
 }
 
@@ -91,6 +95,7 @@ void Player_AI_UCT::New_Game2()
 	
 	//null history-storing variables
 	lastAction_node = NULL;
+	numIterations_total = 0;
 }
 
 //public procedure: reset player (reset all learning values)
@@ -116,7 +121,7 @@ void Player_AI_UCT::New_Game()
 		UCTroot = UCTroot_memory;
 		New_Game2();
 	}else{
-		Reset();		//calls reset1(), newGame(), newGame1()
+		Reset();		//calls reset1(), newGame(), newGame2()
 	}
 
 }
@@ -192,7 +197,10 @@ int Player_AI_UCT::UCT()
 	double* final_rewards;
 
 	//execute simulations with given computational budget
+	last_extMove_numSimMoves = 0;
+	this->numIterations_lastMove = 0;
 	for(int i = 0; i < UCT_param_IterNum; i++){
+
 
 		//RESET simulated game position to initial state
 		simulatedGame->Copy_Game_State_From(internalGame,false);
@@ -215,6 +223,9 @@ int Player_AI_UCT::UCT()
 			i = UCT_param_IterNum;	//end the simulations loop
 		}
 
+		//check if computational budged is exceeded (number of simulated moves)
+		if ((UCT_param_SimMoveNum > 0) && (last_extMove_numSimMoves >= UCT_param_SimMoveNum))
+			i = UCT_param_IterNum;
 
 		//DEBUG
 		//if (this->player_number == 1)
@@ -243,6 +254,9 @@ int Player_AI_UCT::UCT()
 		Output_UCT_Tree();
 #endif
 
+		//increase global counters
+		this->numIterations_lastMove++;
+		this->numIterations_total++;
 	}
 
 	//DEBUG
@@ -283,8 +297,9 @@ Player_AI_UCT::UCTnode* Player_AI_UCT::UCT_Tree_Policy(UCTnode* root)
 			//select best child node/action
 			currentNode = UCT_Tree_Policy_Best_Child(currentNode, UCT_param_C);
 
-			//play simulated game (if game not ended yet playMove() returns value 0)
+			//play simulated move (if game not ended yet Play_Move() returns value 0)
 			terminalNode = simulatedGame->Play_Move(currentNode->action_index);
+			last_extMove_numSimMoves++;
 		
 			//DEBUG
 #if(TOMPLAYER_AI_UCT_DEBUG_TRACE_BEST_UCT)
@@ -297,12 +312,17 @@ Player_AI_UCT::UCTnode* Player_AI_UCT::UCT_Tree_Policy(UCTnode* root)
 			//select a nontried action
 			currentNode = UCT_Expand(currentNode);
 
-			//play simulated game
+			//play simulated move
 			simulatedGame->Play_Move(currentNode->action_index);
-			
+			last_extMove_numSimMoves++;
+
 			//is last node in tree
 			terminalNode = 1;
 		}
+
+		//check if computational budged is exceeded (number of simulated moves)
+		if ((UCT_param_SimMoveNum > 0) && (last_extMove_numSimMoves >= UCT_param_SimMoveNum))
+			terminalNode = 1;
 
 #if(TOMPLAYER_AI_UCT_VISUALIZE_UCT_ACTIONS_TREE)
 		//sprintf(visualizeActionsTree, "  > %2d", currentNode->action_index);
@@ -498,38 +518,46 @@ double* Player_AI_UCT::UCT_Default_Policy(){
 	//simulate game until game-end
 	gameStatus = (int)(simulatedGame->game_ended);
 	while((gameStatus == 0)&&( (simulatedGame->current_plys - internalGame->current_plys) < UCT_param_defaultPolicy_maxPlys)){
-		
-		//DEBUG
-		//if(simulatedGame->number_of_plays == 38) 
-		//	printf("DEBUG: plys == %d", simulatedGame->number_of_plays);	
 
-		//random policy
+		//check if computational budged is exceeded (number of simulated moves)
+		if ((UCT_param_SimMoveNum > 0) && (last_extMove_numSimMoves >= UCT_param_SimMoveNum)){
+			gameStatus = 1;
+		}
+		else{
+			//DEBUG
+			//if(simulatedGame->number_of_plays == 38) 
+			//	printf("DEBUG: plys == %d", simulatedGame->number_of_plays);	
+
+			//random policy
 #if(!TOMPLAYER_AI_UCT_DEBUG_DISABLE_RANDOM)
-		lastMove = simulatedGame->Select_Move_Random();
+			lastMove = simulatedGame->Select_Move_Random();
 #else
-		lastMove = simulatedGame->Select_Move(0);
-		//lastMove = simulatedGame->Select_Move_Random();
+			lastMove = simulatedGame->Select_Move(0);
+			//lastMove = simulatedGame->Select_Move_Random();
 #endif
 
-		//play move in internal simulated game
+			//play move in internal simulated game
 #if(TOM_DEBUG)
-		gameStatus = simulatedGame->Play_Move(lastMove);
+			gameStatus = simulatedGame->Play_Move(lastMove);
 #else
-		gameStatus = simulatedGame->Play_Move_Unsafe(lastMove);
+			gameStatus = simulatedGame->Play_Move_Unsafe(lastMove);
 #endif
-		
-		//DEBUG
+			last_extMove_numSimMoves++;
+
+			//DEBUG
 #if((TOMPLAYER_AI_UCT_VISUALIZE_LEVEL_UCT)&&TOMPLAYER_AI_UCT_VISUALIZE_UCT_ACTIONS_TREE)
-		//sprintf(visualizeActionsTree, "  > %2d", currentNode->action_index);
-		visualizeActionsPlayout << "  > " << lastMove;
-		//printf("  > %2d", currentNode->action_index);
+			//sprintf(visualizeActionsTree, "  > %2d", currentNode->action_index);
+			visualizeActionsPlayout << "  > " << lastMove;
+			//printf("  > %2d", currentNode->action_index);
 #endif
 #if(TOMPLAYER_AI_UCT_DEBUG_SIMULATED_GAMES_OUT)
-		simulatedGame->Output_Board_State();
-		//simulatedGame->output_state_to_STD();
-		//simulatedGame->output_chains_to_STD();
-		//printf("Moves: %d %d\n",simulatedGame->num_moves[0], simulatedGame->num_moves[1]);
+			simulatedGame->Output_Board_State();
+			//simulatedGame->output_state_to_STD();
+			//simulatedGame->output_chains_to_STD();
+			//printf("Moves: %d %d\n",simulatedGame->num_moves[0], simulatedGame->num_moves[1]);
 #endif
+		}
+			
 	}
 
 	//calculate score

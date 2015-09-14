@@ -22,7 +22,10 @@ Player_AI_UCT_RAVE::Player_AI_UCT_RAVE(Game_Engine* game, int player_number) : P
 //destructor
 Player_AI_UCT_RAVE::~Player_AI_UCT_RAVE(void)
 {
-	Clear_Memory();
+	if (is_initialized){
+		Clear_Memory();
+		is_initialized = false;
+	}
 }
 
 //allocate memory and initialize variables

@@ -2,8 +2,8 @@
 #include "Player_AI_RL.hpp"
 
 //TEMPORARILY MOVED HERE FROM HEADER: is already valid by the c++11 standard (in-header static const double initialization), but is not yet implemented in VS2013
-const double Player_AI_RL::DEFAULT_PAR_EPSILON = 1.0;
-const double Player_AI_RL::DEFAULT_PAR_UCB_C = sqrt(2.0);
+const double Player_AI_RL::DEFAULT_PAR_EPSILON = 0.1;
+const double Player_AI_RL::DEFAULT_PAR_UCB_C = 1.0;
 
 const double Player_AI_RL::DEFAULT_PAR_TASK_GAMMA = 1.0;
 const double Player_AI_RL::DEFAULT_PAR_TD_ALPHA = 0.1;
@@ -38,7 +38,10 @@ Player_AI_RL::Player_AI_RL(Game_Engine* game, int player_number) : Player_Engine
 //destructor
 Player_AI_RL::~Player_AI_RL(void)
 {
-	Clear_Memory();
+	if (is_initialized){
+		Clear_Memory();
+		is_initialized = false;
+	}
 }
 
 //allocate memory and initialize variables
@@ -91,6 +94,10 @@ void Player_AI_RL::Init_Settings()
 	config_ucb_norm_global = DEFAULT_UCB_GLOBAL_NORMALIZATION;
 	config_ucb_norm_local = DEFAULT_UCB_LOCAL_NORMALIZATION;
 
+	config_ExplorationLinear_maxExtMoves = DEFAULT_EXPLORATION_LINEARZERO_EXTERNALMOVES;
+	config_ExplorationLinear_maxEpisodes = DEFAULT_EXPLORATION_LINEARZERO_EPISODES;
+	config_ExplorationLinear_maxActions = DEFAULT_EXPLORATION_LINEARZERO_SIMULATEDMOVES;
+
 	par_egreedy_e = DEFAULT_PAR_EPSILON;
 	par_ucb_c = DEFAULT_PAR_UCB_C;
 
@@ -142,15 +149,6 @@ void Player_AI_RL::Allocate_Memory()
 	//allocate resources
 	internalGame = game->Create_Duplicate_Game();
 	simulatedGame = game->Create_Duplicate_Game();
-	//simulatedGame_startingState = game->Create_Duplicate_Game();
-
-	////simulations feedback structures
-	//sim_feedback_scores_avg = new double[game->number_players];
-	//sim_feedback_scores_var = new double[game->number_players];
-	//sim_feedback_scores = new double*[UCT_param_SimPerIter];
-	//for (int i = 0; i < UCT_param_SimPerIter; i++)
-	//	sim_feedback_scores[i] = new double[game->number_players];
-	//sim_feedback_plys = new double[UCT_param_SimPerIter];
 
 	//memory strucure
 	int hashMapSize = 0;
@@ -180,14 +178,6 @@ void Player_AI_RL::Clear_Memory()
 		delete(simulatedGame);
 		delete(memory);
 		delete[] trajectory;
-		////simulations feedback structures
-		//delete(simulatedGame_startingState);
-		//delete[] sim_feedback_scores_avg;
-		//delete[] sim_feedback_scores_var;
-		//for (int i = 0; i < UCT_param_SimPerIter; i++)
-		//	delete[] sim_feedback_scores[i];
-		//delete[] sim_feedback_scores;
-		//delete[] sim_feedback_plys;
 
 		this->is_allocated = false;
 	}
@@ -216,6 +206,8 @@ void Player_AI_RL::New_Game2()
 	this->internalGameActiveNode = NULL;
 
 	//zero the counters
+	this->numExternalMoves_all = 0;
+	this->numExternalMoves_own = 0;
 	this->numEpisodes_lastMove = 0;
 	this->numEpisodes_total = 0;
 	this->numSimulatedActions_previousEpisode = -1;
@@ -232,10 +224,10 @@ void Player_AI_RL::New_Game2()
 	this->minimumObservedReturn = DBL_MAX;
 
 	if (this->internalGame->revealsScoreInfo){
-		this->maximumKnownReturn = this->internalGame->maxScore;
-		this->minimumKnownReturn = this->internalGame->minScore;
+		this->maximumKnownReturn = this->internalGame->maxReturn;
+		this->minimumKnownReturn = this->internalGame->minReturn;
 		if ( this->minimumKnownReturn >= this->maximumKnownReturn ){
-			gmp->Print("WARNING: Player_AI_RL::New_Game2() : maxScore (%f) and minScore (%f) not defined correctly in game %s\n", this->maximumKnownReturn, this->minimumKnownReturn, this->internalGame->game_name.c_str());
+			gmp->Print("WARNING: Player_AI_RL::New_Game2() : maxReturn (%f) and minReturn (%f) not defined correctly in game %s\n", this->maximumKnownReturn, this->minimumKnownReturn, this->internalGame->game_name.c_str());
 			this->maximumKnownReturn = -DBL_MAX;
 			this->minimumKnownReturn = DBL_MAX;
 		}
@@ -521,22 +513,28 @@ int Player_AI_RL::SingleExternalMove()
 	// visualization, experimental output, and debug: before a single external move (before a batch of episodes)
 	Output_ExternalMove_Start();
 
-	//execute MCTS iterations with given computational budget
-	bool computationalBudgetAvailable = true;
+	// execute MCTS iterations with given computational budget	
+	bool computationalBudgetAvailable = true;;
+	if ((this->par_num_episodes == 0) || (this->par_simulated_horizon_lenght == 0) || (this->par_num_simulatedActions_perMove == 0))	// check special cases when computational budged is set to zero (produces a random algorithm)
+		computationalBudgetAvailable = false;
 	while (computationalBudgetAvailable){
 
-		//RESET simulated game position to initial state
+		// RESET simulated game position to initial state
 		simulatedGame->Copy_Game_State_From(internalGame, false);
 
-		//reinforcement learning algorithms
+		// reinforcement learning algorithms
 		computationalBudgetAvailable = SingleEpisode();
 
 	}
 
-	//return best action from root, fully greedy
+	// return best action from root, fully greedy
 	int greedyFinalAction;
 	std::tie(greedyFinalAction, std::ignore, std::ignore, std::ignore, std::ignore)
 		= RL_Control_Egreedy(internalGame, internalGameActiveNode, 0.0, REWARD_GOALS::MAXIMIZE);
+
+	// update global counters
+	this->numExternalMoves_all = game->current_plys;
+	this->numExternalMoves_own++;
 
 	// visualization, experimental output, and debug: after a single external move (after a batch of episodes)
 	Output_ExternalMove_End();
@@ -733,19 +731,16 @@ std::tuple<double, int, int> Player_AI_RL::RL_Perform_Action(Game_Engine* localG
 	if (this->config_transpositions == (Game_Engine::TRANSPOSITIONS::STATEACTIONS))
 		hashKey = localGame->HashKey_getCurrentStateAction(actionID);
 
-	// effectuate move on simluated game and observre this player's score
+	// effectuate move on simluated game and observre this player's reward (change in score)
 	reward = localGame->score[this->player_number];
 	isTerminalState = localGame->Play_Move(actionID);
-	reward = localGame->score[this->player_number] - reward;		// reward is represented as the change in score
-
-	// remember highest and lowest observed return
-	UpdateKnownReturnBounds(localGame->score[this->player_number]);
+	reward = localGame->score[this->player_number] - reward;
 
 	// get STATE hash entry index -> MUST be called AFTER the move was effectuated, so after game->Play_Move(actionID);
 	if (this->config_transpositions == (Game_Engine::TRANSPOSITIONS::STATES))
 		hashKey = localGame->HashKey_getCurrentState();
 
-	// update global counters
+	// update global counters (on local simulated game)
 	if (localGame == this->simulatedGame){
 		this->numSimulatedActions_lastEpisode++;
 		this->numSimulatedActions_lastMove++;
@@ -753,6 +748,9 @@ std::tuple<double, int, int> Player_AI_RL::RL_Perform_Action(Game_Engine* localG
 		this->sumSimulatedRewards_lastEpisode += reward;
 		this->sumSimulatedRewards_lastMove += reward;
 		this->sumSimulatedRewards_total += reward;
+
+		// remember highest and lowest observed return
+		UpdateKnownReturnBounds(sumSimulatedRewards_lastEpisode);
 	}
 
 	// return
@@ -911,13 +909,40 @@ std::tuple<int, int, int, double, double, Player_AI_RL::REWARD_GOALS::TYPE> Play
 	double onPolicyChildValue;
 	double bestChildValue;
 
+	//compute the exploratory weight (input parameter for most selection policies)
+	if (policy == CONTROL_POLICIES::EGREEDY){
+		this->computed_explorationWeight = this->par_egreedy_e;
+	}
+	else if (policy == CONTROL_POLICIES::UCB1){
+		this->computed_explorationWeight = this->par_ucb_c;
+	}
+	double tmpMultiplier = 1.0;
+	if (this->config_ExplorationLinear_maxExtMoves > 0){
+		tmpMultiplier *= (1.0 - (double)(this->numExternalMoves_own) / (double)(this->config_ExplorationLinear_maxExtMoves - 1.0));
+		if (tmpMultiplier < 0.0)
+			tmpMultiplier = 0.0;
+	}
+	if (this->config_ExplorationLinear_maxEpisodes > 0){
+		tmpMultiplier *= (1.0 - (double)(this->numEpisodes_lastMove) / (double)(this->config_ExplorationLinear_maxEpisodes - 1.0));
+		if (tmpMultiplier < 0.0)
+			tmpMultiplier = 0.0;
+	}
+	if (this->config_ExplorationLinear_maxActions > 0){
+		tmpMultiplier *= (1.0 - (double)(this->numSimulatedActions_lastMove) / (double)(this->config_ExplorationLinear_maxActions - 1.0));
+		if (tmpMultiplier < 0.0)
+			tmpMultiplier = 0.0;
+	}
+	this->computed_explorationWeight *= tmpMultiplier;
+
+	//execute the selected policy
 	if (policy == CONTROL_POLICIES::EGREEDY)
 		std::tie(actionID, onPolicy_selected_child_index, bestChild_index, onPolicyChildValue, bestChildValue)
-		= RL_Control_Egreedy(localGame, currentState, this->par_egreedy_e, rewardGoal);
+		= RL_Control_Egreedy(localGame, currentState, this->computed_explorationWeight, rewardGoal);
 	else if (policy == CONTROL_POLICIES::UCB1)
 		std::tie(actionID, onPolicy_selected_child_index, bestChild_index, onPolicyChildValue, bestChildValue)
-		= RL_Control_UCB(localGame, currentState, this->par_ucb_c, rewardGoal);
+		= RL_Control_UCB(localGame, currentState, this->computed_explorationWeight, rewardGoal);
 
+	//return policy-computed values and the ID of the selected action
 	return std::make_tuple(actionID, onPolicy_selected_child_index, bestChild_index, onPolicyChildValue, bestChildValue, rewardGoal);
 }
 
@@ -1087,12 +1112,14 @@ void Player_AI_RL::HandleEpisodeEnd()
 	// last (after episode end) online backup
 	if (this->config_TDupdateType == TD_UPDATES::ONLINE){
 		RLsingleBackup(this->trajectory_length);
-		UpdateTrajectoryBounds();	//refresh min/max Q-values (and target values) - UCB control policy needs this for normalization of Q-value
 	}
 	// offline (batch) policy evaluation (update value function)
 	else{
 		RLofflineBackup();
 	}
+
+	//refresh min/max Q-values (and target values) - UCB control policy needs this for normalization of Q-value
+	UpdateTrajectoryBounds();
 
 	// update global counters
 	this->numEpisodes_lastMove++;
@@ -1119,7 +1146,6 @@ void Player_AI_RL::RLofflineBackup()
 	//else{	//TOIMP: TD_UPDATE_OFFLINE_ASYNC
 	//}
 
-	UpdateTrajectoryBounds();	//refresh min/max Q-values (and target values) - UCB control policy needs this for normalization of Q-value
 }
 
 // apply the value changes that were stored in the offline backups
@@ -1151,10 +1177,6 @@ void Player_AI_RL::UpdateTrajectoryBounds()
 	//iterate backwards through trajectory (from last state to initial state)
 	for (int t = this->trajectory_length; t >= 0; t--){
 
-		//update return
-		sumRewards *= this->par_task_gamma;
-		sumRewards += this->trajectory[t].reward;
-
 		node = this->trajectory[t].state;
 		if (node != NULL){
 
@@ -1177,12 +1199,20 @@ void Player_AI_RL::UpdateTrajectoryBounds()
 				node->data->minChildQval = nodeQval;
 
 			//update propagated max/min Q-value --- self Qvalue bound is not counted when setting bounds for own state, but only upwards to the root (initial state)
+			maxQval *= this->par_task_gamma;
+			minQval *= this->par_task_gamma;
 			nodeQval = node->data->Q_value;
 			if (nodeQval > maxQval)
 				maxQval = nodeQval;
 			if (nodeQval < minQval)
 				minQval = nodeQval;
+			
 		}
+
+		//update return
+		sumRewards *= this->par_task_gamma;
+		sumRewards += this->trajectory[t].reward;
+
 	}
 
 }
@@ -1686,7 +1716,7 @@ std::tuple<int, int, int, double, double> Player_AI_RL::RL_Control_UCB(Game_Engi
 		double bestEstimatedValue;
 		double sumVisits;
 
-		//UCB first pass: get the sum of individual tries or to choose a random untried action
+		//UCB first pass: get the sum of children visits, and choose a random untried action if there is any
 		int noVisitsTieBreaker = INT_MIN;
 		sumVisits = 0.0;
 		bestEstimatedValue = -DBL_MAX;
@@ -1727,6 +1757,7 @@ std::tuple<int, int, int, double, double> Player_AI_RL::RL_Control_UCB(Game_Engi
 			//action was not yet tried, thus by UCB it gets a POSITIVE INFINITE value
 			if (childVisits == 0.0){
 				int tieBraker = rand();
+				//int tieBraker = 0;	//debug
 				if (tieBraker > noVisitsTieBreaker){
 					noVisitsTieBreaker = tieBraker;
 					selectedChildIndex = c;
@@ -1734,7 +1765,7 @@ std::tuple<int, int, int, double, double> Player_AI_RL::RL_Control_UCB(Game_Engi
 			}
 		}
 
-		//UCB second pass: if all actions were already tried at least once, find best according to the UCB equation (this also means that all children are already allocated and thus cannot be NULL)
+		//UCB second pass: if all actions were already visited at least once, find best according to the UCB equation (this also means that all children are already allocated and thus cannot be NULL)
 		if (selectedChildIndex == -1){
 
 			//get normalization bounds
@@ -1795,7 +1826,7 @@ std::tuple<int, int, int, double, double> Player_AI_RL::RL_Control_UCB(Game_Engi
 
 					//UCB equation
 					//the equation cannot return an invalid value due to the "UCB first pass" above that skips the "UCB second pass" loop as soon as a single (child->data->num_visits == 0) holds
-					estimatedValue = estimatedValue + par_C * sqrt(log(sumVisits) / childVisits);
+					estimatedValue = estimatedValue + par_C * sqrt(2.0 * log(sumVisits) / childVisits);
 
 					//store estimated value in local record
 					child->data->last_estimated_value = estimatedValue;
@@ -2177,6 +2208,10 @@ void Player_AI_RL::Output_Settings()
 	gmp->Print("%40s", settingsLabels[30]); gmp->Print("    "); gmp->Print(NUMERCIAL_CORRECTIONS::stringLabels[this->config_numerical_correction]);				gmp->Print("\n");
 	gmp->Print("%40s", settingsLabels[29]); gmp->Print("    "); gmp->Print(EXPERIMENTAL_SETTINGS::stringLabels[this->config_experiment]);						gmp->Print("\n");
 
+	gmp->Print("%40s", settingsLabels[31]); gmp->Print("    "); gmp->Print(settingsFormat[32], this->config_ExplorationLinear_maxExtMoves);				gmp->Print("\n");
+	gmp->Print("%40s", settingsLabels[32]); gmp->Print("    "); gmp->Print(settingsFormat[32], this->config_ExplorationLinear_maxEpisodes);	gmp->Print("\n");
+	gmp->Print("%40s", settingsLabels[33]); gmp->Print("    "); gmp->Print(settingsFormat[33], this->config_ExplorationLinear_maxActions);	gmp->Print("\n");
+
 	gmp->Print("%40s", settingsLabels[19]); gmp->Print("    "); gmp->Print(settingsFormat[19], this->par_egreedy_e);										gmp->Print("\n");
 	gmp->Print("%40s", settingsLabels[20]); gmp->Print("    "); gmp->Print(settingsFormat[20], this->par_ucb_c);											gmp->Print("\n");
 	gmp->Print("%40s", settingsLabels[21]); gmp->Print("    "); gmp->Print(settingsFormat[21], this->par_task_gamma);										gmp->Print("\n");
@@ -2225,6 +2260,9 @@ const char * Player_AI_RL::settingsLabels[] = {
 	"config_memory_limitMB",
 	"config_experiment",
 	"config_numerical_correction",
+	"config_ExplorationLinear_maxExtMoves",	//31
+	"config_ExplorationLinear_maxEpisodes",	//32
+	"config_ExplorationLinear_maxActions",	//33
 };
 const char * Player_AI_RL::settingsFormat[] = {
 	"%d",
@@ -2258,6 +2296,9 @@ const char * Player_AI_RL::settingsFormat[] = {
 	"%.0f",
 	"%d",
 	"%d",
+	"%d",	//31
+	"%d",	//32
+	"%d",	//33
 };
 const char * Player_AI_RL::trajectoryRecord::trajectoryRecordLabels[trajectoryRecord::structNumElements] = {
 	"action",	//0
@@ -2296,6 +2337,11 @@ const char * Player_AI_RL::CONTROL_POLICIES::stringLabels[ENUM_COUNT_ELEMENTS] =
 {
 	"EGREEDY",
 	"UCB1",
+};
+const char * Player_AI_RL::CONTROL_POLICIES::stringLabels2char[ENUM_COUNT_ELEMENTS] =
+{
+	"EG",
+	"U1",
 };
 const char * Player_AI_RL::POLICY_EVALUATIONS::stringLabels[ENUM_COUNT_ELEMENTS] =
 {
@@ -2390,6 +2436,7 @@ const char * Player_AI_RL::EXPERIMENTAL_SETTINGS::stringLabels[ENUM_COUNT_ELEMEN
 	"NONE",
 	"RW_RIGHTWIN_METRICS_PER_EPISODES",
 	"RW_RIGHTWIN_METRICS_PER_TIMESTEPS",
+	"TTT_METRICS_PER_TIMESTEPS",
 };
 
 
@@ -2453,7 +2500,7 @@ void Player_AI_RL::Experiment_EpisodeMetrics(int depth)
 			(this->experiment_results[1][this->numEpisodes_lastMove])->Add_Sample(NAN, true, true);
 
 		//[2] get the RMSE errors of initial state-actions (regardless whether transpositions are used or not)
-		//[3] is the optimal action evaluated better than the others?
+		//[3] has the optimal-root action actually a better value than suboptimal root-actions?
 		rmse = 0.0;
 		mse = 0.0;
 		bestVal = -DBL_MAX;
@@ -2545,7 +2592,7 @@ void Player_AI_RL::Experiment_TimeStepMetrics(int depth)
 		int num_samples = this->internalGame->HashKey_getNumStates();
 		int randomWalk_startingState = (int)((num_samples - 1) / 2);
 		if (num_samples < 5){
-			gmp->Print("ERROR: Player_AI_RL::Experiment_valueError_per_episodes(): game has less than 5 states (%d)\n", num_samples);
+			gmp->Print("ERROR: Player_AI_RL::Experiment_TimeStepMetrics(): game has less than 5 states (%d)\n", num_samples);
 			return;
 		}
 
@@ -2566,7 +2613,7 @@ void Player_AI_RL::Experiment_TimeStepMetrics(int depth)
 			(this->experiment_results[1][this->numSimulatedActions_lastMove])->Add_Sample(NAN, true, true);
 
 		//[2] get the RMSE errors of initial state-actions (regardless whether transpositions are used or not)
-		//[3] is the optimal action evaluated better than the others?
+		//[3] has the optimal-root action actually a better value than suboptimal root-actions?
 		rmse = 0.0;
 		mse = 0.0;
 		bestVal = -DBL_MAX;
@@ -2588,6 +2635,7 @@ void Player_AI_RL::Experiment_TimeStepMetrics(int depth)
 				if (predictedValue > bestVal){
 					bestVal = predictedValue;
 					bestInd = i;
+					bestNumEqual = 1;
 				}
 				else if (predictedValue == bestVal){
 					bestNumEqual++;
@@ -2610,48 +2658,63 @@ void Player_AI_RL::Experiment_TimeStepMetrics(int depth)
 
 		(this->experiment_results[3][this->numSimulatedActions_lastMove])->Add_Sample(rootActionOptimal, true, true);
 
-		//[4] average reward increase per timeStep (computed out of two successive samples), the inverse value (1/x) equals to the average episode duration
-		if (this->numSimulatedActions_lastMove > 0){
-			double prevR, nextR;
+		////[4] average reward increase per timeStep (computed out of two successive samples), the inverse value (1/x) equals to the average episode duration
+		//if (this->numSimulatedActions_lastMove > 0){
+		//	double prevR, nextR;
 
-			//get previous sum of rewards
-			if (this->numSimulatedActions_lastMove == 1)
-				prevR = 0.0;
-			else{
-				int IprevR = this->experiment_results[0][this->numSimulatedActions_lastMove - 2]->n - 1;
-				prevR = this->experiment_results[0][this->numSimulatedActions_lastMove - 2]->samples[IprevR];
-			}
+		//	//get previous sum of rewards
+		//	if (this->numSimulatedActions_lastMove == 1)
+		//		prevR = 0.0;
+		//	else{
+		//		prevR = this->experiment_results[0][this->numSimulatedActions_lastMove - 2]->lastSample;
+		//	}
 
-			//get next sum of rewards
-			int InextR = this->experiment_results[0][this->numSimulatedActions_lastMove]->n - 1;
-			nextR = this->experiment_results[0][this->numSimulatedActions_lastMove]->samples[InextR];
+		//	//get next sum of rewards
+		//	nextR = this->experiment_results[0][this->numSimulatedActions_lastMove]->lastSample;
 
-			//average the increase over two timesteps (softens the variance when experimenting with randomWalk with an even number of steps from starting to terminal state)
-			double increase = (nextR - prevR) / 2.0;
+		//	//average the increase over two timesteps (softens the variance when experimenting with randomWalk with an even number of steps from starting to terminal state)
+		//	double increase = (nextR - prevR) / 2.0;
 
-			//store sample
-			(this->experiment_results[4][this->numSimulatedActions_lastMove - 1])->Add_Sample(increase, true, true);
+		//	//store sample
+		//	(this->experiment_results[4][this->numSimulatedActions_lastMove - 1])->Add_Sample(increase, true, true);
 
-			//memorize also increase in last step (although there is no next step)
-			if (this->numSimulatedActions_lastMove == this->par_num_simulatedActions_perMove){
+		//	//memorize also increase in last step (although there is no next step), suppose next state has the same value as the last memorized state
+		//	if (this->numSimulatedActions_lastMove == this->par_num_simulatedActions_perMove){
 
-				int IprevR = this->experiment_results[0][this->numSimulatedActions_lastMove - 1]->n - 1;
-				prevR = this->experiment_results[0][this->numSimulatedActions_lastMove - 1]->samples[IprevR];
-				increase = (nextR - prevR) / 2.0;
-				(this->experiment_results[4][this->numSimulatedActions_lastMove])->Add_Sample(increase, true, true);
+		//		prevR = this->experiment_results[0][this->numSimulatedActions_lastMove - 1]->lastSample;
+		//		increase = (nextR - prevR) / 2.0;
+		//		(this->experiment_results[4][this->numSimulatedActions_lastMove])->Add_Sample(increase*2, true, true);
 
-			}
+		//	}
+		//}
+
+		//[4]	average episode duration (metric for policy optimality)  (computed out of two successive samples), the inverse value (1/x) equals to the average episode duration
+		//		here only average increase in sum of reward is memorized, the episode duration is computed at output
+		//		only odd (or even) steps are actually memorzied (the others are copied) because of the randomWalk game dynamics (the duration of episodes is always the optimal number of steps incresead by a multiplier of 2)
+		double prevSumReward, currSumReward, rewardIncrease;
+
+		if (this->numSimulatedActions_lastMove > 9){
+			prevSumReward = this->experiment_results[0][this->numSimulatedActions_lastMove - 10]->lastSample;
+			currSumReward = this->experiment_results[0][this->numSimulatedActions_lastMove]->lastSample;
+			rewardIncrease = (currSumReward - prevSumReward) / 10.0;
 		}
+		else{
+			rewardIncrease = -1;
+		}
+
+		(this->experiment_results[4][this->numSimulatedActions_lastMove])->Add_Sample(rewardIncrease, true, true);
+			
 	}
 }
 
 const int Player_AI_RL::experimentNumMetrics[EXPERIMENTAL_SETTINGS::ENUM_COUNT_ELEMENTS] = {
-	0, 5, 5
+	0, 5, 5, 9
 };
 const char * Player_AI_RL::experimentLabels[EXPERIMENTAL_SETTINGS::ENUM_COUNT_ELEMENTS][20] = {
 	{ "INVALID" },
 	{ "RMSEst", "errIni", "RMSEac", "optAct", "optPol" },
-	{ "sumRew", "errIni", "RMSEac", "optAct", "incRew" },
+	{ "sumRew", "errIni", "RMSEac", "optAct", "dEpA10" },	//last label is acronym for "duration episode, averaged over last 10 steps"
+	{ "scrAvg", "scrAs1", "scrAs2", "winAvg", "winAs1", "winAs2", "drwAvg", "drwAs1", "drwAs2" } // score (win + draw*0.5), num wins, num draws
 };
 
 

@@ -21,8 +21,13 @@ Game_Hex::Game_Hex(Game_Engine* source_game)
 //destructor
 Game_Hex::~Game_Hex(void)
 {
-	//release memory space
-	Clear_Memory();
+	if (is_initialized){
+
+		//release memory space
+		Clear_Memory();
+
+		is_initialized = false;
+	}
 }
 
 //create duplicate game
@@ -48,23 +53,24 @@ void Game_Hex::Init_Settings()
 	//general game settings
 	board_length = TOMGAME_HEX_BOARD_LENGTH;
 	board_height = TOMGAME_HEX_BOARD_HEIGHT;
-	big_board_length = TOMGAME_HEX_BOARD_LENGTH + 2;
-	big_board_height = TOMGAME_HEX_BOARD_HEIGHT + 2;
-	board_size = board_length * board_height;
-	big_board_size = big_board_length * big_board_height;
-	number_players = 2;
-	maximum_allowed_moves = board_size;
-	maximum_plys = board_size;
+	param_score_start = TOMGAME_HEX_SCORE_START;
 	param_score_win = TOMGAME_HEX_SCORE_WIN;
 	param_score_lose = TOMGAME_HEX_SCORE_LOSE;
-	//param_score_draw = TOMGAME_HEX_SCORE_DRAW;
+	param_score_draw = TOMGAME_HEX_SCORE_DRAW;
 
 	//general debug settings
 	show_warnings = TOM_DEBUG;
 
 	//game-specific settings
 
-
+	//calulate internal variables
+	big_board_length = board_length + 2;
+	big_board_height = board_height + 2;
+	board_size = board_length * board_height;
+	big_board_size = big_board_length * big_board_height;
+	number_players = 2;
+	maximum_allowed_moves = board_size;
+	maximum_plys = board_size;
 }
 
 //copy settings from source_game
@@ -81,9 +87,10 @@ void Game_Hex::Copy_Settings(Game_Engine* source_game)
 	number_players = source_game->number_players;
 	maximum_allowed_moves = source_game->maximum_allowed_moves;
 	maximum_plys = source_game->maximum_plys;
+	param_score_start = source_game->param_score_start;
 	param_score_win = source_game->param_score_win;
 	param_score_lose = source_game->param_score_lose;
-	//param_score_draw = source_game->param_score_draw;
+	param_score_draw = source_game->param_score_draw;
 
 	//general debug settings
 	show_warnings = source_game->show_warnings;
@@ -94,6 +101,16 @@ void Game_Hex::Copy_Settings(Game_Engine* source_game)
 
 void Game_Hex::Allocate_Memory()
 {
+
+	//calulate internal variables
+	big_board_length = board_length + 2;
+	big_board_height = board_height + 2;
+	board_size = board_length * board_height;
+	big_board_size = big_board_length * big_board_height;
+	number_players = 2;
+	maximum_allowed_moves = board_size;
+	maximum_plys = board_size;
+
 	//allocate resources - game state
 	board_state = new char[board_size];
 	big_board_state = new char[big_board_size];
@@ -179,7 +196,7 @@ void Game_Hex::Game_Reset()
 			current_moves[j][i] = true;
 			//current_moves_list[j][i] = i;	//making a list of moves in this phase is usually only waste of computation time
 		}
-		score[j] = 0.0;
+		score[j] = param_score_start;
 	}
 	current_player = 0;
 	game_ended = false;
@@ -414,16 +431,16 @@ int Game_Hex::Check_Game_Win(int selected_move)
 
 void Game_Hex::Flood(int position, const int oldValue, const int newValue)
 {
-    if(big_board_state[position] == oldValue)
-    {
+	if(big_board_state[position] == oldValue)
+	{
 		big_board_state[position] = newValue;
-        Flood(position - big_board_length,oldValue,newValue);
-        Flood(position - big_board_length + 1,oldValue,newValue);
-        Flood(position - 1,oldValue,newValue);
-        Flood(position + 1,oldValue,newValue);
-        Flood(position + big_board_length - 1,oldValue,newValue);
-        Flood(position + big_board_length,oldValue,newValue);
-    }
+		Flood(position - big_board_length,oldValue,newValue);
+		Flood(position - big_board_length + 1,oldValue,newValue);
+		Flood(position - 1,oldValue,newValue);
+		Flood(position + 1,oldValue,newValue);
+		Flood(position + big_board_length - 1,oldValue,newValue);
+		Flood(position + big_board_length,oldValue,newValue);
+	}
 }
 
 int Game_Hex::Human_Move_Translate(int human_move)

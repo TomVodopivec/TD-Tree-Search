@@ -20,8 +20,13 @@ Game_Gomoku::Game_Gomoku(Game_Engine* source_game)
 //destructor
 Game_Gomoku::~Game_Gomoku(void)
 {
-	//release memory space
-	Clear_Memory();
+	if (is_initialized){
+
+		//release memory space
+		Clear_Memory();
+
+		is_initialized = false;
+	}
 }
 
 //create duplicate game
@@ -47,10 +52,8 @@ void Game_Gomoku::Init_Settings()
 	//general game settings
 	board_length = TOMGAME_GOMOKU_BOARD_LENGTH;
 	board_height = TOMGAME_GOMOKU_BOARD_HEIGHT;
-	board_size = board_length * board_height;
 	number_players = 2;
-	maximum_allowed_moves = board_size;
-	maximum_plys = board_size;
+	param_score_start = TOMGAME_GOMOKU_SCORE_START;
 	param_score_win = TOMGAME_GOMOKU_SCORE_WIN;
 	param_score_lose = TOMGAME_GOMOKU_SCORE_LOSE;
 	param_score_draw = TOMGAME_GOMOKU_SCORE_DRAW;
@@ -60,6 +63,11 @@ void Game_Gomoku::Init_Settings()
 
 	//game-specific settings
 	win_connected_pieces = TOMGAME_GOMOKU_WIN_CONNECTED_PIECES;
+
+	//calulate internal variables
+	board_size = board_length * board_height;
+	maximum_allowed_moves = board_size;
+	maximum_plys = board_size;
 
 }
 
@@ -74,6 +82,7 @@ void Game_Gomoku::Copy_Settings(Game_Engine* source_game)
 	number_players = source_game->number_players;
 	maximum_allowed_moves = source_game->maximum_allowed_moves;
 	maximum_plys = source_game->maximum_plys;
+	param_score_start = source_game->param_score_start;
 	param_score_win = source_game->param_score_win;
 	param_score_lose = source_game->param_score_lose;
 	param_score_draw = source_game->param_score_draw;
@@ -88,6 +97,12 @@ void Game_Gomoku::Copy_Settings(Game_Engine* source_game)
 
 void Game_Gomoku::Allocate_Memory()
 {
+
+	//calulate internal variables
+	board_size = board_length * board_height;
+	maximum_allowed_moves = board_size;
+	maximum_plys = board_size;
+
 	//allocate resources - game state
 	board_state = new char[board_size];
 	current_number_moves = new int[number_players];
@@ -155,7 +170,7 @@ void Game_Gomoku::Game_Reset()
 			current_moves[j][i] = true;
 			//current_moves_list[j][i] = i;	//making a list of moves in this phase is usually only waste of computation time
 		}
-		score[j] = 0.0;
+		score[j] = param_score_start;
 	}
 	current_player = 0;
 	game_ended = false;

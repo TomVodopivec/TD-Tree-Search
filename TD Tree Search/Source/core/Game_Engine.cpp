@@ -6,19 +6,29 @@
 
 Game_Engine::Game_Engine()
 {
+	//set init flag
+	is_initialized = false;
+
 	//default game definitions
 	game_name = "game_name not defined";
 	is_deterministic = false;
 	is_episodic = true;
 	allows_transpositions = false;	//if true, then all four HashKey() procedures must be redefined for that game
 	revealsScoreInfo = true;		//does the game reveal the minimally and maximally achievable score to the players (if true, these must be defined accordingly), currently default for games is "true" with min score = 0, max score = 1
-	minScore = 0.0;
+	startScore = 0.5;
 	maxScore = 1.0;
+	minScore = 0.0;
+	maxReturn = maxScore - startScore;
+	minReturn = minScore - startScore;
+
 }
 
 //allocate memory and initialize variables
 void Game_Engine::Initialize()
 {
+
+	//set init flag
+	is_initialized = true;
 
 	//initialize values common to all derivate objects
 	Initialize_Common();
@@ -52,6 +62,9 @@ Does not RESET game state.
 */
 void Game_Engine::Copy_Initialize(Game_Engine* source_game)
 {
+
+	//set init flag
+	is_initialized = true;
 
 	//initialize values common to all derivate objects
 	Initialize_Common();
@@ -99,6 +112,8 @@ int Game_Engine::Select_Move_Random()
 #else
 	r = (int)( (rand()/(float)(RAND_MAX+1)) * (current_number_moves[current_player]) );
 #endif
+
+	//r = 0;	//debug
 
 	return Select_Move_Unsafe(r);
 }
@@ -266,10 +281,12 @@ int Game_Engine::Play_Move_Unsafe(int selected_move)
 
 	//update history info
 	current_plys++;
-	if (current_plys < maximum_plys + 1)
+	if (current_plys < maximum_plys + 1){
 		history_moves[current_plys] = selected_move;
-	else
+	}
+	else{
 		gmp->Print("WARNING: Game_Engine::Play_Move_Unsafe() : current_plys exceeds allowed value : %d/%d\n", current_plys, maximum_plys);
+	}
 
 	////safety check
 	//if(this->game_ended == 0)
@@ -856,7 +873,7 @@ void Game_Engine::Learn_Two_Players(int num_games, int output_depth, Player_Engi
 	Learn_Players(num_games, output_depth, tmpPlayers);
 }
 
-double Game_Engine::Evaluate_Players(int num_repeats, int num_games, int output_depth, Player_Engine** players, bool rotate_starting_player, int return_score_player_num, Tom_Sample_Storage<double>** score_output, int intermediate_output, const int measure_time_per_move)
+double Game_Engine::Evaluate_Players(int num_repeats, int num_games, int output_depth, Player_Engine** players, bool rotate_starting_player, int return_score_player_num, Tom_Sample_Storage<double>** score_output, int intermediate_output, const int measure_time_per_move, double* winDraw_output_new)
 {
 
 	int nextMove, feedback, bestPlayer, multipleWinners;
@@ -1129,6 +1146,12 @@ double Game_Engine::Evaluate_Players(int num_repeats, int num_games, int output_
 		for(int i = 0; i < number_players; i++)
 			gmp->Print("\nTIME P%d:   %6.1lf ms/game   %6.2lf ms/move  (games %d moves %d totalTime %lf s)",i,players_move_time_sum[i] / (double)(num_repeats*num_games) * 1000.0, players_move_time_sum[i] / (double)(num_repeats*num_games*players_move_count[i]) * 1000.0 , num_repeats*num_games, players_move_count[i],players_move_time_sum[i]);
 		gmp->Print("\n\n");
+	}
+
+	if (winDraw_output_new != NULL){
+		winDraw_output_new[0] = (double)(win_count_total[0]);	//num draws
+		winDraw_output_new[1] = (double)(win_count_total[1]);	//num wins player 1
+		winDraw_output_new[2] = (double)(win_count_total[2]);	//num wins player 2
 	}
 
 	//save return value

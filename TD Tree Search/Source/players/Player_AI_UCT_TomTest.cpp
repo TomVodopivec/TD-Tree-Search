@@ -29,7 +29,10 @@ Player_AI_UCT_TomTest::Player_AI_UCT_TomTest(Game_Engine* game, int player_numbe
 //destructor
 Player_AI_UCT_TomTest::~Player_AI_UCT_TomTest(void)
 {
-	Clear_Memory();
+	if (is_initialized){
+		Clear_Memory();
+		is_initialized = false;
+	}
 }
 
 //allocate memory and initialize variables

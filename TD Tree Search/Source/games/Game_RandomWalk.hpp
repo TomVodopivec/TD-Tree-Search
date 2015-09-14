@@ -15,10 +15,11 @@ public:
 
 	//consts - default values
 	static const int	DEFAULT_WALK_LENGTH;
-	static const int	DEFAULT_MAXPLIES;		
-	static const double	DEFAULT_REWARD_WIN;		
-	static const double	DEFAULT_REWARD_LOSE;	
-	static const double	DEFAULT_REWARD_STEP;	
+	static const int	DEFAULT_MAXPLIES;
+	static const double	DEFAULT_REWARD_START;
+	static const double	DEFAULT_REWARD_WIN;
+	static const double	DEFAULT_REWARD_LOSE;
+	static const double	DEFAULT_REWARD_STEP;
 	static const double DEFAULT_REWARD_MAXPLIES;
 
 	//public procedures - engine
@@ -60,7 +61,7 @@ protected:
 	void Init_Settings();
 	void Allocate_Memory();
 	void Clear_Memory();
-	void Clear_Constants();
+	//void Clear_Constants();
 	void Copy_Settings(Game_Engine* source_game);
 	int  Game_Dynamics(int selected_move);
 	int	 Check_Game_Win(int position);

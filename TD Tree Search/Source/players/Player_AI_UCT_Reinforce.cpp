@@ -21,7 +21,10 @@ Player_AI_UCT_Reinforce::Player_AI_UCT_Reinforce(Game_Engine* game, int player_n
 //destructor
 Player_AI_UCT_Reinforce::~Player_AI_UCT_Reinforce(void)
 {
-	Clear_Memory();
+	if (is_initialized){
+		Clear_Memory();
+		is_initialized = false;
+	}
 }
 
 void Player_AI_UCT_Reinforce::Allocate_Memory()

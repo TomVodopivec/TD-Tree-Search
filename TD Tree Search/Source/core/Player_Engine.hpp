@@ -34,8 +34,9 @@ public:
 	static const int  TOMPLAYER_FINAL_OUTPUT_ENABLED = 0;
 	static const int  TOMPLAYER_VISUALIZATION_DEPTH = 0;
 
-	//constructor
+	//constructor and destructor
 	Player_Engine(Game_Engine* = NULL, int = TOMPLAYER_PLAYER_NUMBER);
+	virtual ~Player_Engine(){};
 
 	//virtual public procedures
 	virtual void Apply_Settings();

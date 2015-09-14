@@ -4,6 +4,7 @@
 //TEMPORARILY MOVED HERE FROM HEADER: is already valid by the c++11 standard (in-header static const double initialization), but is not yet implemented in VS2013
 const int		Game_RandomWalk::DEFAULT_WALK_LENGTH = 11;		//currently maximum 255 (or 127, not sure, due to 'char' type implementation of Game_Engine)
 const int		Game_RandomWalk::DEFAULT_MAXPLIES = 10000;
+const double	Game_RandomWalk::DEFAULT_REWARD_START = 0.0;
 const double	Game_RandomWalk::DEFAULT_REWARD_WIN = 1.0;
 const double	Game_RandomWalk::DEFAULT_REWARD_LOSE = 0.0;
 const double	Game_RandomWalk::DEFAULT_REWARD_STEP = 0.0;
@@ -19,8 +20,11 @@ Game_RandomWalk::Game_RandomWalk(Game_Engine* source_game)
 	is_episodic = true;
 	revealsScoreInfo = false;			//does the game reveal the minimally and maximally achievable score to the players (if true, these must be defined accordingly)
 	allows_transpositions = true;		//HashKeys functions for this game must be implemented, this means that states (or state-actions) must be identifiable and that the search space is reasonably large to fit in memory
-	minScore = 0.0;
-	maxScore = 1.0;
+	startScore = DEFAULT_REWARD_START;
+	minScore = DEFAULT_REWARD_LOSE;
+	maxScore = DEFAULT_REWARD_WIN;
+	minReturn = maxScore - startScore;
+	maxReturn = minScore - startScore;
 
 	//call initialization procedures
 	if(source_game == TOMGAME_ENGINE_CONSTRUCTOR_NO_COPY)
@@ -32,8 +36,13 @@ Game_RandomWalk::Game_RandomWalk(Game_Engine* source_game)
 //destructor
 Game_RandomWalk::~Game_RandomWalk(void)
 {
-	//release memory space
-	Clear_Memory();
+	if (is_initialized){
+		
+		//release memory space
+		Clear_Memory();
+
+		is_initialized = false;
+	}
 }
 
 //create duplicate game
@@ -65,6 +74,7 @@ void Game_RandomWalk::Init_Settings()
 
 	config_walk_length = DEFAULT_WALK_LENGTH;
 	maximum_plys = DEFAULT_MAXPLIES;
+	param_score_start = DEFAULT_REWARD_START;
 	param_score_win = DEFAULT_REWARD_WIN;
 	param_score_lose = DEFAULT_REWARD_LOSE;
 	param_score_draw = DEFAULT_REWARD_MAXPLIES;
@@ -92,6 +102,7 @@ void Game_RandomWalk::Copy_Settings(Game_Engine* source_game)
 	maximum_allowed_moves = source_game->maximum_allowed_moves;
 	config_walk_length = ((Game_RandomWalk*)source_game)->config_walk_length;
 	maximum_plys = source_game->maximum_plys;
+	param_score_start = source_game->param_score_start;
 	param_score_win = source_game->param_score_win;
 	param_score_lose = source_game->param_score_lose;
 	param_score_draw = source_game->param_score_draw;
@@ -166,7 +177,7 @@ void Game_RandomWalk::Game_Reset()
 	current_moves[0][0] = true;
 	current_moves[0][1] = true;
 	
-	score[0] = 0.0;
+	score[0] = param_score_start;
 
 	current_player = 0;
 	game_ended = false;

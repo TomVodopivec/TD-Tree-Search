@@ -106,10 +106,11 @@ public:
 	bool	internal_game_force_copy;
 
 	//public variables - UCT learning parameters
-	int		UCT_param_IterNum;			//number of simulation per move
-	double	UCT_param_C;					//exploration factor
+	int		UCT_param_IterNum;			//number of MCTS iterations per external move
+	double	UCT_param_C;				//exploration factor
 	int		UCT_param_defaultPolicy_maxPlys;	//maxium number of moves per simulated game
 	int		UCTtree_maxMemorySize;		//maximum size of tree in memory
+	int		UCT_param_SimMoveNum;		//number of simulated moves per external move
 
 	//public variables - UCT
 	UCTnode* UCTroot;
@@ -117,6 +118,10 @@ public:
 
 	//public vairables - debug and visualization settings
 	int  output_type;
+
+	//public vairables - debug and visualization
+	int  numIterations_lastMove;
+	int  numIterations_total;
 
 protected:
 
@@ -155,6 +160,7 @@ protected:
 	//int* actionsNumSel;
 	//bool* actionsPlayed;
 	int all_actions_num;
+	int last_extMove_numSimMoves;
 
 	//private protected variables - UCT
 	int UCTtree_treePolicy_lastDepth;

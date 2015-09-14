@@ -20,8 +20,13 @@ Game_ConnectFour::Game_ConnectFour(Game_Engine* source_game)
 //destructor
 Game_ConnectFour::~Game_ConnectFour(void)
 {
-	//release memory space
-	Clear_Memory();
+	if (is_initialized){
+
+		//release memory space
+		Clear_Memory();
+
+		is_initialized = false;
+	}
 }
 
 //create duplicate game
@@ -50,6 +55,7 @@ void Game_ConnectFour::Init_Settings()
 	maximum_allowed_moves = board_length;
 	maximum_plys = board_size;
 	win_connected_pieces = TOMGAME_FOURROW_WIN_CONNECTED_PIECES;
+	param_score_start = TOMGAME_FOURROW_SCORE_START;
 	param_score_win = TOMGAME_FOURROW_SCORE_WIN;
 	param_score_lose = TOMGAME_FOURROW_SCORE_LOSE;
 	param_score_draw = TOMGAME_FOURROW_SCORE_DRAW;

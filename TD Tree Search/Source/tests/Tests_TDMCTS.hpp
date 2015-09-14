@@ -83,6 +83,57 @@ namespace Tests_TDMCTS
 	void Experiment_RandomWalk_perEpisode_Batch_stepNegativeReward(int startIndex = -1, int endIndex = -1);
 	void Experiment_RandomWalk_perEpisode_Batch_DifferentInitialValues(int startIndex = -1, int endIndex = -1);
 	void Experiment_RandomWalk_perEpisode_Batch_LambdaSensitivity100(int startIndex = -1, int endIndex = -1);
+
+	void Experiment_RandomWalk_perStep_Batch(int startIndex = -1, int endIndex = -1, int useUCB = 0);
+	void Experiment_RandomWalk_perStep_Batch_RunConfiguration(
+		int* address_configurationSerialID,
+		int algorithmSerialID,
+		int num_repeats,
+		int config_walk_length,
+		int maximum_plys,
+		int par_num_episodes,
+		double par_td_initVal,
+		double par_td_alpha,
+		double par_td_lambda,
+		Player_AI_RL::PRESET_ALGORITHMS::TYPE config_preset_algorithm,
+		Player_AI_RL::TD_UPDATES::TYPE config_TDupdateType,
+		Player_AI_RL::ELIGIBILITY_TRACES::TYPE config_trace_type,
+		Player_AI_RL::UPDATESTEP_ALPHA::TYPE config_alpha_type,
+		Game_Engine::TRANSPOSITIONS::TYPE config_transpositions,
+		Player_AI_RL::ROLLOUT_VALUE_ASSUMPTIONS::TYPE config_rollout_assumption,
+		int config_num_new_nodes_per_episode,
+		Game_RandomWalk* game,
+		Player_AI_RL* player,
+		char* experimentName,
+		char* xAxisLabel,
+		int show_per_repeat_output,
+		double config_confidenceInterval,
+		bool config_show_individual_final_output,
+		Tool_Sample_Storage**** gatheredResults,
+		MultiPrinter* resultsFilePrinter,
+		char* printLinePrefix,
+		int config_IndexStart,
+		int config_IndexEnd
+		);
+	void Experiment_RandomWalk_perStep_Batch_LambdaSensitivity100(int startIndex = -1, int endIndex = -1, int useUCB = 0);
+	
+	void Experiment_RandomWalk_perStep_BatchUCB(int startIndex = -1, int endIndex = -1, int useUCB = 1);
+
+	void Experiment_TicTacToe_perStep_BatchUCB(int startIndex = -1, int endIndex = -1);
+	void Experiment_SingleGame(
+		Game_Engine* game,
+		Player_AI_RL** players,
+		char* procedureName,
+		char* xAxisLabel,
+		int num_repeats,
+		int show_per_repeat_output,
+		double config_confidenceInterval = Tool_Sample_Storage::CONFIDENCE_INTERVAL_T_95,
+		bool show_final_output = true,
+		Tool_Sample_Storage** externalStorage = NULL
+		);
+
+	void Experiment5_perStep_BatchUCB(int experimentType, int input_repeats, Game_Engine* game, const int timeSteps, double opponentUCBC, double evaluatedUCBC, double evaluatedTDlam = NULL, int startIndex = -1, int endIndex = -1);
+
 }
 
 #endif

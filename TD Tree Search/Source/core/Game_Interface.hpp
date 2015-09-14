@@ -18,6 +18,7 @@
 //include other
 #include "..\tools\Support_GetCPUTime.hpp"
 #include "..\tools\Tom_Sample_Storage.hpp"
+#include "..\tools\Tool_Sample_Storage.hpp"
 
 
 //defines - global DEBUG, WARNING: specific to Visual Studio

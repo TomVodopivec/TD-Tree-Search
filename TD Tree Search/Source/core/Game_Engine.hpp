@@ -47,8 +47,9 @@ public:
 		static const char * stringLabels2char[ENUM_COUNT_ELEMENTS];
 	};
 
-	//constructor
+	//constructor and destructor
 	Game_Engine();
+	virtual ~Game_Engine(){};
 
 	//virtual public procedures - engine
 	virtual void Game_Reset()			= 0;
@@ -137,7 +138,8 @@ public:
 		int return_score_player_num = 0,		//defines which players score will be returned
 		Tom_Sample_Storage<double>** score_output = NULL,	//output data structure (must be preallocated externally)
 		int intermediate_output = 0,		//output results every "intermediate_output" repeats (0 = disabled)
-		const int measure_time_per_move = 0		//measure time per move and output at the end
+		const int measure_time_per_move = 0,		//measure time per move and output at the end
+		double* winDraw_output_new = NULL
 	);
 	void Evaluate_Two_Players(
 		int	num_repeats = TOMGAME_ENGINE_EVALUATE_NUM_REPEATS,
@@ -160,8 +162,11 @@ public:
 	bool is_episodic;
 	bool revealsScoreInfo;
 	bool allows_transpositions;		//HashKeys functions for this game must be implemented, this means that states (or state-actions) must be identifiable and that the search space is reasonably large to fit in memory
+	double startScore;
 	double minScore;
 	double maxScore;
+	double minReturn;
+	double maxReturn;
 
 	//public variables - external links
 	Player_Engine** players;
@@ -173,6 +178,7 @@ public:
 	int number_players;
 	int maximum_allowed_moves;
 	int maximum_plys;
+	double param_score_start;
 	double param_score_win;
 	double param_score_lose;
 	double param_score_draw;
@@ -229,6 +235,9 @@ protected:
 	void Initialize_Common();
 	void Copy_Initialize(Game_Engine* source_game);
 	Player_Engine** Validate_Players(Player_Engine** specified_players);
+
+	//protected variables - object state
+	bool is_initialized;
 
 	//protected variables - debug and visualizaton
 

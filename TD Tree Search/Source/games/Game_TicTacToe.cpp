@@ -1,6 +1,14 @@
 //include header
 #include "Game_TicTacToe.hpp"
 
+//TEMPORARILY MOVED HERE FROM HEADER: is already valid by the c++11 standard (in-header static const double initialization), but is not yet implemented in VS2013
+const int	 Game_TicTacToe::TICTACTOE_BOARD_LENGTH = 3;
+const int	 Game_TicTacToe::TICTACTOE_WIN_CONNECTED_PIECES = 3;
+const double Game_TicTacToe::TICTACTOE_SCORE_START = 0.5;
+const double Game_TicTacToe::TICTACTOE_SCORE_WIN = 1.0;
+const double Game_TicTacToe::TICTACTOE_SCORE_LOSE = 0.0;
+const double Game_TicTacToe::TICTACTOE_SCORE_DRAW = 0.5;
+
 //constructor
 Game_TicTacToe::Game_TicTacToe(Game_Engine* source_game)
 {
@@ -22,8 +30,13 @@ Game_TicTacToe::Game_TicTacToe(Game_Engine* source_game)
 //destructor
 Game_TicTacToe::~Game_TicTacToe(void)
 {
-	//release memory space
-	Clear_Memory();
+	if (is_initialized){
+
+		//release memory space
+		Clear_Memory();
+
+		is_initialized = false;
+	}
 }
 
 //create duplicate game
@@ -52,6 +65,7 @@ void Game_TicTacToe::Init_Settings()
 	maximum_allowed_moves = board_size;
 	maximum_plys = board_size;
 	win_connected_pieces = TICTACTOE_WIN_CONNECTED_PIECES;
+	param_score_start = TICTACTOE_SCORE_START;
 	param_score_win = TICTACTOE_SCORE_WIN;
 	param_score_lose = TICTACTOE_SCORE_LOSE;
 	param_score_draw = TICTACTOE_SCORE_DRAW;

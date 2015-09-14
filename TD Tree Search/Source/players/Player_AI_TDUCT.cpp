@@ -30,7 +30,10 @@ Player_AI_TDUCT::Player_AI_TDUCT(Game_Engine* game, int player_number) : Player_
 //destructor
 Player_AI_TDUCT::~Player_AI_TDUCT(void)
 {
-	Clear_Memory();
+	if (is_initialized){
+		Clear_Memory();
+		is_initialized = false;
+	}
 }
 
 //allocate memory and initialize variables

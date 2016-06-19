@@ -5166,13 +5166,13 @@ namespace Tests_TDMCTS
 						par_num_simulated_actions = config_max_num_timeSteps;	//MUST NOT EXCEED config_max_num_episodes!
 						num_repeats = config_max_num_repeats;
 						maximum_plys = 10000;
-						if (gd == 0){
+						if (gd == 0){ //game type (random walk or shortest walk)
 							game->maxScore = 1.0;
 							game->minScore = 0.0;
 						}
 						else{
-							game->maxScore = -(config_walk_length - 1) / 2;
-							game->minScore = -(game->maximum_plys);
+							game->maxScore = -(config_walk_length - 1) / 2;   //used as "known" bound for normalization, minimal length
+							game->minScore = -(game->maximum_plys);           //used as "known" bound for normalization, time-step limit
 						}
 
 						//safety checks

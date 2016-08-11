@@ -39,6 +39,7 @@
     <ClInclude Include="Source\players\Player_AI_UCT_TomTest.hpp" />
     <ClInclude Include="Source\tests\Tests_Includes.hpp" />
     <ClInclude Include="Source\tests\Tests_Old.hpp" />
+    <ClInclude Include="Source\tests\Tests_TDMCTSnew.hpp" />
     <ClInclude Include="Source\tests\Tests_TDUCT.hpp" />
     <ClInclude Include="Source\tests\Tests_TDMCTS.hpp" />
     <ClInclude Include="Source\tools\Support_GetCPUTime.hpp" />
@@ -70,6 +71,7 @@
     <ClCompile Include="Source\players\Player_AI_UCT_Reinforce.cpp" />
     <ClCompile Include="Source\players\Player_AI_UCT_TomTest.cpp" />
     <ClCompile Include="Source\tests\Tests_Old.cpp" />
+    <ClCompile Include="Source\tests\Tests_TDMCTSnew.cpp" />
     <ClCompile Include="Source\tests\Tests_TDUCT.cpp" />
     <ClCompile Include="Source\tests\Tests_TDMCTS.cpp" />
     <ClCompile Include="Source\tools\Support_GetCPUTime.cpp" />

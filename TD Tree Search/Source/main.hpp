@@ -9,6 +9,7 @@
 #include "tests\Tests_Old.hpp"
 #include "tests\Tests_TDUCT.hpp"
 #include "tests\Tests_TDMCTS.hpp"
+#include "tests\Tests_TDMCTSnew.hpp"
 
 using namespace std;
 

@@ -9,8 +9,9 @@ void Main_Testing();
 void Main_Testing()
 {
 
-	Tests_TDMCTS::main();
+  Tests_TDMCTSnew::main();
 
+  //Tests_TDMCTS::main();
 
 
 	//Tests_Old::Benchmark();

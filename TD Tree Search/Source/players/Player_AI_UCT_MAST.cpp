@@ -1,16 +1,16 @@
 //include header
-#include "Player_AI_UCT_AMAF.hpp"
+#include "Player_AI_UCT_MAST.hpp"
 
 /**
 Constructor for AI UCT player module calling general game player constructor
 
 @param game Pointer to a Game_Engine object (or derivated class)
 */
-Player_AI_UCT_AMAF::Player_AI_UCT_AMAF(Game_Engine* game, int player_number) : Player_Engine(game, player_number)
+Player_AI_UCT_MAST::Player_AI_UCT_MAST(Game_Engine* game, int player_number) : Player_Engine(game, player_number)
 {
   //-- <- marked all changed procedures like this, so I can later set inheritance to UCT_Player
   //player definition
-  player_name = "UCT_AMAF";
+  player_name = "UCT_MAST";
 
   //call initialization procedures
   if (game != NULL)
@@ -20,7 +20,7 @@ Player_AI_UCT_AMAF::Player_AI_UCT_AMAF(Game_Engine* game, int player_number) : P
 }
 
 //destructor
-Player_AI_UCT_AMAF::~Player_AI_UCT_AMAF(void)
+Player_AI_UCT_MAST::~Player_AI_UCT_MAST(void)
 {
   if (is_initialized) {
     Clear_Memory();
@@ -29,7 +29,7 @@ Player_AI_UCT_AMAF::~Player_AI_UCT_AMAF(void)
 }
 
 //allocate memory and initialize variables
-void Player_AI_UCT_AMAF::Initialize()
+void Player_AI_UCT_MAST::Initialize()
 {
   //set init flag
   is_initialized = true;
@@ -44,27 +44,29 @@ void Player_AI_UCT_AMAF::Initialize()
   New_Game2();
 }
 
-void Player_AI_UCT_AMAF::Init_Settings()
+void Player_AI_UCT_MAST::Init_Settings()
 {
   //init internal variables
   all_actions_num = game->maximum_allowed_moves;
-  UCTtree_maxMemorySize = (int)(TOMPLAYER_AI_UCT_AMAF_TREE_SIZE_LIMIT_GB * (1 << 30));
+  UCTtree_maxMemorySize = (int)(TOMPlayer_AI_UCT_MAST_TREE_SIZE_LIMIT_GB * (1 << 30));
   UCTtree_num_nodes = 0;
   UCTtree_memorySize = 0;
 
   //init optimization settings
-  internal_game_force_copy = TOMPLAYER_AI_UCT_AMAF_OPTIMIZATION_INTERNAL_FORCE_COPY;
+  internal_game_force_copy = TOMPlayer_AI_UCT_MAST_OPTIMIZATION_INTERNAL_FORCE_COPY;
 
   //init learning parameters
-  UCT_param_C = TOMPLAYER_AI_UCT_AMAF_PARAM_C;
-  UCT_param_IterNum = TOMPLAYER_AI_UCT_AMAF_PARAM_NUMBER_ITERATIONS;
-  UCT_param_defaultPolicy_maxPlys = TOMPLAYER_AI_UCT_AMAF_PARAM_DEFAULT_MAX_PLAYS;
-  UCTtree_preserve = TOMPLAYER_AI_UCT_AMAF_PARAM_PRESERVE_TREE;
+  UCT_param_C = TOMPlayer_AI_UCT_MAST_PARAM_C;
+  UCT_param_IterNum = TOMPlayer_AI_UCT_MAST_PARAM_NUMBER_ITERATIONS;
+  UCT_param_defaultPolicy_maxPlys = TOMPlayer_AI_UCT_MAST_PARAM_DEFAULT_MAX_PLAYS;
+  UCTtree_preserve = TOMPlayer_AI_UCT_MAST_PARAM_PRESERVE_TREE;
   UCT_param_SimMoveNum = -1;
+
+  MAST_paramT = 1000000.0;  // uniform random default
 
 }
 
-void Player_AI_UCT_AMAF::Allocate_Memory()
+void Player_AI_UCT_MAST::Allocate_Memory()
 {
   //--
   //allocate resources
@@ -73,12 +75,24 @@ void Player_AI_UCT_AMAF::Allocate_Memory()
   internalGame = game->Create_Duplicate_Game();
   simulatedGame = game->Create_Duplicate_Game();
 
-  //array for All-Moves-As_First (AMAF) heuristic
-  AMAF_flagList = new int[all_actions_num];
+  
+
+  //array for MAST heuristic
+
+  MAST_prob = new double[all_actions_num];
+  MAST_list = new int[all_actions_num];
+  MAST_flagPlayer = new int[game->maximum_plys];
+  MAST_flagMove = new int[game->maximum_plys];
+  MAST_rewards = new double*[2];
+  MAST_rewards[0] = new double[all_actions_num];
+  MAST_rewards[1] = new double[all_actions_num];
+  MAST_visits = new double*[2];
+  MAST_visits[0] = new double[all_actions_num];
+  MAST_visits[1] = new double[all_actions_num];
 
 }
 
-void Player_AI_UCT_AMAF::Clear_Memory()
+void Player_AI_UCT_MAST::Clear_Memory()
 {
   //--
   //clean up memory
@@ -90,11 +104,20 @@ void Player_AI_UCT_AMAF::Clear_Memory()
 
     delete(internalGame);
     delete(simulatedGame);
-    delete(AMAF_flagList);
+    delete(MAST_prob);
+    delete(MAST_list);
+    delete(MAST_flagPlayer);
+    delete(MAST_flagMove);
+    delete(MAST_visits[0]);
+    delete(MAST_visits[1]);
+    delete(MAST_visits);
+    delete(MAST_rewards[0]);
+    delete(MAST_rewards[1]);
+    delete(MAST_rewards);
   }
 }
 
-void Player_AI_UCT_AMAF::New_Game2()
+void Player_AI_UCT_MAST::New_Game2()
 {
 
   //RESET internal game copy
@@ -106,7 +129,7 @@ void Player_AI_UCT_AMAF::New_Game2()
 }
 
 //public procedure: reset player (reset all learning values)
-void Player_AI_UCT_AMAF::Reset()
+void Player_AI_UCT_MAST::Reset()
 {
 
   //delete/free entire tree except root
@@ -120,7 +143,7 @@ void Player_AI_UCT_AMAF::Reset()
 }
 
 //public procedure: signal player that new game has been started
-void Player_AI_UCT_AMAF::New_Game()
+void Player_AI_UCT_MAST::New_Game()
 {
 
   //reset root (and reset tree, optionally)
@@ -135,14 +158,14 @@ void Player_AI_UCT_AMAF::New_Game()
 }
 
 //public procedure: returns players next selected move
-int Player_AI_UCT_AMAF::Get_Move()
+int Player_AI_UCT_MAST::Get_Move()
 {
 
   //--
   int moveNumber;
   int number_internal_moves;
 
-#if(TOMPLAYER_AI_UCT_AMAF_VISUALIZE_LEVEL_UCT)
+#if(TOMPlayer_AI_UCT_MAST_VISUALIZE_LEVEL_UCT)
   printf("\n");
   printf("======================================================= NEXT MOVE =======================================================\n");
   printf("======================================================= NEXT MOVE =======================================================\n");
@@ -171,10 +194,10 @@ int Player_AI_UCT_AMAF::Get_Move()
   moveNumber = UCT_AMAF();
 
   //DEBUG
-#if(TOMPLAYER_AI_UCT_AMAF_DEBUG_ROOT_CHILDREN_VALUES)
+#if(TOMPlayer_AI_UCT_MAST_DEBUG_ROOT_CHILDREN_VALUES)
   Output_UCT_Tree_Node_Children(UCTroot);		//show values of roots actions (children)
 #endif
-#if(TOMPLAYER_AI_UCT_AMAF_VISUALIZE_UCT_GETC_AFTER_MOVE)
+#if(TOMPlayer_AI_UCT_MAST_VISUALIZE_UCT_GETC_AFTER_MOVE)
   cin.get();
 #endif
 
@@ -183,7 +206,7 @@ int Player_AI_UCT_AMAF::Get_Move()
 }
 
 //Updates internal game to match external game (replay moves in internal game)
-void Player_AI_UCT_AMAF::UCT_Update_Internal_Game(int number_actions)
+void Player_AI_UCT_MAST::UCT_Update_Internal_Game(int number_actions)
 {
 
   //check if external game should be copied to or replayed in internal game
@@ -200,7 +223,7 @@ void Player_AI_UCT_AMAF::UCT_Update_Internal_Game(int number_actions)
   }
 
   //DEBUG: check if move history of external and internal game is equal
-#if(TOMPLAYER_AI_UCT_AMAF_DEBUG_HISTORY_COPY_CHECK)
+#if(TOMPlayer_AI_UCT_MAST_DEBUG_HISTORY_COPY_CHECK)
   for (int i = 0; i <= game->current_plys; i++) {
     if (game->history_moves[i] != internalGame->history_moves[i]) {
       printf("PLAYER AI UCT: UCT_Update_Internal_Game(): game copy error - external and internal game history does not match at index %d: ext %d int %d ... RESETTING UCT PLAYER\n", i, game->history_moves[i], internalGame->history_moves[i]);
@@ -212,16 +235,21 @@ void Player_AI_UCT_AMAF::UCT_Update_Internal_Game(int number_actions)
 
 }
 
-int Player_AI_UCT_AMAF::UCT_AMAF()
+int Player_AI_UCT_MAST::UCT_AMAF()
 {
 
   //--
   UCTnode* selected_leaf;
   double* final_rewards;
 
-  //reset AMAF flags
+  //reset MAST flags
   for (int i = 0; i < all_actions_num; i++) {
-    AMAF_flagList[i] = 0;
+    MAST_flagPlayer[i] = 0;
+    MAST_flagMove[i] = 0;
+    MAST_rewards[0][i] = 0.0;
+    MAST_rewards[1][i] = 0.0;
+    MAST_visits[0][i] = 0.0;
+    MAST_visits[1][i] = 0.0;
   }
 
   //execute simulations with given computational budget
@@ -229,8 +257,9 @@ int Player_AI_UCT_AMAF::UCT_AMAF()
   this->numIterations_lastMove = 0;
   for (int i = 0; i < UCT_param_IterNum; i++) {
 
+    MASTcount = 0;
 
-#if(TOMPLAYER_AI_UCT_AMAF_DEBUG_SIMULATED_GAMES_OUT)
+#if(TOMPlayer_AI_UCT_MAST_DEBUG_SIMULATED_GAMES_OUT)
     printf("-> GAME_PLY %d SIMULATION %d\n", internalGame->current_plys, i);
 #endif
     //RESET simulated game position to initial state
@@ -262,11 +291,11 @@ int Player_AI_UCT_AMAF::UCT_AMAF()
     //DEBUG
 
 
-#if(TOMPLAYER_AI_UCT_AMAF_VISUALIZE_LEVEL_UCT)
+#if(TOMPlayer_AI_UCT_MAST_VISUALIZE_LEVEL_UCT)
     printf("\nSim num %2d     score", i);
     for (int t = 0; t < game->number_players; t++)
       printf("  %3.5f", final_rewards[t]);
-#if(!TOMPLAYER_AI_UCT_AMAF_VISUALIZE_UCT_ACTIONS_TREE)
+#if(!TOMPlayer_AI_UCT_MAST_VISUALIZE_UCT_ACTIONS_TREE)
     printf("     root  %2d", UCTroot->action_index);
 #else
     printf("     tree  %2d", UCTroot->action_index);
@@ -274,7 +303,7 @@ int Player_AI_UCT_AMAF::UCT_AMAF()
     visualizeActionsTree.str("");		//set stringstream to empty
     visualizeActionsTree.clear();		//clear flags
 #endif
-#if(TOMPLAYER_AI_UCT_AMAF_VISUALIZE_UCT_ACTIONS_PLAYOUT)
+#if(TOMPlayer_AI_UCT_MAST_VISUALIZE_UCT_ACTIONS_PLAYOUT)
     printf("    \t playout:");
     printf("%s", visualizeActionsPlayout.str().c_str());
     visualizeActionsPlayout.str("");	//set stringstream to empty
@@ -282,7 +311,7 @@ int Player_AI_UCT_AMAF::UCT_AMAF()
 #endif
 #endif
 
-#if(TOMPLAYER_AI_UCT_AMAF_DEBUG_TREE_EXPANSION_SIM)
+#if(TOMPlayer_AI_UCT_MAST_DEBUG_TREE_EXPANSION_SIM)
     Output_UCT_Tree();
     Output_UCT_Tree_Node_Children(UCTroot);
 #endif
@@ -293,7 +322,7 @@ int Player_AI_UCT_AMAF::UCT_AMAF()
   }
 
   //DEBUG
-#if(TOMPLAYER_AI_UCT_AMAF_DEBUG_TREE_EXPANSION)
+#if(TOMPlayer_AI_UCT_MAST_DEBUG_TREE_EXPANSION)
   Output_UCT_Tree();
 #endif
 
@@ -317,7 +346,7 @@ int Player_AI_UCT_AMAF::UCT_AMAF()
   }
 }
 
-Player_AI_UCT_AMAF::UCTnode* Player_AI_UCT_AMAF::UCT_AMAF_Tree_Policy(UCTnode* root, int simulation_number)
+Player_AI_UCT_MAST::UCTnode* Player_AI_UCT_MAST::UCT_AMAF_Tree_Policy(UCTnode* root, int simulation_number)
 {
 
   //--
@@ -326,6 +355,8 @@ Player_AI_UCT_AMAF::UCTnode* Player_AI_UCT_AMAF::UCT_AMAF_Tree_Policy(UCTnode* r
 
   //move through the tree and game
   while (terminalNode == 0) {
+
+    MAST_flagPlayer[MASTcount] = simulatedGame->current_player;
 
     //check expanding condition and descend tree according to tree policy
     if (currentNode->number_explored_children >= simulatedGame->current_number_moves[simulatedGame->current_player]) {
@@ -339,10 +370,10 @@ Player_AI_UCT_AMAF::UCTnode* Player_AI_UCT_AMAF::UCT_AMAF_Tree_Policy(UCTnode* r
 
 
       //DEBUG
-#if(TOMPLAYER_AI_UCT_AMAF_DEBUG_TRACE_BEST_UCT)
+#if(TOMPlayer_AI_UCT_MAST_DEBUG_TRACE_BEST_UCT)
       printf("Best node: %d  %4.1f %3.0f  %3.0f  %3.3f\n", currentNode->action_index, currentNode->rewards, currentNode->parent->visits, currentNode->visits, currentNode->value);
 #endif
-#if(TOMPLAYER_AI_UCT_AMAF_DEBUG_SIMULATED_GAMES_OUT)
+#if(TOMPlayer_AI_UCT_MAST_DEBUG_SIMULATED_GAMES_OUT)
       printf("-tree-\n");
 #endif
 
@@ -360,19 +391,19 @@ Player_AI_UCT_AMAF::UCTnode* Player_AI_UCT_AMAF::UCT_AMAF_Tree_Policy(UCTnode* r
       //is last node in tree
       terminalNode = 1;
 
-#if(TOMPLAYER_AI_UCT_AMAF_DEBUG_SIMULATED_GAMES_OUT)
+#if(TOMPlayer_AI_UCT_MAST_DEBUG_SIMULATED_GAMES_OUT)
       printf("-tree expand-\n");
 #endif
     }
-
-    //AMAF heuristic: remember moves (was erroneously missing prior to 28.4.2014, paper1 didnt have this)
-    AMAF_flagList[currentNode->action_index] = simulation_number + 1;
+    
+    MAST_flagMove[MASTcount] = currentNode->action_index;
+    MASTcount++;
 
     //check if computational budged is exceeded (number of simulated moves)
     if ((UCT_param_SimMoveNum > 0) && (last_extMove_numSimMoves >= UCT_param_SimMoveNum))
       terminalNode = 1;
 
-#if(TOMPLAYER_AI_UCT_AMAF_VISUALIZE_UCT_ACTIONS_TREE)
+#if(TOMPlayer_AI_UCT_MAST_VISUALIZE_UCT_ACTIONS_TREE)
     //sprintf(visualizeActionsTree, "  > %2d", currentNode->action_index);
     if (currentNode->action_index >= 10)
       visualizeActionsTree << "  > " << currentNode->action_index;
@@ -384,7 +415,7 @@ Player_AI_UCT_AMAF::UCTnode* Player_AI_UCT_AMAF::UCT_AMAF_Tree_Policy(UCTnode* r
     //DEBUG
     //simulatedGame->output_state_to_STD();
     //simulatedGame->output_chains_to_STD();
-#if(TOMPLAYER_AI_UCT_AMAF_DEBUG_SIMULATED_GAMES_OUT)
+#if(TOMPlayer_AI_UCT_MAST_DEBUG_SIMULATED_GAMES_OUT)
 
     simulatedGame->Output_Board_State();
     //simulatedGame->output_state_to_STD();
@@ -404,15 +435,16 @@ Player_AI_UCT_AMAF::UCTnode* Player_AI_UCT_AMAF::UCT_AMAF_Tree_Policy(UCTnode* r
 /**
 Select next child from given tree node and with given UCT exploration weight C.
 */
-Player_AI_UCT_AMAF::UCTnode* Player_AI_UCT_AMAF::UCT_AMAF_Tree_Policy_Best_Child(UCTnode* parent, double param_C) {
+Player_AI_UCT_MAST::UCTnode* Player_AI_UCT_MAST::UCT_AMAF_Tree_Policy_Best_Child(UCTnode* parent, double param_C) {
 
   //--
-  double bestValue;
+  double bestValue, bestMAST;
   int multiple_best, randAction;
   UCTnode* selectedChild;
 
   //find best-valued children node
   bestValue = -DBL_MAX;
+  bestMAST = -DBL_MAX;
   multiple_best = 1;
   selectedChild = NULL;
   for (int i = 0; i < parent->number_allowed_actions; i++) {
@@ -421,34 +453,14 @@ Player_AI_UCT_AMAF::UCTnode* Player_AI_UCT_AMAF::UCT_AMAF_Tree_Policy_Best_Child
     //check if children was already allocated (for safety)
     if (parent->children[i] != NULL) {
 
-      //---- UCB + AMAF equation ----
+      //---- UCB equation ----
       UCTnode* child = parent->children[i];
 
-      //variant #1
-#if(TOMPLAYER_AI_UCT_AMAF_VARIANT == 0)
-      child->value =
-        ((child->rewards + child->AMAF_rewards) / (child->visits + child->AMAF_visits)) +
-        2.0 * param_C * sqrt(2 * log(parent->visits + parent->AMAF_visits) / (child->visits + child->AMAF_visits));
-      //// DEBUG
-      //child->value =
-      //  ((child->rewards) / (child->visits)) +
-      //  2.0 * param_C * sqrt(2 * log(parent->visits) / (child->visits));
-#endif
 
-      //variant #2 - seems best at GOMOKU high number of simulations
-#if(TOMPLAYER_AI_UCT_AMAF_VARIANT == 1)
       child->value =
-        ((child->rewards + child->AMAF_rewards) / (child->visits + child->AMAF_visits)) +
+        ((child->rewards) / (child->visits)) +
         2.0 * param_C * sqrt(2 * log(parent->visits) / (child->visits));
-#endif
 
-      //variant #3
-#if(TOMPLAYER_AI_UCT_AMAF_VARIANT == 2)
-      child->value =
-        0.5 * (child->AMAF_rewards + 0.5) / (child->AMAF_visits + 1) +
-        0.5 * (child->rewards) / (child->visits) +
-        2.0 * param_C * sqrt(2 * log(parent->visits) / child->visits);
-#endif
 
       ////UCB equation
       //parent->children[i]->value = 
@@ -457,20 +469,38 @@ Player_AI_UCT_AMAF::UCTnode* Player_AI_UCT_AMAF::UCT_AMAF_Tree_Policy_Best_Child
 
       //printf("DEBUG VAL: %d %3.1f\n", i, value);
 
+      //MAST for tie-breaking in tree policy
+      int ai = child->action_index;
+      double mastVal = (MAST_rewards[simulatedGame->current_player][ai]) / (MAST_visits[simulatedGame->current_player][ai] + 0.000001);
+
       //remember best children and count number of equal best children
-      if (parent->children[i]->value == bestValue) {
-#if(!TOMPLAYER_AI_UCT_AMAF_DEBUG_DISABLE_RANDOM)
-        multiple_best++;
-#endif
+      if (child->value == bestValue) {
+        if (mastVal > bestMAST) {
+          selectedChild = parent->children[i];
+          bestMAST = mastVal;
+        }
+        else if (mastVal == bestMAST) {
+          multiple_best++;
+        }
       }
-      else if (parent->children[i]->value > bestValue) {
+      else if (child->value > bestValue) {
         selectedChild = parent->children[i];
         bestValue = parent->children[i]->value;
         multiple_best = 1;
+        bestMAST = mastVal;
       }
 
+      //if (parent->children[i]->value == bestValue) {
+      //  multiple_best++;
+      //}
+      //else if (parent->children[i]->value > bestValue) {
+      //  selectedChild = parent->children[i];
+      //  bestValue = parent->children[i]->value;
+      //  multiple_best = 1;
+      //}
+
       //DEBUG
-#if(TOMPLAYER_AI_UCT_AMAF_DEBUG_TRACE_ALL_UCT)
+#if(TOMPlayer_AI_UCT_MAST_DEBUG_TRACE_ALL_UCT)
       printf("-> node %d value: %5.3f\n", parent->children[i]->action_index, child->value);
 #endif
     }
@@ -481,7 +511,9 @@ Player_AI_UCT_AMAF::UCTnode* Player_AI_UCT_AMAF::UCT_AMAF_Tree_Policy_Best_Child
     randAction = (int)((rand() / (float)(RAND_MAX + 1)) * multiple_best);
     for (int i = 0; i < parent->number_allowed_actions; i++) {
       if (parent->children[i] != NULL) {
-        if (parent->children[i]->value == bestValue) {
+        int ai = parent->children[i]->action_index;
+        double mastVal = (MAST_rewards[simulatedGame->current_player][ai]) / (MAST_visits[simulatedGame->current_player][ai] + 0.000001);
+        if ((parent->children[i]->value == bestValue) && (mastVal == bestMAST)) {
           if (randAction <= 0) {
             selectedChild = parent->children[i];
             i = parent->number_allowed_actions;	//break loop
@@ -494,6 +526,24 @@ Player_AI_UCT_AMAF::UCTnode* Player_AI_UCT_AMAF::UCT_AMAF_Tree_Policy_Best_Child
     }
   }
 
+  ////if multiple best actions/children, break ties uniformly random
+  //if (multiple_best > 1) {
+  //  randAction = (int)((rand() / (float)(RAND_MAX + 1)) * multiple_best);
+  //  for (int i = 0; i < parent->number_allowed_actions; i++) {
+  //    if (parent->children[i] != NULL) {
+  //      if (parent->children[i]->value == bestValue) {
+  //        if (randAction <= 0) {
+  //          selectedChild = parent->children[i];
+  //          i = parent->number_allowed_actions;	//break loop
+  //        }
+  //        else {
+  //          randAction--;
+  //        }
+  //      }
+  //    }
+  //  }
+  //}
+
   //return selected untried action
   return selectedChild;
 }
@@ -501,7 +551,7 @@ Player_AI_UCT_AMAF::UCTnode* Player_AI_UCT_AMAF::UCT_AMAF_Tree_Policy_Best_Child
 /**
 Expand the tree
 */
-Player_AI_UCT_AMAF::UCTnode* Player_AI_UCT_AMAF::UCT_Expand(UCTnode* parent) {
+Player_AI_UCT_MAST::UCTnode* Player_AI_UCT_MAST::UCT_Expand(UCTnode* parent) {
 
   int randAction, cntAvailable;
   UCTnode* selectedChild;
@@ -526,7 +576,7 @@ Player_AI_UCT_AMAF::UCTnode* Player_AI_UCT_AMAF::UCT_Expand(UCTnode* parent) {
 
   //choose random untried action
 
-#if(!TOMPLAYER_AI_UCT_AMAF_DEBUG_DISABLE_RANDOM)
+#if(!TOMPlayer_AI_UCT_MAST_DEBUG_DISABLE_RANDOM)
   randAction = (int)((rand() / (float)(RAND_MAX + 1))*(parent->number_allowed_actions - parent->number_explored_children));
 #else
   randAction = 0;
@@ -579,7 +629,7 @@ Player_AI_UCT_AMAF::UCTnode* Player_AI_UCT_AMAF::UCT_Expand(UCTnode* parent) {
 /**
 Play default policy from current game position untill game end
 */
-double* Player_AI_UCT_AMAF::UCT_AMAF_Default_Policy(int simulation_number) {
+double* Player_AI_UCT_MAST::UCT_AMAF_Default_Policy(int simulation_number) {
 
   //--
   int gameStatus, lastMove;
@@ -600,29 +650,56 @@ double* Player_AI_UCT_AMAF::UCT_AMAF_Default_Policy(int simulation_number) {
       //if(simulatedGame->number_of_plays == 38) 
       //	printf("DEBUG: plys == %d", simulatedGame->number_of_plays);	
 
-      //random policy
-#if(!TOMPLAYER_AI_UCT_AMAF_DEBUG_DISABLE_RANDOM)
-      lastMove = simulatedGame->Select_Move_Random();
-#else
-      lastMove = simulatedGame->Select_Move(0);
-      //lastMove = simulatedGame->Select_Move_Random();
-#endif
+      // MAST
+      int mcp = simulatedGame->current_player;
+      MAST_flagPlayer[MASTcount] = mcp;
+
+      int mnum = simulatedGame->current_number_moves[mcp];
+      
+      int aa = 0;
+      double sumSoftMax = 0.0;
+      for (int ml = 0; ml < simulatedGame->maximum_allowed_moves; ml++) {
+        if (simulatedGame->current_moves[mcp][ml]) {
+          MAST_list[aa] = ml;          
+          double mastVal = (MAST_rewards[mcp][MAST_list[aa]]) / (MAST_visits[mcp][MAST_list[aa]] + 0.000001);
+          sumSoftMax += exp(mastVal / (this->MAST_paramT + 0.000001));
+          aa++;
+        }
+      }
+
+      double sumProb = 0.0;
+      for (int aa = 0; aa < mnum; aa++) {
+        double mastVal = (MAST_rewards[mcp][MAST_list[aa]]) / (MAST_visits[mcp][MAST_list[aa]] + 0.000001);
+        double mastP = exp(mastVal / (this->MAST_paramT + 0.000001)) / sumSoftMax;
+        MAST_prob[aa] = mastP;
+        sumProb += mastP;
+      }
+
+      double roll = rand() / ((double)(RAND_MAX)+0.000001) * sumProb;
+      int lastMove = 0;
+      for (int aa = 0; aa < mnum; aa++) {
+        roll -= MAST_prob[aa];
+        if (roll <= 0) {
+          lastMove = MAST_list[aa];
+          break;
+        }
+      }
+
+      //pick random move if softmax overflows
+      if(isnan(roll) || !isfinite(roll))
+        lastMove = simulatedGame->Select_Move_Random();
 
       //play move in internal simulated game
-#if(TOM_DEBUG)
       gameStatus = simulatedGame->Play_Move(lastMove);
-#else
-      gameStatus = simulatedGame->Play_Move_Unsafe(lastMove);
-#endif
       last_extMove_numSimMoves++;
 
       //DEBUG
-#if((TOMPLAYER_AI_UCT_AMAF_VISUALIZE_LEVEL_UCT)&&TOMPLAYER_AI_UCT_AMAF_VISUALIZE_UCT_ACTIONS_TREE)
+#if((TOMPlayer_AI_UCT_MAST_VISUALIZE_LEVEL_UCT)&&TOMPlayer_AI_UCT_MAST_VISUALIZE_UCT_ACTIONS_TREE)
       //sprintf(visualizeActionsTree, "  > %2d", currentNode->action_index);
       visualizeActionsPlayout << "  > " << lastMove;
       //printf("  > %2d", currentNode->action_index);
 #endif
-#if(TOMPLAYER_AI_UCT_AMAF_DEBUG_SIMULATED_GAMES_OUT)
+#if(TOMPlayer_AI_UCT_MAST_DEBUG_SIMULATED_GAMES_OUT)
       printf("-playout-\n");
       simulatedGame->Output_Board_State();
       //simulatedGame->output_state_to_STD();
@@ -630,8 +707,8 @@ double* Player_AI_UCT_AMAF::UCT_AMAF_Default_Policy(int simulation_number) {
       //printf("Moves: %d %d\n",simulatedGame->num_moves[0], simulatedGame->num_moves[1]);
 #endif
 
-      //AMAF heuristic: remember moves
-      AMAF_flagList[lastMove] = simulation_number + 1;
+      MAST_flagMove[MASTcount] = lastMove;
+      MASTcount++;
 
       //todo: pseudocode some-first-amaf, pseudocode: 
       //#if(SOME_FIRST_AMAF_ENABLED)
@@ -655,7 +732,7 @@ double* Player_AI_UCT_AMAF::UCT_AMAF_Default_Policy(int simulation_number) {
 /**
 Single- or two-player backup reward through the tree
 */
-void Player_AI_UCT_AMAF::UCT_AMAF_Backup(UCTnode* leaf, double* rewards, int simulation_number) {
+void Player_AI_UCT_MAST::UCT_AMAF_Backup(UCTnode* leaf, double* rewards, int simulation_number) {
 
   //--
   UCTnode* currentNode = leaf;
@@ -696,31 +773,17 @@ void Player_AI_UCT_AMAF::UCT_AMAF_Backup(UCTnode* leaf, double* rewards, int sim
     currentNode->visits += 1.0;
     currentNode->rewards += rewards[belonging_player];
 
-    //unflag AMAF for nodes selected by tree-policy
-    //AMAF_flagList[currentNode->action_index] = 0;
-
     //move to parent
     currentNode = currentNode->parent;
 
-    //AMAF update of children (alternative first moves)
-#if(!TOMPLAYER_AI_UCT_AMAF_DISABLE_AMAF)
-    if (currentNode != NULL) { //TODO: could be avoided if the for i loop would go to 1 element less
-#if(TOMPLAYER_AI_UCT_AMAF_IGNORE_UNTIL_EXPANDED)
-      if (currentNode->number_explored_children == currentNode->number_allowed_actions) {
-#endif
-        for (int a = 0; a < currentNode->number_allowed_actions; a++) {
-          if (currentNode->children[a] != NULL) {	//check if children was already allocated (for safety)
-            if (AMAF_flagList[currentNode->children[a]->action_index] == (simulation_number + 1)) {
-              currentNode->children[a]->AMAF_visits += 1.0;
-              currentNode->children[a]->AMAF_rewards += rewards[belonging_player];
-            }
-          }
-        }
-#if(TOMPLAYER_AI_UCT_AMAF_IGNORE_UNTIL_EXPANDED)
-      }
-#endif
+    //MAST
+    MASTcount--;
+    int mp = MAST_flagPlayer[MASTcount];
+    int mm = MAST_flagMove[MASTcount];
+    if (MASTcount > 0) {  // so the root is ignored
+      MAST_rewards[mp][mm] += rewards[belonging_player];
+      MAST_visits[mp][mm] += 1.0;
     }
-#endif	
 
     //change active player (to get correct reward)
     belonging_player = internalGame->Get_Previous_Player(belonging_player);
@@ -728,7 +791,7 @@ void Player_AI_UCT_AMAF::UCT_AMAF_Backup(UCTnode* leaf, double* rewards, int sim
   }
 
   //DEBUG AMAF
-#if(TOMPLAYER_AI_UCT_AMAF_DEBUG_BACKUP_SHOW_AMAFTAGS)
+#if(TOMPlayer_AI_UCT_MAST_DEBUG_BACKUP_SHOW_AMAFTAGS)
   printf("AMAF TAGS, real_ply %3d,  sim %3d: \t", internalGame->current_plys, simulation_number);
   for (int i = 0; i < all_actions_num; i++)
     printf(" %d", AMAF_flagList[i] - simulation_number - 1);
@@ -740,7 +803,7 @@ void Player_AI_UCT_AMAF::UCT_AMAF_Backup(UCTnode* leaf, double* rewards, int sim
 /**
 UCT Tree Node - initialization
 */
-Player_AI_UCT_AMAF::UCTnode* Player_AI_UCT_AMAF::UCT_Tree_Node_Init(int action, UCTnode* parent, const bool rootNode)
+Player_AI_UCT_MAST::UCTnode* Player_AI_UCT_MAST::UCT_Tree_Node_Init(int action, UCTnode* parent, const bool rootNode)
 {
   UCTnode* node;
 
@@ -768,22 +831,19 @@ Player_AI_UCT_AMAF::UCTnode* Player_AI_UCT_AMAF::UCT_Tree_Node_Init(int action, 
 /**
 UCT Tree Node - reset values
 */
-void Player_AI_UCT_AMAF::UCT_Tree_Node_Reset(UCTnode* node)
+void Player_AI_UCT_MAST::UCT_Tree_Node_Reset(UCTnode* node)
 {
   //--
   node->visits = 0.0;
   node->rewards = 0.0;
   node->number_explored_children = 0;
 
-  //AMAF
-  node->AMAF_visits = 0.0;
-  node->AMAF_rewards = 0.0;
 }
 
 /**
 UCT Tree Node - allocate children (actions) list
 */
-void Player_AI_UCT_AMAF::UCT_Tree_Node_AllocateList(UCTnode* node, int list_length)
+void Player_AI_UCT_MAST::UCT_Tree_Node_AllocateList(UCTnode* node, int list_length)
 {
   //remember list length
   node->number_allowed_actions = list_length;
@@ -797,7 +857,7 @@ void Player_AI_UCT_AMAF::UCT_Tree_Node_AllocateList(UCTnode* node, int list_leng
   UCTtree_memorySize += list_length*sizeof(UCTnode*);
 }
 
-void Player_AI_UCT_AMAF::UCT_Tree_Change_Root(int number_actions)
+void Player_AI_UCT_MAST::UCT_Tree_Change_Root(int number_actions)
 {
   //is root change needed?
   if (number_actions > 0) {
@@ -840,7 +900,7 @@ void Player_AI_UCT_AMAF::UCT_Tree_Change_Root(int number_actions)
         UCT_Tree_Node_Reset(UCTroot);
 
         //DEBUG
-#if(TOMPLAYER_AI_UCT_AMAF_DEBUG_MEMORY_SIZE_COUNT)
+#if(TOMPlayer_AI_UCT_MAST_DEBUG_MEMORY_SIZE_COUNT)
         if ((UCTtree_num_nodes != 1) || (UCTtree_memorySize != sizeof(UCTnode)))
           printf("PLAYER AI UCT: Tree_Change_Root(): tree error - tree incorrectly deleted, remaining nodes %d\n", UCTtree_num_nodes);
 #endif
@@ -864,7 +924,7 @@ void Player_AI_UCT_AMAF::UCT_Tree_Change_Root(int number_actions)
 Select new tree root for current game state and trim tree if UCTtree_preserve is not set: delete all nodes (and free memory) except active branch
 WARNING: does not delete first call branchRoot node
 */
-void Player_AI_UCT_AMAF::UCT_Tree_Trim(UCTnode* branchRoot, int remaining_depth)
+void Player_AI_UCT_MAST::UCT_Tree_Trim(UCTnode* branchRoot, int remaining_depth)
 {
 
   //new root has not yet been found
@@ -928,7 +988,7 @@ void Player_AI_UCT_AMAF::UCT_Tree_Trim(UCTnode* branchRoot, int remaining_depth)
 Recursively delete tree from selected node, including root node
 WARNING: does not delete first call branchRoot node
 */
-void Player_AI_UCT_AMAF::UCT_Tree_Delete(UCTnode* branchRoot)
+void Player_AI_UCT_MAST::UCT_Tree_Delete(UCTnode* branchRoot)
 {
 
   //search deeper in the tree if branchRoot is not a leaf - if has children
@@ -959,7 +1019,7 @@ void Player_AI_UCT_AMAF::UCT_Tree_Delete(UCTnode* branchRoot)
 /**
 Recursively delete selected tree branch, without root node
 */
-void Player_AI_UCT_AMAF::UCT_Tree_Reset()
+void Player_AI_UCT_MAST::UCT_Tree_Reset()
 {
 
   UCTnode* branchRoot;
@@ -995,7 +1055,7 @@ void Player_AI_UCT_AMAF::UCT_Tree_Reset()
 }
 
 //TODO
-void Player_AI_UCT_AMAF::UCT_Tree_Preserve()
+void Player_AI_UCT_MAST::UCT_Tree_Preserve()
 {
 }
 //OLD CODE
@@ -1016,7 +1076,7 @@ void Player_AI_UCT_AMAF::UCT_Tree_Preserve()
 /**
 Output entire tree with all information (see implementation code for details about output format)
 */
-void Player_AI_UCT_AMAF::Output_UCT_Tree()
+void Player_AI_UCT_MAST::Output_UCT_Tree()
 {
   printf("\n========== BEGIN OUTPUT_UCT_TREE ==========\n\nTREE SIZE: %d nodes, memory: %d B (%.3f MB)\n", UCTtree_num_nodes, UCTtree_memorySize, UCTtree_memorySize / 1024.0 / 1024.0);
   printf("Leafs < Root\n");
@@ -1024,7 +1084,7 @@ void Player_AI_UCT_AMAF::Output_UCT_Tree()
   printf("\n========== END OUTPUT_UCT_TREE ==========\n\n");
 }
 
-void Player_AI_UCT_AMAF::Output_UCT_Tree_Node_Children(UCTnode* parent)
+void Player_AI_UCT_MAST::Output_UCT_Tree_Node_Children(UCTnode* parent)
 {
   //--
   printf("\n========== BEGIN OUTPUT_UCT_TREE_NODE_CHILDREN ==========\naction:    N        R  amafN  amafQ  \tvalue:\n");
@@ -1034,8 +1094,6 @@ void Player_AI_UCT_AMAF::Output_UCT_Tree_Node_Children(UCTnode* parent)
         UCTroot->children[i]->action_index,
         UCTroot->children[i]->visits,
         UCTroot->children[i]->rewards,
-        UCTroot->children[i]->AMAF_visits,
-        UCTroot->children[i]->AMAF_rewards,
         UCTroot->children[i]->value
         );
     }
@@ -1049,7 +1107,7 @@ void Player_AI_UCT_AMAF::Output_UCT_Tree_Node_Children(UCTnode* parent)
 /**
 Output part of tree starting from branchRoot
 */
-void Player_AI_UCT_AMAF::Output_UCT_Tree_Branch(UCTnode* branchRoot)
+void Player_AI_UCT_MAST::Output_UCT_Tree_Branch(UCTnode* branchRoot)
 {
   UCTnode* tmpNode;
 
@@ -1095,7 +1153,7 @@ void Player_AI_UCT_AMAF::Output_UCT_Tree_Branch(UCTnode* branchRoot)
 
 }
 
-void Player_AI_UCT_AMAF::Debug_UCT_Tree_MemoryState()
+void Player_AI_UCT_MAST::Debug_UCT_Tree_MemoryState()
 {
 
   int size1, size2;
@@ -1116,7 +1174,7 @@ void Player_AI_UCT_AMAF::Debug_UCT_Tree_MemoryState()
 
 //TODO
 
-int Player_AI_UCT_AMAF::Debug_UCT_Tree_Size(UCTnode*)
+int Player_AI_UCT_MAST::Debug_UCT_Tree_Size(UCTnode*)
 {
   return 0;
 }

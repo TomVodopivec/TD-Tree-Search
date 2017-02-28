@@ -5,53 +5,55 @@ ISSUES: PRESERVING TREE CURRENTLY NOT IMPLEMENTED COMPLETLY
 */
 
 
-#ifndef _TOM_PLAYER_AI_UCT_RAVE_
-#define _TOM_PLAYER_AI_UCT_RAVE_
+#ifndef _TOM_Player_AI_UCT_MAST_
+#define _TOM_Player_AI_UCT_MAST_
 
 //includes
 #include "..\core\Player_Engine.hpp"
 
 //defines
-#define TOMPLAYER_AI_UCT_RAVE_PARAM_NUMBER_ITERATIONS	1000
-#define TOMPLAYER_AI_UCT_RAVE_PARAM_C					(1.0 / (2*sqrt(2)))
-#define TOMPLAYER_AI_UCT_RAVE_PARAM_V					10.0
-#define TOMPLAYER_AI_UCT_RAVE_PARAM_DEFAULT_MAX_PLAYS	(game->maximum_plys)
-#define TOMPLAYER_AI_UCT_RAVE_PARAM_PRESERVE_TREE		false
-#define TOMPLAYER_AI_UCT_RAVE_TREE_SIZE_LIMIT_GB			1.0
-#define TOMPLAYER_AI_UCT_RAVE_BEST_CHILD_EXPLORATION_ENABLED		true
-#define TOMPLAYER_AI_UCT_RAVE_OPTIMIZATION_INTERNAL_FORCE_COPY	false
+#define TOMPlayer_AI_UCT_MAST_PARAM_NUMBER_ITERATIONS	1000
+#define TOMPlayer_AI_UCT_MAST_PARAM_C					0.5
+#define TOMPlayer_AI_UCT_MAST_PARAM_DEFAULT_MAX_PLAYS	(game->maximum_plys)
+#define TOMPlayer_AI_UCT_MAST_PARAM_PRESERVE_TREE		false
+#define TOMPlayer_AI_UCT_MAST_TREE_SIZE_LIMIT_GB			1.0
+#define TOMPlayer_AI_UCT_MAST_BEST_CHILD_EXPLORATION_ENABLED		true
+#define TOMPlayer_AI_UCT_MAST_OPTIMIZATION_INTERNAL_FORCE_COPY	false
 
-#define TOMPLAYER_AI_UCT_RAVE_IGNORE_UNTIL_EXPANDED	1	//apply AMAF onlyto children of fully expanded parents (to prevent biasing the nodes that were randomly expanded first)
-#define TOMPLAYER_AI_UCT_RAVE__DISABLE_AMAF			0	//set to 1 to disable AMAF (does not speed up computation time to vanilla UCT level)
+#define TOMPlayer_AI_UCT_MAST_VARIANT					2	//valid values 0 (basic), 1 (UCT_explr without AMAF), 2 (separated AMAF + UCT)
+                              //variant 0 works best in game gomoku7x7 against vanilla UCT ... but catastrophic performance on Hex
+                              //variant 2 is the only one that works on Hex
+#define TOMPlayer_AI_UCT_MAST_IGNORE_UNTIL_EXPANDED		1	//apply AMAF only to children of fully expanded parents (to prevent biasing the nodes that were randomly expanded first)
+#define TOMPlayer_AI_UCT_MAST_DISABLE_AMAF				0	//set to 1 to disable AMAF (does not speed up computation time to vanilla UCT level)
+
 
 //defines - DEBUG checking
-#define TOMPLAYER_AI_UCT_RAVE_DEBUG_MEMORY_SIZE_COUNT	(1 && TOM_DEBUG)
-#define TOMPLAYER_AI_UCT_RAVE_DEBUG_HISTORY_COPY_CHECK	(1 && TOM_DEBUG)
+#define TOMPlayer_AI_UCT_MAST_DEBUG_MEMORY_SIZE_COUNT	(1 && TOM_DEBUG)
+#define TOMPlayer_AI_UCT_MAST_DEBUG_HISTORY_COPY_CHECK	(1 && TOM_DEBUG)
 
 //defines - DEBUG behaviour
-#define TOMPLAYER_AI_UCT_RAVE_DEBUG_DISABLE_RANDOM		((1 && TOM_DEBUG) || TOM_DISABLE_RANDOM)
+#define TOMPlayer_AI_UCT_MAST_DEBUG_DISABLE_RANDOM		((1 && TOM_DEBUG) || TOM_DISABLE_RANDOM)
 
 //defines - DEBUG VISUALIZATION
-#define TOMPLAYER_AI_UCT_RAVE_VISUALIZE_LEVEL			2		//set visualization depth
-#define TOMPLAYER_AI_UCT_RAVE_VISUALIZE_LEVEL_UCT		((1 >= TOMPLAYER_AI_UCT_RAVE_VISUALIZE_LEVEL) && TOM_DEBUG)
+#define TOMPlayer_AI_UCT_MAST_VISUALIZE_LEVEL			2		//set visualization depth
+#define TOMPlayer_AI_UCT_MAST_VISUALIZE_LEVEL_UCT		((1 >= TOMPlayer_AI_UCT_MAST_VISUALIZE_LEVEL) && TOM_DEBUG)
 
+#define TOMPlayer_AI_UCT_MAST_VISUALIZE_UCT_GETC_AFTER_MOVE	(0 && TOMPlayer_AI_UCT_MAST_VISUALIZE_LEVEL_UCT)
+#define TOMPlayer_AI_UCT_MAST_VISUALIZE_UCT_ACTIONS_TREE	(0 && TOMPlayer_AI_UCT_MAST_VISUALIZE_LEVEL_UCT)
+#define TOMPlayer_AI_UCT_MAST_VISUALIZE_UCT_ACTIONS_PLAYOUT	(0 && TOMPlayer_AI_UCT_MAST_VISUALIZE_LEVEL_UCT)
 
-
-#define TOMPLAYER_AI_UCT_RAVE_VISUALIZE_UCT_GETC_AFTER_MOVE	(0 && TOMPLAYER_AI_UCT_RAVE_VISUALIZE_LEVEL_UCT)
-#define TOMPLAYER_AI_UCT_RAVE_VISUALIZE_UCT_ACTIONS_TREE	(0 && TOMPLAYER_AI_UCT_RAVE_VISUALIZE_LEVEL_UCT)
-#define TOMPLAYER_AI_UCT_RAVE_VISUALIZE_UCT_ACTIONS_PLAYOUT	(0 && TOMPLAYER_AI_UCT_RAVE_VISUALIZE_LEVEL_UCT)
-
-#define TOMPLAYER_AI_UCT_RAVE_DEBUG_ROOT_CHILDREN_VALUES	(0 && TOM_DEBUG)
-#define TOMPLAYER_AI_UCT_RAVE_DEBUG_TRACE_BEST_UCT			(0 && TOM_DEBUG)
-#define TOMPLAYER_AI_UCT_RAVE_DEBUG_TREE_EXPANSION			(0 && TOM_DEBUG)
-#define TOMPLAYER_AI_UCT_RAVE_DEBUG_TREE_EXPANSION_SIM		(0 && TOM_DEBUG)
-#define TOMPLAYER_AI_UCT_RAVE_DEBUG_SIMULATED_GAMES_OUT		(0 && TOM_DEBUG)
-
+#define TOMPlayer_AI_UCT_MAST_DEBUG_ROOT_CHILDREN_VALUES	(0 && TOM_DEBUG)
+#define TOMPlayer_AI_UCT_MAST_DEBUG_TRACE_ALL_UCT			(0 && TOM_DEBUG)
+#define TOMPlayer_AI_UCT_MAST_DEBUG_TRACE_BEST_UCT			(0 && TOM_DEBUG)
+#define TOMPlayer_AI_UCT_MAST_DEBUG_TREE_EXPANSION			(0 && TOM_DEBUG)
+#define TOMPlayer_AI_UCT_MAST_DEBUG_TREE_EXPANSION_SIM		(0 && TOM_DEBUG)
+#define TOMPlayer_AI_UCT_MAST_DEBUG_SIMULATED_GAMES_OUT		(0 && TOM_DEBUG)
+#define TOMPlayer_AI_UCT_MAST_DEBUG_BACKUP_SHOW_AMAFTAGS	(0 && TOM_DEBUG)
 
 /**
 Basic AI UCT player class
 */
-class Player_AI_UCT_RAVE : public Player_Engine
+class Player_AI_UCT_MAST : public Player_Engine
 {
 
 public:
@@ -72,18 +74,14 @@ public:
     double visits;
     double rewards;
 
-    //RAVE heuristic
-    double RAVE_visits;
-    double RAVE_rewards;
-
     //memorized calculations
     double value;
 
   } UCTnode;
 
   //public procedures
-  Player_AI_UCT_RAVE(Game_Engine* game = NULL, int player_number = TOMPLAYER_PLAYER_NUMBER);
-  virtual ~Player_AI_UCT_RAVE();
+  Player_AI_UCT_MAST(Game_Engine* game = NULL, int player_number = TOMPLAYER_PLAYER_NUMBER);
+  virtual ~Player_AI_UCT_MAST();
   virtual void Reset();
   virtual void New_Game();
   virtual int  Get_Move();
@@ -117,15 +115,15 @@ public:
   int		UCT_param_defaultPolicy_maxPlys;	//maxium number of moves per simulated game
   int		UCTtree_maxMemorySize;		//maximum size of tree in memory
   int		UCT_param_SimMoveNum;		//number of simulated moves per external move
-
-  //RAVE
-  double	RAVE_param_V;				//threshold number of visits for AMAF value
+  double MAST_paramT;
 
   //public variables - UCT
   UCTnode* UCTroot;
   UCTnode* UCTroot_memory;
 
   //public vairables - debug and visualization settings
+  int  numIterations_lastMove;
+  int  numIterations_total;
   int  output_type;
 
 protected:
@@ -138,12 +136,12 @@ protected:
   virtual void New_Game2();
 
   //private protected procedures - UCT
-  virtual int			UCT_RAVE();
-  virtual UCTnode*	UCT_RAVE_Tree_Policy(UCTnode* root, int simulation_number);
-  virtual UCTnode*	UCT_RAVE_Tree_Policy_Best_Child(UCTnode* parent, double param_C);
-  virtual double*		UCT_RAVE_Default_Policy(int simulation_number);
+  virtual int			UCT_AMAF();
+  virtual UCTnode*	UCT_AMAF_Tree_Policy(UCTnode* root, int simulation_number);
+  virtual UCTnode*	UCT_AMAF_Tree_Policy_Best_Child(UCTnode* parent, double param_C);
+  virtual double*		UCT_AMAF_Default_Policy(int simulation_number);
   virtual UCTnode*	UCT_Expand(UCTnode* parent);
-  virtual void		UCT_RAVE_Backup(UCTnode* leaf, double* rewards, int simulation_number);
+  virtual void		UCT_AMAF_Backup(UCTnode* leaf, double* rewards, int simulation_number);
 
   virtual void		UCT_Update_Internal_Game(int number_actions);
   virtual void		UCT_Tree_Change_Root(int number_actions);
@@ -152,7 +150,7 @@ protected:
   virtual void		UCT_Tree_Reset();
   virtual void		UCT_Tree_Preserve();
 
-  virtual UCTnode*	UCT_Tree_Node_Init(int action, UCTnode* parent);	//node: initialize
+  virtual UCTnode*	UCT_Tree_Node_Init(int action, UCTnode* parent, const bool rootNode = 0);	//node: initialize
   virtual void		UCT_Tree_Node_AllocateList(UCTnode* node, int list_length);	//node: allocate children list
   virtual void		UCT_Tree_Node_Reset(UCTnode* node);		//node: reset values to initial
 
@@ -176,7 +174,13 @@ protected:
   UCTnode* lastAction_node;		//last played move
   UCTnode* UCTtree_newRoot;		//next UCT root
 
-  int* RAVE_flagList;
+  int MASTcount;
+  int* MAST_flagPlayer;
+  int* MAST_flagMove;
+  double** MAST_rewards;
+  double** MAST_visits;
+  double* MAST_prob;
+  int* MAST_list;
 
   //private protected variables - UCT parameters
   bool UCTtree_preserve;

@@ -6,6 +6,7 @@
 extern string program_start_time_output_str;
 extern string executable_filename_str;
 
+// 2016.08.08
 namespace Tests_TDMCTSnew
 {
 

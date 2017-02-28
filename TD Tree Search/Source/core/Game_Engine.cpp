@@ -115,7 +115,7 @@ int Game_Engine::Select_Move_Random()
 
 	//r = 0;	//debug
 
-	return Select_Move_Unsafe(r);
+	return Select_Move(r);
 }
 
 /**

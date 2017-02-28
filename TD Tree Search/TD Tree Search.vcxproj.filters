@@ -144,6 +144,12 @@
     <ClInclude Include="Source\tests\Tests_TDMCTSnew.hpp">
       <Filter>Header Files\tests</Filter>
     </ClInclude>
+    <ClInclude Include="Source\tests\Tests_TDMCTSnew2.hpp">
+      <Filter>Header Files\tests</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\players\Player_AI_UCT_MAST.hpp">
+      <Filter>Header Files\players</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Source\tools\Support_GetCPUTime.cpp">
@@ -226,6 +232,12 @@
     </ClCompile>
     <ClCompile Include="Source\tests\Tests_TDMCTSnew.cpp">
       <Filter>Source Files\tests</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\tests\Tests_TDMCTSnew2.cpp">
+      <Filter>Source Files\tests</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\players\Player_AI_UCT_MAST.cpp">
+      <Filter>Source Files\players</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

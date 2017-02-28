@@ -5,46 +5,49 @@ ISSUES: PRESERVING TREE CURRENTLY NOT IMPLEMENTED COMPLETLY
 */
 
 
-#ifndef _TOM_PLAYER_AI_UCT_
-#define _TOM_PLAYER_AI_UCT_
+#ifndef _TOM_Player_AI_UCT_
+#define _TOM_Player_AI_UCT_
 
 //includes
 #include "..\core\Player_Engine.hpp"
 
 //defines
-#define TOMPLAYER_AI_UCT_PARAM_NUMBER_ITERATIONS	1000
-#define TOMPLAYER_AI_UCT_PARAM_C					0.5	 //the correct value is 0.5, used from 26.1.2015 on 	//old value (1.0 / (2*sqrt(2)))
-#define TOMPLAYER_AI_UCT_PARAM_DEFAULT_MAX_PLAYS	(game->maximum_plys)
-#define TOMPLAYER_AI_UCT_PARAM_PRESERVE_TREE		false
-#define TOMPLAYER_AI_UCT_TREE_SIZE_LIMIT_GB			1.0
-#define TOMPLAYER_AI_UCT_BEST_CHILD_EXPLORATION_ENABLED		true
-#define TOMPLAYER_AI_UCT_OPTIMIZATION_INTERNAL_FORCE_COPY	false
+#define TOMPlayer_AI_UCT_PARAM_NUMBER_ITERATIONS	1000
+#define TOMPlayer_AI_UCT_PARAM_C					0.5
+#define TOMPlayer_AI_UCT_PARAM_DEFAULT_MAX_PLAYS	(game->maximum_plys)
+#define TOMPlayer_AI_UCT_PARAM_PRESERVE_TREE		false
+#define TOMPlayer_AI_UCT_TREE_SIZE_LIMIT_GB			1.0
+#define TOMPlayer_AI_UCT_BEST_CHILD_EXPLORATION_ENABLED		true
+#define TOMPlayer_AI_UCT_OPTIMIZATION_INTERNAL_FORCE_COPY	false
+
+#define TOMPlayer_AI_UCT_VARIANT					0	//valid values 0 (basic), 1 (UCT_explr without AMAF), 2 (separated AMAF + UCT)
+//variant 0 works best in game gomoku7x7 against vanilla UCT
+#define TOMPlayer_AI_UCT_IGNORE_UNTIL_EXPANDED		1	//apply AMAF only to children of fully expanded parents (to prevent biasing the nodes that were randomly expanded first)
+#define TOMPlayer_AI_UCT_DISABLE_AMAF				0	//set to 1 to disable AMAF (does not speed up computation time to vanilla UCT level)
+
 
 //defines - DEBUG checking
-#define TOMPLAYER_AI_UCT_DEBUG_MEMORY_SIZE_COUNT	(1 && TOM_DEBUG)
-#define TOMPLAYER_AI_UCT_DEBUG_HISTORY_COPY_CHECK	(1 && TOM_DEBUG)
+#define TOMPlayer_AI_UCT_DEBUG_MEMORY_SIZE_COUNT	(1 && TOM_DEBUG)
+#define TOMPlayer_AI_UCT_DEBUG_HISTORY_COPY_CHECK	(1 && TOM_DEBUG)
 
 //defines - DEBUG behaviour
-#define TOMPLAYER_AI_UCT_DEBUG_DISABLE_RANDOM		((1 && TOM_DEBUG) || TOM_DISABLE_RANDOM)
+#define TOMPlayer_AI_UCT_DEBUG_DISABLE_RANDOM		((1 && TOM_DEBUG) || TOM_DISABLE_RANDOM)
 
 //defines - DEBUG VISUALIZATION
-#define TOMPLAYER_AI_UCT_VISUALIZE_LEVEL			2		//set visualization depth
-#define TOMPLAYER_AI_UCT_VISUALIZE_LEVEL_UCT		((1 >= TOMPLAYER_AI_UCT_VISUALIZE_LEVEL) && TOM_DEBUG)
+#define TOMPlayer_AI_UCT_VISUALIZE_LEVEL			2		//set visualization depth
+#define TOMPlayer_AI_UCT_VISUALIZE_LEVEL_UCT		((1 >= TOMPlayer_AI_UCT_VISUALIZE_LEVEL) && TOM_DEBUG)
 
+#define TOMPlayer_AI_UCT_VISUALIZE_UCT_GETC_AFTER_MOVE	(0 && TOMPlayer_AI_UCT_VISUALIZE_LEVEL_UCT)
+#define TOMPlayer_AI_UCT_VISUALIZE_UCT_ACTIONS_TREE	(0 && TOMPlayer_AI_UCT_VISUALIZE_LEVEL_UCT)
+#define TOMPlayer_AI_UCT_VISUALIZE_UCT_ACTIONS_PLAYOUT	(0 && TOMPlayer_AI_UCT_VISUALIZE_LEVEL_UCT)
 
-
-#define TOMPLAYER_AI_UCT_VISUALIZE_UCT_GETC_AFTER_MOVE	(0 && TOMPLAYER_AI_UCT_VISUALIZE_LEVEL_UCT)
-#define TOMPLAYER_AI_UCT_VISUALIZE_UCT_ACTIONS_TREE		(0 && TOMPLAYER_AI_UCT_VISUALIZE_LEVEL_UCT)
-#define TOMPLAYER_AI_UCT_VISUALIZE_UCT_ACTIONS_PLAYOUT	(0 && TOMPLAYER_AI_UCT_VISUALIZE_LEVEL_UCT)
-
-#define TOMPLAYER_AI_UCT_DEBUG_ROOT_CHILDREN_VALUES	(0 && TOM_DEBUG)
-#define TOMPLAYER_AI_UCT_DEBUG_TRACE_BEST_UCT		(0 && TOM_DEBUG)
-#define TOMPLAYER_AI_UCT_DEBUG_TREE_EXPANSION		(0 && TOM_DEBUG)
-#define TOMPLAYER_AI_UCT_DEBUG_TREE_EXPANSION_SIM	(0 && TOM_DEBUG)
-#define TOMPLAYER_AI_UCT_DEBUG_SIMULATED_GAMES_OUT	(0 && TOM_DEBUG)
-
-#define TOMPLAYER_AI_UCT_DEBUG_DISABLE_RANDOM_MULTIPLE_BEST	0
-#define TOMPLAYER_AI_UCT_DEBUG_DISABLE_RANDOM_EXPAND		1
+#define TOMPlayer_AI_UCT_DEBUG_ROOT_CHILDREN_VALUES	(0 && TOM_DEBUG)
+#define TOMPlayer_AI_UCT_DEBUG_TRACE_ALL_UCT			(0 && TOM_DEBUG)
+#define TOMPlayer_AI_UCT_DEBUG_TRACE_BEST_UCT			(0 && TOM_DEBUG)
+#define TOMPlayer_AI_UCT_DEBUG_TREE_EXPANSION			(0 && TOM_DEBUG)
+#define TOMPlayer_AI_UCT_DEBUG_TREE_EXPANSION_SIM		(0 && TOM_DEBUG)
+#define TOMPlayer_AI_UCT_DEBUG_SIMULATED_GAMES_OUT		(0 && TOM_DEBUG)
+#define TOMPlayer_AI_UCT_DEBUG_BACKUP_SHOW_AMAFTAGS	(0 && TOM_DEBUG)
 
 /**
 Basic AI UCT player class
@@ -54,129 +57,133 @@ class Player_AI_UCT : public Player_Engine
 
 public:
 
-	//public structures
-	typedef struct UCTnode {
+  //public structures
+  typedef struct UCTnode {
 
-		//node-action link
-		int action_index;
+    //node-action link
+    int action_index;
 
-		//tree structure variables
-		int number_allowed_actions;
-		int number_explored_children;
-		UCTnode* parent;
-		UCTnode** children;
+    //tree structure variables
+    int number_allowed_actions;
+    int number_explored_children;
+    UCTnode* parent;
+    UCTnode** children;
 
-		//learning values
-		double visits;
-		double rewards;
+    //learning values
+    double visits;
+    double rewards;
 
-		//memorized calculations
-		double value;
+    //AMAF heuristic
+    double AMAF_visits;
+    double AMAF_rewards;
 
-	} UCTnode;
+    //memorized calculations
+    double value;
 
-	//public procedures
-	Player_AI_UCT(Game_Engine* game = NULL, int player_number = TOMPLAYER_PLAYER_NUMBER);
-	virtual ~Player_AI_UCT();
-	virtual void Reset();
-	virtual void New_Game();
-	virtual int  Get_Move();
-	//void Before_Move(int move);
-	//void End_Game();
+  } UCTnode;
 
-	//public procedures - debug and visualization	
-	virtual void Output_UCT_Tree();
-	virtual void Output_UCT_Tree_Branch(UCTnode*);
-	virtual void Output_UCT_Tree_Node_Children(UCTnode*);
-	virtual void Debug_UCT_Tree_MemoryState();
-	virtual int  Debug_UCT_Tree_Size(UCTnode*);
+  //public procedures
+  Player_AI_UCT(Game_Engine* game = NULL, int player_number = TOMPLAYER_PLAYER_NUMBER);
+  virtual ~Player_AI_UCT();
+  virtual void Reset();
+  virtual void New_Game();
+  virtual int  Get_Move();
+  //void Before_Move(int move);
+  //void End_Game();
 
-	//void Output();
-	//void STDprint_UCTtree_state();	//debug procedure for printing current tree info
-	//int  STDprintNumChildren(UCTnode* branchRoot);	//prints number of children of each node to standard output
-	//int  STDprintTreeVal(UCTnode* branchRoot);	//prints number of children of each node to standard output
+  //public procedures - debug and visualization	
+  virtual void Output_UCT_Tree();
+  virtual void Output_UCT_Tree_Branch(UCTnode*);
+  virtual void Output_UCT_Tree_Node_Children(UCTnode*);
+  virtual void Debug_UCT_Tree_MemoryState();
+  virtual int  Debug_UCT_Tree_Size(UCTnode*);
 
-	//public procedures - UCT algorithm
-	//void UCTperserveTree_enable();
-	//void UCTperserveTree_disable();
+  //void Output();
+  //void STDprint_UCTtree_state();	//debug procedure for printing current tree info
+  //int  STDprintNumChildren(UCTnode* branchRoot);	//prints number of children of each node to standard output
+  //int  STDprintTreeVal(UCTnode* branchRoot);	//prints number of children of each node to standard output
 
-	//public variables - player settings
+  //public procedures - UCT algorithm
+  //void UCTperserveTree_enable();
+  //void UCTperserveTree_disable();
 
-	//public variables - optimization settings
-	bool	internal_game_force_copy;
+  //public variables - player settings
 
-	//public variables - UCT learning parameters
-	int		UCT_param_IterNum;			//number of MCTS iterations per external move
-	double	UCT_param_C;				//exploration factor
-	int		UCT_param_defaultPolicy_maxPlys;	//maxium number of moves per simulated game
-	int		UCTtree_maxMemorySize;		//maximum size of tree in memory
-	int		UCT_param_SimMoveNum;		//number of simulated moves per external move
+  //public variables - optimization settings
+  bool	internal_game_force_copy;
 
-	//public variables - UCT
-	UCTnode* UCTroot;
-	UCTnode* UCTroot_memory;
+  //public variables - UCT learning parameters
+  int		UCT_param_IterNum;			//number of simulation per move
+  double	UCT_param_C;					//exploration factor
+  int		UCT_param_defaultPolicy_maxPlys;	//maxium number of moves per simulated game
+  int		UCTtree_maxMemorySize;		//maximum size of tree in memory
+  int		UCT_param_SimMoveNum;		//number of simulated moves per external move
 
-	//public vairables - debug and visualization settings
-	int  output_type;
+                                //public variables - UCT
+  UCTnode* UCTroot;
+  UCTnode* UCTroot_memory;
 
-	//public vairables - debug and visualization
-	int  numIterations_lastMove;
-	int  numIterations_total;
+  //public vairables - debug and visualization settings
+  int  numIterations_lastMove;
+  int  numIterations_total;
+  int  output_type;
 
 protected:
 
-	//private protected procedures
-	virtual void Initialize();
-	virtual void Init_Settings();
-	virtual void Allocate_Memory();
-	virtual void Clear_Memory();
-	virtual void New_Game2();
+  //private protected procedures
+  virtual void Initialize();
+  virtual void Init_Settings();
+  virtual void Allocate_Memory();
+  virtual void Clear_Memory();
+  virtual void New_Game2();
 
-	//private protected procedures - UCT
-	virtual int			UCT();
-	virtual UCTnode*	UCT_Tree_Policy(UCTnode* root);
-	virtual UCTnode*	UCT_Tree_Policy_Best_Child(UCTnode* parent, double param_C);
-	virtual double*		UCT_Default_Policy();
-	virtual UCTnode*	UCT_Expand(UCTnode* parent);
-	virtual void		UCT_Backup(UCTnode* leaf, double* rewards);
+  //private protected procedures - UCT
+  virtual int			UCT_AMAF();
+  virtual UCTnode*	UCT_AMAF_Tree_Policy(UCTnode* root, int simulation_number);
+  virtual UCTnode*	UCT_AMAF_Tree_Policy_Best_Child(UCTnode* parent, double param_C);
+  virtual double*		UCT_AMAF_Default_Policy(int simulation_number);
+  virtual UCTnode*	UCT_Expand(UCTnode* parent);
+  virtual void		UCT_AMAF_Backup(UCTnode* leaf, double* rewards, int simulation_number);
 
-	virtual void		UCT_Update_Internal_Game(int number_actions);
-	virtual void		UCT_Tree_Change_Root(int number_actions);
-	virtual void		UCT_Tree_Trim(UCTnode* branchRoot, int remaining_depth);
-	virtual void		UCT_Tree_Delete(UCTnode* branchRoot);
-	virtual void		UCT_Tree_Reset();
-	virtual void		UCT_Tree_Preserve();
+  virtual void		UCT_Update_Internal_Game(int number_actions);
+  virtual void		UCT_Tree_Change_Root(int number_actions);
+  virtual void		UCT_Tree_Trim(UCTnode* branchRoot, int remaining_depth);
+  virtual void		UCT_Tree_Delete(UCTnode* branchRoot);
+  virtual void		UCT_Tree_Reset();
+  virtual void		UCT_Tree_Preserve();
 
-	virtual UCTnode*	UCT_Tree_Node_Init(int action, UCTnode* parent);	//node: initialize
-	virtual void		UCT_Tree_Node_AllocateList(UCTnode* node, int list_length);	//node: allocate children list
-	virtual void		UCT_Tree_Node_Reset(UCTnode* node);		//node: reset values to initial
+  virtual UCTnode*	UCT_Tree_Node_Init(int action, UCTnode* parent, const bool rootNode = 0);	//node: initialize
+  virtual void		UCT_Tree_Node_AllocateList(UCTnode* node, int list_length);	//node: allocate children list
+  virtual void		UCT_Tree_Node_Reset(UCTnode* node);		//node: reset values to initial
 
-	//private protected procedures - debug and visualization	
+                                                        //private protected procedures - debug and visualization	
 
 
-	//private protected variables
-	//double* actionsWeight;
-	//int* actionsNumWin;
-	//int* actionsNumSel;
-	//bool* actionsPlayed;
-	int all_actions_num;
-	int last_extMove_numSimMoves;
+                                                        //private protected variables
+                                                        //double* actionsWeight;
+                                                        //int* actionsNumWin;
+                                                        //int* actionsNumSel;
+                                                        //bool* actionsPlayed;
+  int all_actions_num;
+  int last_extMove_numSimMoves;
 
-	//private protected variables - UCT
-	int UCTtree_treePolicy_lastDepth;
-	int UCTtree_num_nodes;
-	int UCTtree_memorySize;
-	Game_Engine* internalGame;
-	Game_Engine* simulatedGame;
-	UCTnode* lastAction_node;		//last played move
-	UCTnode* UCTtree_newRoot;		//next UCT root
+  //private protected variables - UCT
+  int UCTtree_treePolicy_lastDepth;
+  int UCTtree_num_nodes;
+  int UCTtree_memorySize;
+  Game_Engine* internalGame;
+  Game_Engine* simulatedGame;
+  UCTnode* lastAction_node;		//last played move
+  UCTnode* UCTtree_newRoot;		//next UCT root
 
-	//private protected variables - UCT parameters
-	bool UCTtree_preserve;
+  int* AMAF_flagList;
 
-	//private protected variables - debug and visualization
-	stringstream visualizeActionsTree;
-	stringstream visualizeActionsPlayout;
+  //private protected variables - UCT parameters
+  bool UCTtree_preserve;
+
+  //private protected variables - debug and visualization
+  stringstream visualizeActionsTree;
+  stringstream visualizeActionsPlayout;
 };
 
 

@@ -24,6 +24,7 @@
 #include "..\players\Player_AI_UCT_Reinforce.hpp"
 #include "..\players\Player_AI_UCT_AMAF.hpp"
 #include "..\players\Player_AI_UCT_RAVE.hpp"
+#include "..\players\Player_AI_UCT_MAST.hpp"
 #include "..\players\Player_AI_UCT_TomTest.hpp"
 #include "..\players\Player_AI_TDUCT.hpp"
 #include "..\players\Player_AI_RL.hpp"

@@ -142,6 +142,14 @@ void Player_AI_RL::Init_Settings()
   //set parameters by the selected preset - overrides certain settings, depending on which preset was selected
   Apply_Preset_Config(this->config_preset_algorithm);
 
+  // -- MAST added 2017-02-28
+  config_MASTenable = 0;
+      // 0 - disabled
+      // 1 - use in control policy
+      // 2 - use for Vplayout
+      // 3 - use both in control and for Vplayout
+  config_MAST_paramT = 1000000.0;  // uniform random default (does not use MAST in playout)
+
 }
 
 void Player_AI_RL::Allocate_Memory()
@@ -168,6 +176,17 @@ void Player_AI_RL::Allocate_Memory()
   trajectory = new trajectoryRecord[trajectory_maxLength];
 
   this->is_allocated = true;
+
+
+
+  // -- MAST added 2017-02-28
+
+  all_actions_num = game->maximum_allowed_moves;
+
+  MAST_prob = new double[all_actions_num];
+  MAST_list = new int[all_actions_num];
+  MAST_rewards = new double[all_actions_num];
+  MAST_visits = new double[all_actions_num];
 }
 
 void Player_AI_RL::Clear_Memory()
@@ -180,6 +199,12 @@ void Player_AI_RL::Clear_Memory()
     delete[] trajectory;
 
     this->is_allocated = false;
+
+    // -- MAST added 2017-02-28
+    delete(MAST_prob);
+    delete(MAST_list);
+    delete(MAST_visits);
+    delete(MAST_rewards);
   }
 }
 
@@ -510,6 +535,13 @@ int Player_AI_RL::SingleExternalMove()
   this->numEpisodes_lastMove = 0;
   this->sumSimulatedRewards_lastMove = 0.0;
 
+  // -- MAST added 2017-02-28
+  //reset MAST flags
+  for (int i = 0; i < all_actions_num; i++) {
+    MAST_rewards[i] = 0.0;
+    MAST_visits[i] = 0.0;
+  }
+
   // visualization, experimental output, and debug: before a single external move (before a batch of episodes)
   Output_ExternalMove_Start();
 
@@ -692,7 +724,7 @@ bool Player_AI_RL::SingleEpisode()
   }
   // end of episode
 
-  // final update of memorize structures, includes offline policy evaluation (and last step of online policy evaluation)
+  // final update of memorized structures, includes offline policy evaluation (and last step of online policy evaluation)
   HandleEpisodeEnd();
 
   // check whether computational budget has expired (in number of episodes)
@@ -1286,7 +1318,7 @@ double Player_AI_RL::GetTDerror(int trajectory_index, char* printLinePrefix)
   double nextStateVal;
   double reward, TDerror;
 
-  //get current state in trajectory and it's value
+  //get current state in trajectory and its value
   node = this->trajectory[trajectory_index].state;
   stateVal = GetRolloutAssumedValue(trajectory_index);
   this->lastAssumedValue = stateVal;
@@ -1375,6 +1407,17 @@ void Player_AI_RL::BackupTDerror(double TDerror, int trajectory_index, char* pri
   double alpha = this->par_td_alpha;
   double lambda = this->par_td_lambda;
 
+  // SPECIFIC TEST: lambda smooth increase towards 1.0
+  //double alpha = max(0.001, this->par_td_alpha * pow(0.95, numEpisodes_lastMove));
+  //double lambda = max(0.0, min(1.0, this->par_td_lambda + (1.0 - this->par_td_lambda) * (1.0 - pow(0.95,numEpisodes_lastMove))));
+
+  // -- MAST added 2017-02-28
+  int mm = (this->trajectory[trajectory_index]).action;
+  if (mm >= 0) {
+    //if (game->game_name == "ConnectFour") mm = mm % 7;  // hardcoded for Connect4
+    MAST_visits[mm] += 1.0;
+  }
+
   //backup the TDerror through all visited states
   if ((TDerror > SMALLEST_TDERROR) || (TDerror < -SMALLEST_TDERROR)){
     double trace = 1.0;
@@ -1438,6 +1481,13 @@ void Player_AI_RL::BackupTDerror(double TDerror, int trajectory_index, char* pri
 
       }
 
+      // -- MAST added 2017-02-28
+      int mm = (this->trajectory[b]).action;
+      if (mm >= 0) {
+        //if (game->game_name == "ConnectFour") mm = mm % 7;  // hardcoded for Connect4
+        MAST_rewards[mm] += trace * TDerror;
+      }
+
       //decay trace
       trace *= (gamma * lambda);
 
@@ -1445,6 +1495,7 @@ void Player_AI_RL::BackupTDerror(double TDerror, int trajectory_index, char* pri
       Output_TDbackup22(b, backupNode, alpha, printLinePrefix);
 
     }
+
   }
 
   //Watkin's Q(lambda) identified an exploratory move: eligibility traces for all states met until now will be zeroed 
@@ -1513,6 +1564,22 @@ double Player_AI_RL::GetRolloutAssumedValue(int trajectory_index)
     assumedVal = this->trajectory[trajectory_index].state->data->Q_value;
   }
   else{
+
+    // -- MAST added 2017-02-28
+    // overrides playout assumptions
+    if ((config_MASTenable == 2) || (config_MASTenable == 3)) {
+
+      int ai = this->trajectory[trajectory_index].action;
+      double mastVal = 0.0;
+      if (ai >= 0)
+        mastVal = (MAST_rewards[ai]) / (MAST_visits[ai] + EPSILON_TIEBRAKER);
+      assumedVal = mastVal;
+      return assumedVal;
+    }
+
+
+    // -- Playout value assumptions
+
     // assume the default initial value (par_td_initVal)
     if (this->config_rollout_assumption == ROLLOUT_VALUE_ASSUMPTIONS::EQUAL_INITIAL){
       assumedVal = this->par_td_initVal;
@@ -1726,7 +1793,7 @@ std::tuple<int, int, int, double, double> Player_AI_RL::RL_Control_UCB(Game_Engi
     double sumVisits;
 
     //UCB first pass: get the sum of children visits, and choose a random untried action if there is any
-    int noVisitsTieBreaker = INT_MIN;
+    double noVisitsTieBreaker = -DBL_MAX;
     sumVisits = 0.0;
     bestEstimatedValue = -DBL_MAX;
     for (int c = 0; c < currentState->num_children; c++){
@@ -1765,7 +1832,27 @@ std::tuple<int, int, int, double, double> Player_AI_RL::RL_Control_UCB(Game_Engi
 
       //action was not yet tried, thus by UCB it gets a POSITIVE INFINITE value
       if (childVisits == 0.0){
-        int tieBraker = rand();
+
+        // -- MAST added 2017-02-28        
+        double mastVal = 0.0;
+        if ((config_MASTenable == 1)|| (config_MASTenable == 3)) {
+          int ai = -1;
+          if (child != NULL)
+            ai = child->data->actionID;
+          else {
+            localGame->Make_Moves_List();
+            ai = localGame->current_moves_list[localGame->current_player][c];
+          }
+          if (ai >= 0)
+            mastVal = (MAST_rewards[ai]) / (MAST_visits[ai] + EPSILON_TIEBRAKER);
+
+          if (goal == REWARD_GOALS::MAXIMIZE)
+            mastVal = mastVal;
+          else if (goal == REWARD_GOALS::MINIMIZE)
+            mastVal = -mastVal;
+        }
+
+        double tieBraker = mastVal + EPSILON_TIEBRAKER * (double)rand() * ((double)(RAND_MAX - 1) / (RAND_MAX)) / (RAND_MAX);
         //int tieBraker = 0;	//debug
         if (tieBraker > noVisitsTieBreaker){
           noVisitsTieBreaker = tieBraker;
@@ -1840,7 +1927,23 @@ std::tuple<int, int, int, double, double> Player_AI_RL::RL_Control_UCB(Game_Engi
           //store estimated value in local record
           child->data->last_estimated_value = estimatedValue;
 
-          double tieBraker = EPSILON_TIEBRAKER * (double)rand() * ((double)(RAND_MAX - 1) / (RAND_MAX)) / (RAND_MAX);
+          double tieBraker = EPSILON_TIEBRAKER * (double)rand() * ((double)(RAND_MAX - 1) / (RAND_MAX)) / (RAND_MAX);;
+          
+          // -- MAST added 2017-02-28    
+          if ((config_MASTenable == 1) || (config_MASTenable == 3)) {
+            int ai = child->data->actionID;
+            if (ai >= 0) {
+              double mastVal = (MAST_rewards[ai]) / (MAST_visits[ai] + EPSILON_TIEBRAKER);
+
+              if (goal == REWARD_GOALS::MAXIMIZE)
+                mastVal = mastVal;
+              else if (goal == REWARD_GOALS::MINIMIZE)
+                mastVal = -mastVal;
+
+              tieBraker = EPSILON_TIEBRAKER * (mastVal + tieBraker);
+            }
+          }
+
           if (estimatedValue + tieBraker > bestEstimatedValue){
             bestEstimatedValue = estimatedValue + tieBraker;
             selectedChildIndex = c;
@@ -1850,9 +1953,38 @@ std::tuple<int, int, int, double, double> Player_AI_RL::RL_Control_UCB(Game_Engi
 
       }
       else{
-        //if normalization bounds are not valid, then this means that all actions lead to same reward, so choice can be random
-        selectedChildIndex = (int)((double)rand() * ((double)(RAND_MAX - 1) / (RAND_MAX)) / (RAND_MAX)* (currentState->num_children));
-        selectedChildValue = currentState->children[selectedChildIndex]->data->Q_value;
+
+        // -- MAST added 2017-02-28   
+        if ((config_MASTenable == 1) || (config_MASTenable == 3)) {
+
+          double bestMAST = -DBL_MAX;
+          for (int c = 0; c < currentState->num_children; c++) {
+            HashTree::TreeNode* child = currentState->children[c];
+            int ai = child->data->actionID;
+            double mastVal = 0.0;
+            if (ai >= 0)
+              mastVal = (MAST_rewards[ai]) / (MAST_visits[ai] + EPSILON_TIEBRAKER);
+
+            if (goal == REWARD_GOALS::MAXIMIZE)
+              mastVal = mastVal;
+            else if (goal == REWARD_GOALS::MINIMIZE)
+              mastVal = -mastVal;
+
+            double tieBraker = EPSILON_TIEBRAKER * (double)rand() * ((double)(RAND_MAX - 1) / (RAND_MAX)) / (RAND_MAX);;
+            if (mastVal + tieBraker > bestMAST) {
+              bestMAST = mastVal + tieBraker;
+              selectedChildIndex = c;
+              selectedChildValue = child->data->Q_value;
+            }
+
+          }
+        }
+        else {
+          //if normalization bounds are not valid, then this means that all actions lead to same reward, so choice can be random
+          selectedChildIndex = (int)((double)rand() * ((double)(RAND_MAX - 1) / (RAND_MAX)) / (RAND_MAX)* (currentState->num_children));
+          selectedChildValue = currentState->children[selectedChildIndex]->data->Q_value;
+        }
+
       }
     }
     //an action with no visits was selected, thus it still holds the intial value
@@ -1863,11 +1995,74 @@ std::tuple<int, int, int, double, double> Player_AI_RL::RL_Control_UCB(Game_Engi
     selectedActionID = currentState->childrenActions[selectedChildIndex];
   }
   else{
-    //if there is no record of current state, then select random action (assume equal value of all successor states)
-    selectedActionID = localGame->Select_Move_Random();
+    
+    // -- MAST added 2017-02-28  
+    
+    if ((config_MASTenable == 1) || (config_MASTenable == 3)) {
+
+      // MAST softmax default policy
+      int mcp = simulatedGame->current_player;
+      int mnum = simulatedGame->current_number_moves[mcp];
+      int aa = 0;
+      double sumSoftMax = 0.0;
+      for (int ml = 0; ml < simulatedGame->maximum_allowed_moves; ml++) {
+        if (simulatedGame->current_moves[mcp][ml]) {
+          MAST_list[aa] = ml;
+          double mastVal = (MAST_rewards[MAST_list[aa]]) / (MAST_visits[MAST_list[aa]] + EPSILON_TIEBRAKER);
+
+          if (goal == REWARD_GOALS::MAXIMIZE)
+            mastVal = mastVal;
+          else if (goal == REWARD_GOALS::MINIMIZE)
+            mastVal = 1.0 - mastVal;
+
+          sumSoftMax += exp(mastVal / this->config_MAST_paramT);
+          aa++;
+        }
+      }
+
+      double sumProb = 0.0;
+      for (int aa = 0; aa < mnum; aa++) {
+        double mastVal = (MAST_rewards[MAST_list[aa]]) / (MAST_visits[MAST_list[aa]] + EPSILON_TIEBRAKER);
+
+        if (goal == REWARD_GOALS::MAXIMIZE)
+          mastVal = mastVal;
+        else if (goal == REWARD_GOALS::MINIMIZE)
+          mastVal = 1.0 - mastVal;
+
+        double mastP = exp(mastVal / this->config_MAST_paramT) / sumSoftMax;
+        MAST_prob[aa] = mastP;
+        sumProb += mastP;
+      }
+
+      double roll = ((double)rand()) / ((RAND_MAX)+0.000001) * sumProb;
+      int lastMove = 0;
+      for (int aa = 0; aa < mnum; aa++) {
+        roll -= MAST_prob[aa];
+        if (roll <= 0) {
+          lastMove = MAST_list[aa];
+          aa = mnum;  // break loop
+        }
+      }
+
+      //pick random move if softmax overflows
+      if (isnan(roll) || !isfinite(roll))
+        lastMove = simulatedGame->Select_Move_Random();
+
+      selectedActionID = lastMove;
+
+    }
+    else {
+      //if there is no record of current state, then select random action (assume equal value of all successor states)
+      selectedActionID = localGame->Select_Move_Random();
+    }
+
     selectedChildValue = this->par_td_initVal;
     bestChildValue = this->par_td_initVal;
   }
+
+  // debug
+  if(selectedActionID < 0)
+    gmp->Print("!!ERROR!! Player_AI_RL::RL_Control_UCB(): bad output action %d\n", selectedActionID);
 
   return std::make_tuple(selectedActionID, selectedChildIndex, bestChildIndex, selectedChildValue, bestChildValue);
 }

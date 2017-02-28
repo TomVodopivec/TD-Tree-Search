@@ -126,7 +126,7 @@ int Player_AI_UCT_Reinforce::UCT()
 	
 	//return best action from root (without exploring factors) and remember node
 	if(UCTroot->number_explored_children > 0){
-		lastAction_node = UCT_Tree_Policy_Best_Child(UCTroot, 0.0);
+		lastAction_node = UCT_AMAF_Tree_Policy_Best_Child(UCTroot, 0.0);
 		return (lastAction_node->action_index);
 
 	//no simulations run - return random action
@@ -155,7 +155,7 @@ Player_AI_UCT_Reinforce::UCTnode* Player_AI_UCT_Reinforce::UCT_Tree_Policy(UCTno
 		if(currentNode->number_explored_children >= simulatedGame->current_number_moves[simulatedGame->current_player]){
 	
 			//select best child node/action
-			currentNode = UCT_Tree_Policy_Best_Child(currentNode, UCT_param_C);
+			currentNode = UCT_AMAF_Tree_Policy_Best_Child(currentNode, UCT_param_C);
 
 			//play simulated game (if game not ended yet playMove() returns value 0)
 			terminalNode = simulatedGame->Play_Move(currentNode->action_index);

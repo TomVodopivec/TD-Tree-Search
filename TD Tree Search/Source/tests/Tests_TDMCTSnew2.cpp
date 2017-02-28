@@ -1,12 +1,12 @@
-#include "Tests_TDMCTSnew.hpp"
+#include "Tests_TDMCTSnew2.hpp"
 
-namespace Tests_TDMCTSnew
+namespace Tests_TDMCTSnew2
 {
 
   void main()
   {
 
-    // 2016.08.08
+    // 2017.02.05
 
     // measuerements for Experiment5: two-player adversary games: Connect4, Hex, Gomoku
     //		- learning with self-play
@@ -20,181 +20,159 @@ namespace Tests_TDMCTSnew
 
     // experiment 5.1: find best ucb_C for both players (by observing the draw rates - by hand)
     e = 1;
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(e, 20000, new Game_TicTacToe(), 100, NULL, NULL);
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(e, 1000, new Game_TicTacToe(), 200, NULL, NULL);
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(e, 20000, new Game_TicTacToe(), 1000, NULL, NULL);
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(e, 100, new Game_ConnectFour(), 1000, NULL, NULL);
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(e, 20000, new Game_ConnectFour(), 1000, NULL, NULL);
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(e, 1000, new Game_ConnectFour(), 5000, NULL, NULL);
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(e, 2000, new Game_ConnectFour(), 10000, NULL, NULL);
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(e, 500, new Game_ConnectFour(), 50000, NULL, NULL);
-    //Game_Engine* game = new Game_Gomoku(); game->board_length = 7; game->board_height = 7; game->Settings_Apply_Changes(); Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(e, 10000, game, 1000, NULL, NULL);
-    //Game_Engine* game = new Game_Gomoku(); game->board_length = 7; game->board_height = 7; game->Settings_Apply_Changes(); Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(e, 1000, game, 2000, NULL, NULL);
-    //Game_Engine* game = new Game_Gomoku(); game->board_length = 7; game->board_height = 7; game->Settings_Apply_Changes(); Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(e, 1000, game, 10000, NULL, NULL);
-    //Game_Engine* game = new Game_Gomoku(); game->board_length = 11; game->board_height = 11; game->Settings_Apply_Changes(); Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(e, 1, game, 10000, NULL, NULL);
-    //Game_Engine* game = new Game_Hex(); game->board_length = 7; game->board_height = 7; game->Settings_Apply_Changes(); Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(e, 10000, game, 1000, NULL, NULL);
-    //Game_Engine* game = new Game_Hex(); game->board_length = 7; game->board_height = 7; game->Settings_Apply_Changes(); Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(e, 1000, game, 10000, NULL, NULL);
-    //Game_Engine* game = new Game_Hex(); game->board_length = 11; game->board_height = 11; game->Settings_Apply_Changes(); Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(e, 10, game, 10000, NULL, NULL);
+    //Tests_TDMCTSnew2::Experiment5_perStep_BatchUCB(e, 20000, new Game_TicTacToe(), 100, NULL, NULL);
+    //Tests_TDMCTSnew2::Experiment5_perStep_BatchUCB(e, 1000, new Game_TicTacToe(), 200, NULL, NULL);
+    //Tests_TDMCTSnew2::Experiment5_perStep_BatchUCB(e, 20000, new Game_TicTacToe(), 1000, NULL, NULL);
+
 
     // experiment 5.2: find best ucb_C for evaluated UCT player
     e = 2;
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(e, 20000, new Game_TicTacToe(), 100, 0.20, NULL);
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(e, 20000, new Game_TicTacToe(), 1000, 0.35, NULL);
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(e, 20000, new Game_ConnectFour(), 1000, 0.05, NULL);
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(e, 2000, new Game_ConnectFour(), 10000, 0.20, NULL);
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(e, 500, new Game_ConnectFour(), 50000, 0.30, NULL);
-    //Game_Engine* game = new Game_Gomoku(); game->board_length = 7; game->board_height = 7; game->Settings_Apply_Changes(); Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(e, 10000, game, 1000, 0.10, NULL);
-    //Game_Engine* game = new Game_Gomoku(); game->board_length = 7; game->board_height = 7; game->Settings_Apply_Changes(); Tests_TDMCTSTests_TDMCTSnew::Experiment5_perStep_BatchUCB(e, 1000, game, 10000, 0.15, NULL);
-    //Game_Engine* game = new Game_Hex(); game->board_length = 7; game->board_height = 7; game->Settings_Apply_Changes(); Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(e, 10000, game, 1000, 0.05, NULL);
-    //Game_Engine* game = new Game_Hex(); game->board_length = 7; game->board_height = 7; game->Settings_Apply_Changes(); Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(e, 1000, game, 10000, 0.20, NULL);
-    
+    //Tests_TDMCTSnew2::Experiment5_perStep_BatchUCB(e, 20000, new Game_TicTacToe(), 100, 0.20, NULL);
+    //Tests_TDMCTSnew2::Experiment5_perStep_BatchUCB(e, 20000, new Game_TicTacToe(), 1000, 0.35, NULL);
+    //Tests_TDMCTSnew2::Experiment5_perStep_BatchUCB(e, 20000, new Game_ConnectFour(), 1000, 0.05, NULL);
+  
     // experiment 5.3: find best lambda for evaluated SARSA-UCT player, with global normalization bounds
     e = 3;
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(e, 20000, new Game_TicTacToe(), 100, 0.20, 0.20);
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(e, 20000, new Game_TicTacToe(), 1000, 0.35, 0.30);
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(e, 20000, new Game_ConnectFour(), 1000, 0.05, 0.15);
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(e, 2000, new Game_ConnectFour(), 10000, 0.20, 0.20);
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(e, 500, new Game_ConnectFour(), 50000, 0.30, 0.25);
-    //Game_Engine* game = new Game_Gomoku(); game->board_length = 7; game->board_height = 7; game->Settings_Apply_Changes(); Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(e, 100, game, 1000, 0.10, 0.10);
-    //Game_Engine* game = new Game_Gomoku(); game->board_length = 7; game->board_height = 7; game->Settings_Apply_Changes(); Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(e, 1000, game, 10000, 0.15, 0.20);
-    //Game_Engine* game = new Game_Hex(); game->board_length = 7; game->board_height = 7; game->Settings_Apply_Changes(); Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(e, 10000, game, 1000, 0.05, 0.25);
-    //Game_Engine* game = new Game_Hex(); game->board_length = 7; game->board_height = 7; game->Settings_Apply_Changes(); Tests_TDMCTSTests_TDMCTSnew::Experiment5_perStep_BatchUCB(e, 1000, game, 10000, 0.20, 0.20);
+    //Tests_TDMCTSnew2::Experiment5_perStep_BatchUCB(e, 20000, new Game_TicTacToe(), 100, 0.20, 0.20);
+    //Tests_TDMCTSnew2::Experiment5_perStep_BatchUCB(e, 20000, new Game_TicTacToe(), 1000, 0.35, 0.30);
+    //Tests_TDMCTSnew2::Experiment5_perStep_BatchUCB(e, 20000, new Game_ConnectFour(), 1000, 0.05, 0.15);
 
     // experiment 5.4: find best lambda for evaluated SARSA-UCT player, with local normalization bounds
     e = 4;
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(e, 20000, new Game_TicTacToe(), 100, 0.20, 0.20);
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(e, 20000, new Game_TicTacToe(), 1000, 0.35, 0.30);
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(e, 20000, new Game_ConnectFour(), 1000, 0.05, 0.15);
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(e, 2000, new Game_ConnectFour(), 10000, 0.20, 0.20);
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(e, 500, new Game_ConnectFour(), 50000, 0.30, 0.25);
-    //Game_Engine* game = new Game_Gomoku(); game->board_length = 7; game->board_height = 7; game->Settings_Apply_Changes(); Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(e, 100, game, 1000, 0.10, 0.10);
-    //Game_Engine* game = new Game_Gomoku(); game->board_length = 7; game->board_height = 7; game->Settings_Apply_Changes(); Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(e, 1000, game, 10000, 0.15, 0.20);
-    //Game_Engine* game = new Game_Hex(); game->board_length = 7; game->board_height = 7; game->Settings_Apply_Changes(); Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(e, 10000, game, 1000, 0.05, 0.25);
-    //Game_Engine* game = new Game_Hex(); game->board_length = 7; game->board_height = 7; game->Settings_Apply_Changes(); Tests_TDMCTSTests_TDMCTSnew::Experiment5_perStep_BatchUCB(e, 1000, game, 10000, 0.20, 0.20);
+    //Tests_TDMCTSnew2::Experiment5_perStep_BatchUCB(e, 20000, new Game_TicTacToe(), 100, 0.20, 0.20);
+    //Tests_TDMCTSnew2::Experiment5_perStep_BatchUCB(e, 20000, new Game_TicTacToe(), 1000, 0.35, 0.30);
+    //Tests_TDMCTSnew2::Experiment5_perStep_BatchUCB(e, 20000, new Game_ConnectFour(), 1000, 0.05, 0.15);
 
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(1, 10000, new Game_TicTacToe(), 10, NULL, NULL);
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(2, 10000, new Game_TicTacToe(), 10, 0.2, NULL);
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(3, 10000, new Game_TicTacToe(), 10, 0.2, 0.1);
-
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(1, 5000, new Game_TicTacToe(), 50, NULL, NULL);
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(2, 5000, new Game_TicTacToe(), 50, 0.2, NULL);
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(3, 5000, new Game_TicTacToe(), 50, 0.2, 0.2);
-
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(1, 1000, new Game_TicTacToe(), 200, NULL, NULL);
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(2, 1000, new Game_TicTacToe(), 200, 0.2, NULL);
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(3, 20000, new Game_TicTacToe(), 200, 0.25, 0.25);
-    
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(1, 1000, new Game_TicTacToe(), 500, NULL, NULL);
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(2, 1000, new Game_TicTacToe(), 500, 0.3, NULL);
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(3, 5000, new Game_TicTacToe(), 500, 0.3, 0.2);
-
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(3, 5000, new Game_TicTacToe(), 1000, 0.3, 0.3);
-
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(1, 1000, new Game_ConnectFour(), 100, NULL, NULL);
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(2, 1000, new Game_ConnectFour(), 100, 0.05, NULL);
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(3, 1000, new Game_ConnectFour(), 100, 0.05, 0.25);
-
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(1, 1000, new Game_ConnectFour(), 500, NULL, NULL);
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(2, 1000, new Game_ConnectFour(), 500, 0.05, NULL);
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(3, 1000, new Game_ConnectFour(), 500, 0.25, 0.25);
-
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(1, 1000, new Game_ConnectFour(), 2000, NULL, NULL);
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(2, 1000, new Game_ConnectFour(), 2000, 0.05, NULL);
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(3, 1000, new Game_ConnectFour(), 2000, 0.05, 0.25);
-
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(1, 1000, new Game_ConnectFour(), 5000, NULL, NULL);
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(2, 1000, new Game_ConnectFour(), 5000, 0.20, NULL);
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(3, 1000, new Game_ConnectFour(), 5000, 0.05, 0.15);
 
     Game_Engine* gomo7 = new Game_Gomoku(); gomo7->board_length = 7; gomo7->board_height = 7; gomo7->Settings_Apply_Changes();
     Game_Engine* gomo9 = new Game_Gomoku(); gomo9->board_length = 9; gomo9->board_height = 9; gomo9->Settings_Apply_Changes();
     Game_Engine* gomo11 = new Game_Gomoku(); gomo11->board_length = 11; gomo11->board_height = 11; gomo11->Settings_Apply_Changes();
     Game_Engine* gomo13 = new Game_Gomoku(); gomo13->board_length = 13; gomo13->board_height = 13; gomo13->Settings_Apply_Changes();
+    Game_Engine* hex7 = new Game_Hex(); hex7->board_length = 7; hex7->board_height = 7; hex7->Settings_Apply_Changes();
+    Game_Engine* hex11 = new Game_Hex(); hex11->board_length = 11; hex11->board_height = 11; hex11->Settings_Apply_Changes();
 
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(1, 1000, gomo7, 2000, NULL, NULL);
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(2, 1000, gomo7, 2000, 0.1, NULL);
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(3, 1000, gomo7, 2000, 0.1, 0.1);
-
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(3, 1000, gomo7, 1000, 0.1, 0.1);
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(3, 1000, gomo7, 5000, 0.15, 0.15);
-
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(2, 1000, gomo9, 1000, 0.2, NULL);
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(3, 1000, gomo9, 1000, 0.25, 0.25);
-
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(2, 100, gomo9, 10000, 0.2, NULL);
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(3, 100, gomo9, 10000, 0.1, 0.1);
-
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(2, 100, gomo9, 100000, 0.2, NULL);
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(3, 100, gomo9, 100000, 0.2, 0.2);
+    // fix wrong config from previous experiments
+    //Tests_TDMCTSnew2::Experiment5_perStep_BatchUCB(2, 1000, hex11, 1000, 0.15, 0.15);
+    //Tests_TDMCTSnew2::Experiment5_perStep_BatchUCB(2, 100, hex11, 10000, 0.15, 0.15);
+    //Tests_TDMCTSnew2::Experiment5_perStep_BatchUCB(2, 100, hex11, 100000, 0.15, 0.15);
+    //Tests_TDMCTSnew2::Experiment5_perStep_BatchUCB(3, 1000, hex11, 1000, 0.15, 0.15);
+    //Tests_TDMCTSnew2::Experiment5_perStep_BatchUCB(3, 100, hex11, 10000, 0.1, 0.1);
+    //Tests_TDMCTSnew2::Experiment5_perStep_BatchUCB(3, 100, hex11, 100000, 0.25, 0.25);
 
 
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(2, 100, gomo11, 1000, 0.2, NULL);
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(3, 100, gomo11, 1000, 0.15, 0.15);
+    //---------------------------- AMAF --------------------
 
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(2, 100, gomo11, 2000, 0.2, NULL);
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(3, 100, gomo11, 2000, 0.15, 0.15);
+    // !!!!!!!!!! DO NOT FORGET !!!!!!!!!!!! in Experiment5_perStep_BatchUCB() under 2017.02.05 EXPERIMENTS set self player0 to AMAFplayerSelf
 
+    //Tests_TDMCTSnew2::Experiment5_perStep_BatchUCB(2, 2000, new Game_ConnectFour(), 500, 0.25, NULL);
+    //Tests_TDMCTSnew2::Experiment5_perStep_BatchUCB(2, 200, new Game_ConnectFour(), 1000, 0.05, NULL);
+    //Tests_TDMCTSnew2::Experiment5_perStep_BatchUCB(2, 100, new Game_ConnectFour(), 2000, 0.05, NULL);
+    //Tests_TDMCTSnew2::Experiment5_perStep_BatchUCB(2, 100, new Game_ConnectFour(), 5000, 0.05, NULL);
+    //Tests_TDMCTSnew2::Experiment5_perStep_BatchUCB(2, 100, new Game_ConnectFour(), 10000, 0.15, NULL);
+    //Tests_TDMCTSnew2::Experiment5_perStep_BatchUCB(2, 1000, gomo9, 1000, 0.25, NULL);
+    //Tests_TDMCTSnew2::Experiment5_perStep_BatchUCB(2, 200, gomo9, 10000, 0.1, NULL);
+    //Tests_TDMCTSnew2::Experiment5_perStep_BatchUCB(2, 100, gomo9, 100000, 0.2, NULL);
+    //Tests_TDMCTSnew2::Experiment5_perStep_BatchUCB(2, 1000, hex11, 1000, 0.15, NULL);  // !!! set TOMPLAYER_AI_UCT_AMAF_VARIANT=2
+    //Tests_TDMCTSnew2::Experiment5_perStep_BatchUCB(2, 100, hex11, 10000, 0.1, NULL);  // !!! set TOMPLAYER_AI_UCT_AMAF_VARIANT=2
+    //Tests_TDMCTSnew2::Experiment5_perStep_BatchUCB(2, 100, hex11, 100000, 0.05, NULL);  // !!! set TOMPLAYER_AI_UCT_AMAF_VARIANT=2
 
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(1, 100, gomo11, 10000, NULL, NULL);
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(2, 100, gomo11, 10000, 0.2, NULL);
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(3, 100, gomo11, 10000, 0.15, 0.15);
-
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(2, 100, gomo11, 20000, 0.2, NULL);
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(3, 100, gomo11, 20000, 0.05, 0.05);
-
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(2, 100, gomo11, 50000, 0.2, NULL);
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(3, 100, gomo11, 50000, 0.05, 0.05);
-
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(2, 100, gomo11, 100000, 0.2, NULL);
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(3, 100, gomo11, 100000, 0.10, 0.10);
-
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(2, 100, gomo11, 1000000, 0.1, NULL);
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(2, 100, gomo11, 1000000, 0.2, 0.2); //run2
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(3, 100, gomo11, 1000000, 0.2, 0.2);
-
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(2, 2000, gomo11, 100000, 0.1, NULL); //run2
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(3, 2000, gomo11, 100000, 0.05, 0.05); //run2
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(3, 2000, gomo11, 100000, 0.05, 0); //run2.2
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(3, 2000, gomo11, 100000, 0.05, 0.01); //run2.3
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(3, 2000, gomo11, 100000, 0.05, 0.10); //run2.4
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(3, 2000, gomo11, 100000, 0.01, 0.01); //run2.5
-
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(4, 2000, gomo11, 100000, 0.1, NULL);
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(4, 2000, gomo11, 100000, 0.05, 0.05); //run2
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(4, 2000, gomo11, 100000, 0.05, 0.0);  //run2.2
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(4, 2000, gomo11, 100000, 0.05, 0.01);  //run2.4
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(4, 2000, gomo11, 100000, 0.05, 0.10);  //run2.4
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(4, 2000, gomo11, 100000, 0.01, 0.01);  //run2.5
-
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(2, 100, gomo13, 10000, 0.2, NULL);
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(3, 100, gomo13, 10000, 0.2, 0.2);
-
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(2, 100, gomo13, 100000, 0.05, NULL);
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(3, 100, gomo13, 100000, 0.01, 0.01);
-
-    Game_Engine* hex7 = new Game_Hex(); hex7->board_length = 7; hex7->board_height = 7; hex7->Settings_Apply_Changes(); 
-    Game_Engine* hex11 = new Game_Hex(); hex11->board_length = 11; hex11->board_height = 11; hex11->Settings_Apply_Changes();   // WRONG CONFIG TILL 2017-05-02 (hex7->board_height = 11)  
-
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(1, 1000, hex7, 2000, NULL, NULL);
-    Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(2, 100, hex7, 2000, 0.25, NULL);
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(3, 1000, hex7, 2000, 0.20, 0.20);
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(3, 1000, hex7, 5000, 0.20, 0.20);
+    // !!!!!!!!!! DO NOT FORGET !!!!!!!!!!!! in Experiment5_perStep_BatchUCB() under 2017.02.05 EXPERIMENTS set player1 to AMAFplayer
+    //Tests_TDMCTSnew2::Experiment5_perStep_BatchUCB(3, 1000, new Game_ConnectFour(), 500, 0.05, 0.25);
+    //Tests_TDMCTSnew2::Experiment5_perStep_BatchUCB(3, 200, new Game_ConnectFour(), 1000, 0.15, 0.25);
+    //Tests_TDMCTSnew2::Experiment5_perStep_BatchUCB(3, 200, new Game_ConnectFour(), 2000, 0.20, 0.25);
+    //Tests_TDMCTSnew2::Experiment5_perStep_BatchUCB(3, 100, new Game_ConnectFour(), 5000, 0.10, 0.25);
+    //Tests_TDMCTSnew2::Experiment5_perStep_BatchUCB(3, 100, new Game_ConnectFour(), 10000, 0.15, 0.25);
+    //Tests_TDMCTSnew2::Experiment5_perStep_BatchUCB(3, 1000, gomo9, 1000, 0.25, 0.25);
+    //Tests_TDMCTSnew2::Experiment5_perStep_BatchUCB(3, 200, gomo9, 10000, 0.15, 0.1);
+    //Tests_TDMCTSnew2::Experiment5_perStep_BatchUCB(3, 100, gomo9, 100000, 0.45, 0.2);
+    //Tests_TDMCTSnew2::Experiment5_perStep_BatchUCB(3, 1000, hex11, 1000, 0.15, ?);  // !!! set TOMPLAYER_AI_UCT_AMAF_VARIANT=2
+    //Tests_TDMCTSnew2::Experiment5_perStep_BatchUCB(3, 200, hex11, 10000, 0.1, ?);  // !!! set TOMPLAYER_AI_UCT_AMAF_VARIANT=2
+    //Tests_TDMCTSnew2::Experiment5_perStep_BatchUCB(3, 100, hex11, 100000, 0.05, ?);  // !!! set TOMPLAYER_AI_UCT_AMAF_VARIANT=2
 
 
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(2, 10000, hex11, 1000, 0.20, NULL);
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(3, 10000, hex11, 1000, 0.20, 0.20);
+    //---------------------------- RAVE --------------------
 
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(2, 2000, hex11, 5000, 0.20, NULL);
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(3, 2000, hex11, 5000, 0.20, 0.20);
+    // !!!!!!!!!! DO NOT FORGET !!!!!!!!!!!! in Experiment5_perStep_BatchUCB() under 2017.02.05 EXPERIMENTS set self player0 to RAVEplayerSelf
+    // put desired value of Cp as last argument
+    //Tests_TDMCTSnew2::Experiment5_perStep_BatchUCB(2, 100, new Game_ConnectFour(), 500, 0.25, NULL, 0.0, -1, -1, 0.00);
+    //Tests_TDMCTSnew2::Experiment5_perStep_BatchUCB(2, 100, new Game_ConnectFour(), 500, 0.25, NULL, 0.0, -1, -1, 0.05);
+    //Tests_TDMCTSnew2::Experiment5_perStep_BatchUCB(2, 100, new Game_ConnectFour(), 500, 0.25, NULL, 0.0, -1, -1, 0.25);
+    //Tests_TDMCTSnew2::Experiment5_perStep_BatchUCB(2, 100, new Game_ConnectFour(), 2000, 0.05, NULL, 0.0, -1, -1, 0.00);
+    //Tests_TDMCTSnew2::Experiment5_perStep_BatchUCB(2, 100, new Game_ConnectFour(), 2000, 0.05, NULL, 0.0, -1, -1, 0.05);
+    //Tests_TDMCTSnew2::Experiment5_perStep_BatchUCB(2, 100, new Game_ConnectFour(), 2000, 0.05, NULL, 0.0, -1, -1, 0.25);
+    //Tests_TDMCTSnew2::Experiment5_perStep_BatchUCB(2, 100, new Game_ConnectFour(), 10000, 0.15, NULL, 0.0, -1, -1, 0.00);
+    //Tests_TDMCTSnew2::Experiment5_perStep_BatchUCB(2, 100, new Game_ConnectFour(), 10000, 0.15, NULL, 0.0, -1, -1, 0.05);
+    //Tests_TDMCTSnew2::Experiment5_perStep_BatchUCB(2, 100, new Game_ConnectFour(), 10000, 0.15, NULL, 0.0, -1, -1, 0.25);
 
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(2, 1000, hex11, 10000, 0.2, NULL);
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(3, 1000, hex11, 10000, 0.2, 0.2);
+    //Tests_TDMCTSnew2::Experiment5_perStep_BatchUCB(2, 100, gomo9, 1000, 0.25, NULL, 0.0, -1, -1, 0.00);
+    //Tests_TDMCTSnew2::Experiment5_perStep_BatchUCB(2, 100, gomo9, 1000, 0.25, NULL, 0.0, -1, -1, 0.05);
+    //Tests_TDMCTSnew2::Experiment5_perStep_BatchUCB(2, 100, gomo9, 1000, 0.25, NULL, 0.0, -1, -1, 0.25);
+    //Tests_TDMCTSnew2::Experiment5_perStep_BatchUCB(2, 100, gomo9, 10000, 0.10, NULL, 0.0, -1, -1, 0.00);
+    //Tests_TDMCTSnew2::Experiment5_perStep_BatchUCB(2, 100, gomo9, 10000, 0.10, NULL, 0.0, -1, -1, 0.05);
+    //Tests_TDMCTSnew2::Experiment5_perStep_BatchUCB(2, 100, gomo9, 10000, 0.10, NULL, 0.0, -1, -1, 0.10);
+    //Tests_TDMCTSnew2::Experiment5_perStep_BatchUCB(2, 100, gomo9, 100000, 0.15, NULL, 0.0, -1, -1, 0.00);
+    //Tests_TDMCTSnew2::Experiment5_perStep_BatchUCB(2, 100, gomo9, 100000, 0.15, NULL, 0.0, -1, -1, 0.05);
+    //Tests_TDMCTSnew2::Experiment5_perStep_BatchUCB(2, 100, gomo9, 100000, 0.15, NULL, 0.0, -1, -1, 0.15);
 
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(2, 100, hex11, 50000, 0.25, NULL);
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(3, 100, hex11, 50000, 0.2, 0.2);
+    //Tests_TDMCTSnew2::Experiment5_perStep_BatchUCB(2, 100, hex11, 1000, 0.15, NULL, 0.0, -1, -1, 0.00);
+    //Tests_TDMCTSnew2::Experiment5_perStep_BatchUCB(2, 100, hex11, 1000, 0.15, NULL, 0.0, -1, -1, 0.05);
+    //Tests_TDMCTSnew2::Experiment5_perStep_BatchUCB(2, 100, hex11, 1000, 0.15, NULL, 0.0, -1, -1, 0.15);
+    //Tests_TDMCTSnew2::Experiment5_perStep_BatchUCB(2, 100, hex11, 10000, 0.10, NULL, 0.0, -1, -1, 0.00);
+    //Tests_TDMCTSnew2::Experiment5_perStep_BatchUCB(2, 100, hex11, 10000, 0.10, NULL, 0.0, -1, -1, 0.05);
+    //Tests_TDMCTSnew2::Experiment5_perStep_BatchUCB(2, 100, hex11, 10000, 0.10, NULL, 0.0, -1, -1, 0.10);
+    //Tests_TDMCTSnew2::Experiment5_perStep_BatchUCB(2, 100, hex11, 100000, 0.25, NULL, 0.0, -1, -1, 0.00);
+    //Tests_TDMCTSnew2::Experiment5_perStep_BatchUCB(2, 100, hex11, 100000, 0.25, NULL, 0.0, -1, -1, 0.05);
+    //Tests_TDMCTSnew2::Experiment5_perStep_BatchUCB(2, 100, hex11, 100000, 0.25, NULL, 0.0, -1, -1, 0.25);
 
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(2, 100, hex11, 100000, 0.25, NULL);
-    //Tests_TDMCTSnew::Experiment5_perStep_BatchUCB(3, 100, hex11, 100000, 0.20, 0.20);
+    // !!!!!!!!!! DO NOT FORGET !!!!!!!!!!!! in Experiment5_perStep_BatchUCB() under 2017.02.05 EXPERIMENTS set self player1 to RAVEplayerSelf
+    // put desired value of RAVE_V as last argument
+
+    //Tests_TDMCTSnew2::Experiment5_perStep_BatchUCB(3, 100, new Game_ConnectFour(), 500, 0.05, 0.25, 0.0, -1, -1, 50.0);
+
+
+    //---------------------------- MAST --------------------
+
+    // !!!!!!!!!! DO NOT FORGET !!!!!!!!!!!! in Experiment5_perStep_BatchUCB() under 2017.02.05 EXPERIMENTS set self player0 to MASTplayerSelf
+    // put desired value of Cp as last argument
+
+    //Tests_TDMCTSnew2::Experiment5_perStep_BatchUCB(2, 1000, new Game_ConnectFour(), 500, 0.25, NULL, 0.0, -1, -1, 0.25);
+    //Tests_TDMCTSnew2::Experiment5_perStep_BatchUCB(2, 100, new Game_ConnectFour(), 2000, 0.05, NULL, 0.0, -1, -1, 0.05);
+    //Tests_TDMCTSnew2::Experiment5_perStep_BatchUCB(2, 100, new Game_ConnectFour(), 10000, 0.15, NULL, 0.0, -1, -1, 0.15);
+
+    //Tests_TDMCTSnew2::Experiment5_perStep_BatchUCB(2, 1000, gomo9, 1000, 0.25, NULL, 0.0, -1, -1, 0.25);
+    //Tests_TDMCTSnew2::Experiment5_perStep_BatchUCB(2, 100, gomo9, 10000, 0.10, NULL, 0.0, -1, -1, 0.10);
+    //Tests_TDMCTSnew2::Experiment5_perStep_BatchUCB(2, 100, gomo9, 100000, 0.15, NULL, 0.0, -1, -1, 0.15);
+
+    //Tests_TDMCTSnew2::Experiment5_perStep_BatchUCB(2, 100, hex11, 1000, 0.15, NULL, 0.0, -1, -1, 0.15);
+    //Tests_TDMCTSnew2::Experiment5_perStep_BatchUCB(2, 100, hex11, 10000, 0.10, NULL, 0.0, -1, -1, 0.10);
+    //Tests_TDMCTSnew2::Experiment5_perStep_BatchUCB(2, 100, hex11, 100000, 0.25, NULL, 0.0, -1, -1, 0.25);
+
+    // FOR FUN
+    //Tests_TDMCTSnew2::Experiment5_perStep_BatchUCB(3, 200, new Game_ConnectFour(), 2000, 0.05, 0.25);
+
+
+    // 2017-02-05
+    //---------------------------- Sarsa-UCT + MAST --------------------
+
+    // !!!!!!!!!! DO NOT FORGET: in Experiment5_perStep_BatchUCB() under "FOR THE 2017-02-28 EXPERIMENTS" uncomment the required lines
+    // run this experiments both with ((Player_AI_RL*)(positionedPlayers[0]))->config_MASTenable = 1 and with config_MASTenable = 3
+
+    //Tests_TDMCTSnew2::Experiment5_perStep_BatchUCB(3, 1000, new Game_ConnectFour(), 500, 0.25, 0.25, 1.0, -1, -1, 1000);
+    //Tests_TDMCTSnew2::Experiment5_perStep_BatchUCB(3, 100, new Game_ConnectFour(), 2000, 0.05, 0.05, 1.0, -1, -1, 1000);
+    //Tests_TDMCTSnew2::Experiment5_perStep_BatchUCB(3, 100, new Game_ConnectFour(), 10000, 0.15, 0.15, 1.0, -1, -1, 1000);
+
+    //Tests_TDMCTSnew2::Experiment5_perStep_BatchUCB(3, 1000, gomo9, 1000, 0.25, 0.25, 1.0, -1, -1, 0.1);
+    //Tests_TDMCTSnew2::Experiment5_perStep_BatchUCB(3, 100, gomo9, 10000, 0.1, 0.1, 1.0, -1, -1, 0.1);
+    //Tests_TDMCTSnew2::Experiment5_perStep_BatchUCB(3, 100, gomo9, 100000, 0.15, 0.15, 1.0, -1, -1, 1);
+
+    //Tests_TDMCTSnew2::Experiment5_perStep_BatchUCB(3, 1000, hex11, 1000, 0.15, 0.15, 1.0, -1, -1, 0.1);
+    //Tests_TDMCTSnew2::Experiment5_perStep_BatchUCB(3, 100, hex11, 10000, 0.1, 0.1, 1.0, -1, -1, 0.1);
+    //Tests_TDMCTSnew2::Experiment5_perStep_BatchUCB(3, 100, hex11, 100000, 0.25, 0.25, 1.0, -1, -1, 0.5);
+
+
+
+//
+
 
   }
 
@@ -207,7 +185,7 @@ namespace Tests_TDMCTSnew
   //	control variables : lambda, own_ucb_C, opponent ucb_C, computational budget of num timesteps (equal for both players)
   //	measured variables : average win rate against UCT player from a single game, where 50% of games played as player1 and 50% times as player2
 
-  void Experiment5_perStep_BatchUCB(int experimentType, int input_repeats, Game_Engine* game, const int timeSteps, double opponentUCBC, double evaluatedUCBC, double evaluatedTDlam, int startIndex, int endIndex)
+  void Experiment5_perStep_BatchUCB(int experimentType, int input_repeats, Game_Engine* game, const int timeSteps, double opponentUCBC, double evaluatedUCBC, double evaluatedTDlam, int startIndex, int endIndex, double additionalPar)
   {
 
     //-- EXECUTION SETTINGS --//
@@ -265,18 +243,25 @@ namespace Tests_TDMCTSnew
     {
       total_number_configurations = 12;
       //total_number_configurations = 6;
+      //total_number_configurations = 1;
       cucbMax = 1;
       clMax = total_number_configurations;
     }
 
     double config_CValues[] = {0.0, 0.05, 0.10, 0.15, 0.20, 0.25, 0.30, 0.35, 0.4, 0.45, 0.5, 0.6, 0.7, 0.8, 1.0};
+    //double config_CValues[] = { 0, 5, 10, 15, 20, 25, 30, 40, 50, 60, 80, 100, 150, 200, 400};  // FOR RAVE
+    //double config_CValues[] = { 0.01, 0.1, 1, 10, 100, 1000, 10000}; // FOR MAST
     //double config_CValues[] = { 0.0, 0.05, 0.10, 0.15, 0.20, 0.25, 0.30};
-    //double config_CValues[] = { 0.05, 0.10, 0.15, 0.20, 0.25, 0.30, 0.35 };
+    //double config_CValues[] = { 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25};
+    //double config_CValues[] = { 0.10, 0.15, 0.20, 0.25, 0.30, 0.35, 0.40 };
     //double config_CValues[] = { 0.0, 0.01, 0.02, 0.04, 0.05, 0.08, 0.10 };
+    
     double config_lambdaValues[] = {1.0, 0.9999, 0.999, 0.99, 0.95, 0.9, 0.8, 0.6, 0.4, 0.2, 0.1, 0.0};
     //double config_lambdaValues[] = {0.9999, 0.99, 0.95};
-    //double config_lambdaValues[] = {1.0, 0.999, 0.99, 0.95, 0.90, 0.85 };
-    //double config_lambdaValues[] = { 1.0, 0.99, 0.95, 0.90, 0.85, 0.70 };
+    //double config_lambdaValues[] = {1.0, 0.9999, 0.999, 0.99, 0.95, 0.90};
+    //double config_lambdaValues[] = { 1.0, 0.999, 0.95, 0.90, 0.70, 0.50 };
+    //double config_lambdaValues[] = { 1.00 };
+    //double config_lambdaValues[] = { 0.2, 0.1, 0.05, 0.01, 0.005, 0.001 };
 
     int config_max_num_repeats = input_repeats;	//a single repeat consists of two games, one from each starting position
                           //1000   repeats ~ std. error 1.00%
@@ -297,6 +282,7 @@ namespace Tests_TDMCTSnew
     //// for description and list of possible parameters see "Player_AI_RL.hpp"
 
     //// evaluated player settings (player1)
+    player1->config_policy_evaluation = Player_AI_RL::POLICY_EVALUATIONS::TDLAMBDA_ONPOLICY;
     player1->config_control_policy = Player_AI_RL::CONTROL_POLICIES::UCB1;
     player1->config_ucb_norm_type = Player_AI_RL::UCB_NORMALIZATION_LOCALITY::GLOBAL;
     player1->config_ucb_norm_global = Player_AI_RL::UCB_GLOBAL_NORMALIZATIONS::KNOWN_RETURN;
@@ -322,6 +308,7 @@ namespace Tests_TDMCTSnew
     player1->config_outputWarning_Qbounds = 0;
 
     //// opponent settings (player2)
+    player2->config_policy_evaluation = Player_AI_RL::POLICY_EVALUATIONS::TDLAMBDA_ONPOLICY;
     player2->config_control_policy = Player_AI_RL::CONTROL_POLICIES::UCB1;
     player2->config_ucb_norm_type = Player_AI_RL::UCB_NORMALIZATION_LOCALITY::GLOBAL;
     player2->config_ucb_norm_global = Player_AI_RL::UCB_GLOBAL_NORMALIZATIONS::KNOWN_RETURN;
@@ -493,7 +480,7 @@ namespace Tests_TDMCTSnew
             sprintf_s(experimentName, "//--  %s : configuration C%d steps%d --//", procedureName, configurationSerialID, config_timeStepsPerMove_values[cnt_stpsPerMove]);
 
             //execute experiment
-            Experiment_SingleGame(game, players, experimentName, xAxisLabel, config_max_num_repeats, show_per_repeat_output, config_confidenceInterval, config_show_individual_final_output, gatheredResults[configurationSerialID][cnt_stpsPerMove]);
+            Experiment_SingleGame(game, players, experimentName, xAxisLabel, config_max_num_repeats, show_per_repeat_output, config_confidenceInterval, config_show_individual_final_output, gatheredResults[configurationSerialID][cnt_stpsPerMove], additionalPar);
           }
 
           //write results to files
@@ -539,7 +526,8 @@ namespace Tests_TDMCTSnew
     int show_per_repeat_output,
     double config_confidenceInterval,
     bool show_final_output,
-    Tool_Sample_Storage** externalStorage
+    Tool_Sample_Storage** externalStorage,
+    double additionalPar
     )
   {
 
@@ -583,18 +571,93 @@ namespace Tests_TDMCTSnew
     //prepare temporary storage for function Evaluate_Players()
     double* lastWinCounts = new double[3];
 
-    //Debug: test with UCT player (first implementation)
-    Player_AI_UCT* UCTplayer = new Player_AI_UCT(game);
-    UCTplayer->UCT_param_IterNum = players[1]->par_num_simulatedActions_perMove;
-    UCTplayer->UCT_param_SimMoveNum = players[1]->par_num_simulatedActions_perMove;
-    UCTplayer->UCT_param_C = players[1]->par_ucb_c / 2.0;
-
     //execute experiments (with initial positions)
     Player_Engine* positionedPlayers[2];
     game->players = positionedPlayers;
     positionedPlayers[0] = players[0];
     positionedPlayers[1] = players[1];
-    //positionedPlayers[1] = UCTplayer;	//DEBUG
+
+    // FOR THE 2017.02.05 EXPERIMENTS
+
+        //Debug: test with UCT player (first implementation): evaluated player
+        Player_AI_UCT* UCTplayerSelf = new Player_AI_UCT(game);
+        UCTplayerSelf->UCT_param_IterNum = players[0]->par_num_simulatedActions_perMove;
+        UCTplayerSelf->UCT_param_SimMoveNum = players[0]->par_num_simulatedActions_perMove;
+        UCTplayerSelf->UCT_param_C = players[0]->par_ucb_c / 2.0;
+
+        //Debug: test with UCT player (first implementation) + AMAF: evaluated player
+        Player_AI_UCT_AMAF* AMAFplayerSelf = new Player_AI_UCT_AMAF(game);
+        AMAFplayerSelf->UCT_param_IterNum = players[0]->par_num_simulatedActions_perMove;
+        AMAFplayerSelf->UCT_param_SimMoveNum = players[0]->par_num_simulatedActions_perMove;
+        AMAFplayerSelf->UCT_param_C = players[0]->par_ucb_c / 2.0;
+
+        //Debug: test with UCT player (first implementation) + RAVE: evaluated player
+        Player_AI_UCT_RAVE* RAVEplayerSelf = new Player_AI_UCT_RAVE(game);
+        RAVEplayerSelf->UCT_param_IterNum = players[0]->par_num_simulatedActions_perMove;
+        RAVEplayerSelf->UCT_param_SimMoveNum = players[0]->par_num_simulatedActions_perMove;
+        RAVEplayerSelf->UCT_param_C = additionalPar / 2.0;
+        RAVEplayerSelf->RAVE_param_V = players[0]->par_ucb_c;
+
+        //Debug: test with UCT player (first implementation) + MAST: evaluated player
+        Player_AI_UCT_MAST* MASTplayerSelf = new Player_AI_UCT_MAST(game);
+        MASTplayerSelf->UCT_param_IterNum = players[0]->par_num_simulatedActions_perMove;
+        MASTplayerSelf->UCT_param_SimMoveNum = players[0]->par_num_simulatedActions_perMove;
+        MASTplayerSelf->UCT_param_C = additionalPar / 2.0;
+        MASTplayerSelf->MAST_paramT = players[0]->par_ucb_c;
+
+        //Debug: test with UCT player (first implementation): opponent player
+        Player_AI_UCT* UCTplayer = new Player_AI_UCT(game);
+        UCTplayer->UCT_param_IterNum = players[1]->par_num_simulatedActions_perMove;
+        UCTplayer->UCT_param_SimMoveNum = players[1]->par_num_simulatedActions_perMove;
+        UCTplayer->UCT_param_C = players[1]->par_ucb_c / 2.0;
+
+        //Debug: test with UCT player (first implementation) + AMAF
+        Player_AI_UCT_AMAF* AMAFplayer = new Player_AI_UCT_AMAF(game);
+        AMAFplayer->UCT_param_IterNum = players[1]->par_num_simulatedActions_perMove;
+        AMAFplayer->UCT_param_SimMoveNum = players[1]->par_num_simulatedActions_perMove;
+        AMAFplayer->UCT_param_C = players[1]->par_ucb_c / 2.0;
+
+        //Debug: test with UCT player (first implementation) + RAVE
+        Player_AI_UCT_RAVE* RAVEplayer = new Player_AI_UCT_RAVE(game);
+        RAVEplayer->UCT_param_IterNum = players[1]->par_num_simulatedActions_perMove;
+        RAVEplayer->UCT_param_SimMoveNum = players[1]->par_num_simulatedActions_perMove;
+        RAVEplayer->UCT_param_C = players[1]->par_ucb_c / 2.0;
+        RAVEplayer->RAVE_param_V = additionalPar;
+
+        //Debug: test with UCT player (first implementation) + MAST
+        Player_AI_UCT_MAST* MASTplayer = new Player_AI_UCT_MAST(game);
+        MASTplayer->UCT_param_IterNum = players[1]->par_num_simulatedActions_perMove;
+        MASTplayer->UCT_param_SimMoveNum = players[1]->par_num_simulatedActions_perMove;
+        MASTplayer->UCT_param_C = players[1]->par_ucb_c / 2.0;
+        MASTplayer->MAST_paramT = additionalPar;
+
+        // swap the Sarsa-UCT algorithms with some other (defined above)
+        //positionedPlayers[0] = UCTplayerSelf;
+        //positionedPlayers[0] = AMAFplayerSelf;
+        //positionedPlayers[0] = RAVEplayerSelf;
+        //positionedPlayers[0] = MASTplayerSelf;
+        //positionedPlayers[1] = UCTplayer;
+        //positionedPlayers[1] = AMAFplayer;
+        //positionedPlayers[1] = RAVEplayer;
+        //positionedPlayers[1] = MASTplayer;
+        //
+        // FOR FUN:
+        //players[0]->config_alpha_type = Player_AI_RL::UPDATESTEP_ALPHA::CONSTANT;
+        //players[0]->par_td_alpha = players[0]->par_td_lambda;
+        //players[0]->par_td_lambda = 0.99;
+
+    // FOR THE 2017-02-28 EXPERIMENTS
+        //((Player_AI_RL*)(positionedPlayers[0]))->config_MASTenable = 1;
+        //((Player_AI_RL*)(positionedPlayers[0]))->config_MAST_paramT = additionalPar;
+
+        //positionedPlayers[1] = UCTplayer;
+        //((Player_AI_RL*)(positionedPlayers[1]))->config_MASTenable = 1;
+        //((Player_AI_RL*)(positionedPlayers[1]))->config_MAST_paramT = additionalPar;
+
+        //((Player_AI_RL*)(positionedPlayers[0]))->config_MASTenable = 3;
+
+    // 2017-02-28 END
+
     game->Evaluate_Players(num_repeats, 1, -1, positionedPlayers, 0, 0, NULL, 0, 0, lastWinCounts);
 
     results[0]->Add_Sample((lastWinCounts[0] * 0.5 + lastWinCounts[evaluatedPlayerPosition + 1]) / (double)num_repeats);	// wins + draws
